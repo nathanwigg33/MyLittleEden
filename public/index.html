@@ -55,8 +55,10 @@ img.px,canvas.px{image-rendering:pixelated}
 #btnUse img{width:36px;height:36px;image-rendering:pixelated}
 #btnAct{left:0;top:0;width:64px;height:64px;font-size:22px}
 #joy{position:fixed;width:120px;height:120px;border-radius:50%;border:3px solid rgba(255,240,200,.5);background:rgba(60,30,10,.25);display:none;pointer-events:none;z-index:4}
+#joy.fixed{left:calc(env(safe-area-inset-left) + 18px);bottom:calc(env(safe-area-inset-bottom) + 66px)}
+#bJournal.new{animation:bob .6s infinite;background:#ffd98a}
 #knob{position:absolute;left:33px;top:33px;width:54px;height:54px;border-radius:50%;background:#f6dfae;border:3px solid #7a4318;opacity:.85}
-#pickups{position:fixed;left:calc(env(safe-area-inset-left) + 8px);bottom:calc(env(safe-area-inset-bottom) + 66px);display:flex;flex-direction:column-reverse;gap:4px;z-index:6;pointer-events:none}
+#pickups{position:fixed;left:calc(env(safe-area-inset-left) + 8px);top:calc(env(safe-area-inset-top) + 150px);display:flex;flex-direction:column;gap:4px;z-index:6;pointer-events:none}
 .pu{display:flex;align-items:center;gap:6px;padding:3px 9px 3px 4px;font-size:13px;font-weight:600;animation:pin .2s ease-out}
 .pu img{width:24px;height:24px;image-rendering:pixelated}
 @keyframes pin{from{opacity:0;transform:translateX(-16px)}to{opacity:1}}
@@ -131,7 +133,7 @@ canvas.map{width:100%;max-width:440px;image-rendering:pixelated;border:3px solid
 @media (orientation:portrait){
  #toolbar{grid-template-columns:repeat(6,40px)}
  #ctrl{bottom:calc(env(safe-area-inset-bottom) + 112px);right:calc(env(safe-area-inset-right) + 12px)}
- #pickups{bottom:calc(env(safe-area-inset-bottom) + 112px)}
+ #joy.fixed{bottom:calc(env(safe-area-inset-bottom) + 112px)}
  #bars{top:calc(env(safe-area-inset-top) + 100px)}
 }
 </style>
@@ -158,7 +160,7 @@ canvas.map{width:100%;max-width:440px;image-rendering:pixelated;border:3px solid
 <div id="title">
   <h1>EDEN</h1>
   <h2>The First Garden</h2>
-  <div class="card pn">Formed from the dust of the ground, you wake in a new garden. Clear the land, tend your crops, fish the four rivers, name every living creature — and keep the one command.</div>
+  <div class="card pn">Formed from the dust of the ground, you wake in a new garden. Build up your home, tend your crops, explore the four lands of Eden and befriend its creatures and angels — all at your own pace.</div>
   <div id="tbtns"></div>
   <div class="tip">On iPhone: Share → Add to Home Screen to play full-screen. Saves automatically on this device.</div>
 </div>
@@ -174,7 +176,7 @@ let W=110,H=110;
 const G=0,TALL=1,WATER=2,SAND=3,STONE=4,DRY=5,DARK=6,GROVE=7,TILLED=8,PATH=9,HEDGE=10,BRIDGE=11,FLOW=12;
 const REGION_NAMES={1:'The Midst of the Garden',2:'The Tending Fields',3:'The Orchard',4:'The Land of Havilah',5:'The Wild Wood',6:'East of Eden',7:'The Garden of Eden'};
 const RIVERS=['the River Pishon','the River Hiddekel','the River Gihon','the River Euphrates'];
-const LIFE={x:CX,y:CY-5},KNOW={x:CX,y:CY+5};
+const LIFE={x:CX,y:CY-5},KNOW={x:CX,y:CY+5},TOWER={x:CX+10,y:CY+8},PAV={x:CX-6,y:CY-3};
 const KEY='eden_save_v1',KEYM='eden_morning_v1';
 const SEASONS=['Spring','Summer','Harvest'],SEASON_LEN=28;
 const DAYNAMES=['First Day','Second Day','Third Day','Fourth Day','Fifth Day','Sixth Day','Sabbath'];
@@ -207,18 +209,23 @@ const ITEMS={
  campfire:{n:'Campfire',place:1,d:'Light that keeps the whispers away.'},lamp:{n:'Stone Lamp',place:1,d:'A lasting light.'},fence:{n:'Fence',place:1,d:'Keeps creatures out of your crops.'},flowerbed:{n:'Flower Bed',place:1,d:'Simply beautiful.'},bench:{n:'Bench',place:1,d:'Sit a while in the cool of the day.'},well:{n:'Well',place:1,d:'Refill your watering can at home.'},fold:{n:'Sheepfold',place:1,d:'Creatures near it grow fond of you faster.'},altar:{n:'Altar',place:1,d:'Bring an offering of your best, once a day.'},chest:{n:'Chest',place:1,d:'Stores 24 stacks of items.'},spring:{n:'Spring Stone',place:1,d:'Waters the 4 soil tiles beside it every morning.'},stonepath:{n:'Stone Path',place:'ground',d:'Lay a path. You walk faster on it.'},bridge:{n:'Bridge',place:'water',d:'Place on a river to cross it.'},
  basket:{n:'Woven Basket',perk:1,d:'Gather twice as much fruit.'},sandals:{n:'Swift Sandals',perk:1,d:'Walk faster.'},lantern:{n:'Oil Lantern',perk:1,d:'A small light that goes with you at night.'},backpack:{n:'Large Satchel',perk:1,d:'+12 inventory slots.'},
  up_e:{n:'Blessing of Strength',up:'e',d:'+30 max Energy.'},up_b:{n:'Blessing of Breath',up:'b',d:'+25 max Breath.'},
+ wine:{n:'New Wine',p:260,food:40,d:'Pressed from grapes.'},cloth:{n:'Wool Cloth',p:240,d:'Woven from wool.'},
+ winepress:{n:'Winepress',place:1,d:'Load 5 grapes. New wine in 2 days.'},olivepress:{n:'Olive Press',place:1,d:'Load 5 olives. Oil the next day.'},loom:{n:'Loom',place:1,d:'Load 2 wool or 3 flax. Cloth the next day.'},beehive:{n:'Beehive',place:1,d:'Makes honey every 3 days.'},arch:{n:'Garden Arch',place:1,d:'A flowered arch to walk beneath.'},wall:{n:'Stone Wall',place:1,d:'A low wall of fitted stones.'},
 };
 const UPG=['hoe','can','axe','pick'];
 const RECIPES=[
- {id:'chest',need:{wood:40}},{id:'campfire',need:{wood:10,stone:10,fiber:10}},{id:'fence',need:{wood:2},n:2},{id:'stonepath',need:{stone:2},n:4},{id:'spring',need:{stone:15,clay:5,bdellium:1}},
+ {id:'chest',need:{wood:40}},{id:'winepress',need:{wood:40,stone:20}},{id:'olivepress',need:{stone:40,wood:10}},{id:'loom',need:{wood:30,fiber:20}},{id:'beehive',need:{wood:20,fiber:10,honey:1}},{id:'arch',need:{wood:15,fiber:10}},{id:'wall',need:{stone:3},n:2},{id:'campfire',need:{wood:10,stone:10,fiber:10}},{id:'fence',need:{wood:2},n:2},{id:'stonepath',need:{stone:2},n:4},{id:'spring',need:{stone:15,clay:5,bdellium:1}},
  {id:'staff',need:{wood:15,fiber:10}},{id:'rod',need:{wood:10,fiber:15}},{id:'bridge',need:{wood:25,fiber:10}},{id:'well',need:{stone:40,clay:10}},{id:'flowerbed',need:{clay:2,fiber:5}},{id:'bench',need:{wood:15}},{id:'fold',need:{stone:30,wood:10}},{id:'altar',need:{stone:25}},{id:'lamp',need:{stone:10,bdellium:1}},{id:'lantern',need:{clay:5,olive:5}},{id:'harp',need:{wood:20,gold:2,wool:3}},
  {id:'bread',need:{wheat:3}},{id:'figcake',need:{fig:3,honey:1}},{id:'stew',need:{lentils:3,mushroom:2}},
- {id:'barleyloaf',need:{barley:3},k:1},{id:'raisins',need:{grapes:4},k:1},{id:'oil',need:{olive:5},k:1},{id:'linen',need:{flax:3},k:1},{id:'honeycake',need:{wheat:2,honey:1,egg:1},k:1},{id:'gstew',need:{onion:1,leeks:1,lentils:2,garlic:1},k:1},
+ {id:'barleyloaf',need:{barley:3},k:1},{id:'raisins',need:{grapes:4},k:1},{id:'honeycake',need:{wheat:2,honey:1,egg:1},k:1},{id:'gstew',need:{onion:1,leeks:1,lentils:2,garlic:1},k:1},
 ];
+const MACH={winepress:{rec:[{in:'grapes',n:5,out:'wine'}],days:2},olivepress:{rec:[{in:'olive',n:5,out:'oil'}],days:1},loom:{rec:[{in:'wool',n:2,out:'cloth'},{in:'flax',n:3,out:'linen'}],days:1},beehive:{auto:'honey',days:3}};
+const MSHOP=[{id:'staff',p:250},{id:'bstaff',p:1500},{id:'lantern',p:400},{id:'campfire',p:120},{id:'up_b',p:1000}];
+const TEMPT=['All this could be yours. Only bow.','Did He truly say you would die?','You were made for more than gardening.','Take, eat. Who would ever know?'];
 const SHOP=[
  {id:'seed_wheat',p:10},{id:'seed_barley',p:15},{id:'seed_lentils',p:20},{id:'seed_onion',p:25},{id:'seed_cucumber',p:20},{id:'seed_melon',p:60},{id:'seed_flax',p:25},{id:'seed_leeks',p:20},{id:'seed_garlic',p:30},
  {id:'sap_fig',p:250},{id:'sap_olive',p:250},{id:'sap_pomegranate',p:350},{id:'sap_apple',p:200},{id:'sap_date',p:300},
- {id:'backpack',p:800},{id:'basket',p:500},{id:'sandals',p:600},{id:'bstaff',p:1500},{id:'up_e',p:1000},{id:'up_b',p:1000},
+ {id:'backpack',p:800},{id:'basket',p:500},{id:'sandals',p:600},{id:'up_e',p:1000},
 ];
 const CROPS={wheat:{days:4,n:[1,2],s:[0,2]},barley:{days:6,n:[1,2],s:[0,2]},lentils:{days:6,n:[1,3],s:[0]},onion:{days:7,n:[1,2],s:[0]},cucumber:{days:6,n:[1,3],s:[0,1]},melon:{days:12,n:[1,1],s:[1]},flax:{days:7,n:[1,3],s:[1]},leeks:{days:6,n:[1,2],s:[1,2]},garlic:{days:8,n:[1,3],s:[2]}};
 const CROPV={wheat:['grain','#e0bd5c'],barley:['grain','#d6c98a'],lentils:['bush','#c47a3a'],onion:['bulb','#d9a55b'],cucumber:['vine','#5a9a3a'],melon:['big','#8fbf5a'],flax:['flower','#6f9fe8'],leeks:['tall','#eef4d8'],garlic:['bulb','#f2ede0']};
@@ -241,11 +248,12 @@ const EVE_LINES={day:['Every morning the garden looks new again. Do you think it
 // =============== STATE ===============
 let tiles,reg,objs,wet,state,player,eve=null,animals=[],enemies=[],parts=[],floats=[],drops=[];
 const maps={};let curMap='eden';
-const shamar={x:0,y:0};
+const NPCS=[{id:'shamar',name:'Shamar',x:0,y:0},{id:'gabriel',name:'Gabriel',x:PAV.x+2.3,y:PAV.y+.7},{id:'michael',name:'Michael',x:TOWER.x+2.3,y:TOWER.y+.7}];
+const shamar=NPCS[0];const npcsHere=()=>curMap==='eden'?NPCS:NPCS.slice(0,1);
 let GT=0,fish=null,questBusy=false,lastRegion=-1,modalOpen=false,titleOpen=true,fallOpen=false,sleeping=false,summaryOpen=false;
-function freshState(){return{v:3,day:1,time:360,q:0,fq:0,inv:new Array(24).fill(null),slot:0,tier:{hoe:0,can:0,axe:0,pick:0},perks:{},bless:500,earned:0,water:40,energy:200,breath:100,maxE:200,maxB:100,
- unlocked:{1:1,2:1},names:{},hearts:{},fedDay:{},petDay:{},tips:{},shipped:[],
- stats:{walked:0,got:{},crafted:{},placed:{},twigs:0,stones:0,weeds:0,tilled:0,planted:0,watered:0,harvested:0,shipped:0,sold:0,slept:0,dispelled:0,fish:0,resisted:0,serpents:0,eveTalk:0,saplings:0,products:0,sabbaths:0,requests:0,thorns:0,offer:0,cropKinds:{}},
+function freshState(){return{v:3,day:1,time:360,q:0,fq:0,done:{},bounty:0,inv:new Array(24).fill(null),slot:0,tier:{hoe:0,can:0,axe:0,pick:0},perks:{},bless:500,earned:0,water:40,energy:200,breath:100,maxE:200,maxB:100,
+ unlocked:{1:1,2:1,3:1,4:1,5:1},names:{},hearts:{},fedDay:{},petDay:{},tips:{},shipped:[],
+ stats:{walked:0,got:{},crafted:{},placed:{},twigs:0,stones:0,weeds:0,tilled:0,planted:0,watered:0,harvested:0,shipped:0,sold:0,slept:0,dispelled:0,fish:0,resisted:0,serpents:0,eveTalk:0,saplings:0,products:0,sabbaths:0,requests:0,thorns:0,offer:0,made:0,tempters:0,cropKinds:{}},
  fs:{},visited:{},lifeDay:0,prayDay:0,guardDay:0,serpentDay:0,offerDay:0,whispers:false,px:0,py:0,sound:true,music:true,flags:{},ups:{e:0,b:0},mist:{},
  fallen:false,map:'eden',eve:{met:false,mode:'follow'},req:null,sabbathWorked:false}}
 const st=()=>state.stats;
@@ -290,9 +298,10 @@ function genEden(){
  [[-7,-8],[9,6],[-10,4],[6,-10],[11,-1]].forEach(([dx,dy])=>{const i=idx(HOME.x+dx,HOME.y+dy);if(tiles[i]!==WATER)O(i,{t:'tree',k:'oak',hp:6})});
  [[-6,6],[-8,-3]].forEach(([dx,dy])=>O(idx(HOME.x+dx,HOME.y+dy),{t:'fruit',k:'fig',n:3}));
  foot(HOME.x,HOME.y,3,2,{t:'home',lvl:1});O(idx(HOME.x+3,HOME.y),{t:'crate'});foot(STORE.x,STORE.y,3,2,{t:'store'});
- foot(LIFE.x,LIFE.y,3,2,{t:'life'});foot(KNOW.x,KNOW.y,3,2,{t:'knowledge'});
+ foot(LIFE.x,LIFE.y,3,2,{t:'life'});foot(KNOW.x,KNOW.y,3,2,{t:'knowledge'});O(idx(HOME.x-2,HOME.y+1),{t:'gift'});ensureLandmarks();
  maps.eden={W,H,tiles,reg,objs,wet,home:HOME,store:STORE};
 }
+function ensureLandmarks(){for(const [p,t] of [[TOWER,'tower'],[PAV,'pavilion']]){const m=objs[idx(p.x,p.y)];if(m&&m.t===t)continue;for(let y=p.y-2;y<=p.y+2;y++)for(let x=p.x-3;x<=p.x+3;x++){const i=idx(x,y);objs[i]=null;if(tiles[i]===WATER||tiles[i]===SAND||tiles[i]===TILLED||tiles[i]===TALL)tiles[i]=reg[i]===1?GROVE:G}foot(p.x,p.y,3,2,{t})}}
 function genEast(){
  W=80;H=80;tiles=new Uint8Array(W*H);reg=new Uint8Array(W*H);objs=new Array(W*H).fill(null);wet=new Uint8Array(W*H);
  const HOME={x:18,y:GY+6},STORE={x:14,y:GY-7};const R=mulberry(99);const rx=y=>31+Math.round(2.5*Math.sin(y*.13)+1.5*Math.sin(y*.05+2));
@@ -323,7 +332,7 @@ function spawnAnimals(){animals=[];const R=mulberry(curMap==='eden'?4242:777);
  else for(const id of EAST_ANIMALS){const sp=SPC[id];for(let k=0;k<(sp.prod?2:1);k++){const p=at(6);if(p)animals.push(mk(sp,p,6))}}}
 
 // =============== COLLISION ===============
-const SOLIDO={tree:1,fruit:1,rock:1,gold:1,onyx:1,bush:1,vine:1,resin:1,hive:1,campfire:1,lamp:1,fence:1,home:1,store:1,life:1,knowledge:1,well:1,bench:1,fold:1,altar:1,thorns:1,gate:1,cherub:1,block:1,chest:1,crate:1,stump:1,pebble:1,twig:1,weed:0};
+const SOLIDO={tree:1,fruit:1,rock:1,gold:1,onyx:1,bush:1,vine:1,resin:1,hive:1,campfire:1,lamp:1,fence:1,home:1,store:1,life:1,knowledge:1,well:1,bench:1,fold:1,altar:1,thorns:1,gate:1,cherub:1,block:1,chest:1,crate:1,stump:1,pebble:1,twig:1,weed:0,tower:1,pavilion:1,gift:1,winepress:1,olivepress:1,loom:1,beehive:1,wall:1};
 function solidRaw(x,y){if(!inb(x,y))return true;const i=idx(x,y),t=tiles[i];if(t===WATER||t===HEDGE)return true;const o=objs[i];return !!(o&&SOLIDO[o.t])}
 function locked(i){return reg[i]>=2&&!state.unlocked[reg[i]]}
 function solidAt(x,y){if(solidRaw(x,y))return true;return locked(idx(x,y))}
@@ -425,7 +434,10 @@ function charSpr(lk,dir,fr,act){return bake('ch'+lk.k+dir+fr+act,16,26,g=>{const
  else{E(g,hr,8,6.6,5.2,5.2);E(g,sk,8,8.4,4,3.8);R(g,hr,4,3,8,2);R(g,hr,3,4,2,4);R(g,hr,11,4,2,4);R(g,'#2a1608',6,8,1,2);R(g,'#2a1608',9,8,1,2);R(g,'#d9706a',7,11,2,1)}
  if(lk.long){if(dir===0){R(g,hr,2,6,2,9);R(g,hr,12,6,2,9)}else if(dir===2){R(g,hr,10,6,3,10)}R(g,'#ff8fb8',dir===2?11:11,3,2,2);R(g,'#fff',dir===2?11:11,3,1,1)}
 })}
-function shamarSpr(){return bake('shamar',22,30,g=>{E(g,'#f4f6ff',5,13,4,8);E(g,'#f4f6ff',17,13,4,8);E(g,'#dfe6f8',5,15,2.5,5);E(g,'#dfe6f8',17,15,2.5,5);P(g,'#ffffff',[[7,12],[15,12],[17,28],[5,28]]);R(g,'#d6e0f6',13,13,2,15);R(g,'#e8c25a',6,20,10,1);E(g,'#d9a77c',11,8,3.6,4);E(g,'#f2e2b0',11,6,4.2,3);R(g,'#f2e2b0',7,6,2,5);R(g,'#f2e2b0',13,6,2,5);R(g,'#2a1608',9,9,1,1);R(g,'#2a1608',12,9,1,1)})}
+const ANGEL={shamar:['#e8c25a','#f2e2b0'],gabriel:['#4a8ad9','#8a5a2e'],michael:['#c0392b','#2a1a10']};
+function shamarSpr(k='shamar'){const [sash,hair]=ANGEL[k];return bake('ang'+k,22,30,g=>{E(g,'#f4f6ff',5,13,4,8);E(g,'#f4f6ff',17,13,4,8);E(g,'#dfe6f8',5,15,2.5,5);E(g,'#dfe6f8',17,15,2.5,5);P(g,'#ffffff',[[7,12],[15,12],[17,28],[5,28]]);R(g,'#d6e0f6',13,13,2,15);R(g,sash,6,20,10,1);L(g,sash,1.4,[[7,13],[14,20]]);E(g,'#d9a77c',11,8,3.6,4);E(g,hair,11,6,4.2,3);R(g,hair,7,6,2,5);R(g,hair,13,6,2,5);R(g,'#2a1608',9,9,1,1);R(g,'#2a1608',12,9,1,1);
+ if(k==='michael'){R(g,'#b8bcc8',6,12,10,3);R(g,'#d8dce8',17,14,1,12);R(g,'#e8c25a',16,25,3,1)}
+ if(k==='gabriel'){R(g,'#f6eccf',3,18,4,6);R(g,'#c9a46a',3,18,4,1);R(g,'#c9a46a',3,23,4,1)}})}
 function haloSpr(){return bake('halo',12,5,g=>{g.strokeStyle='#ffd75a';g.lineWidth=1.6;g.beginPath();g.ellipse(6,2.5,4.5,1.5,0,0,7);g.stroke()},false)}
 function cherubSpr(){return bake('cherub',30,36,g=>{[[-1,-.4],[1,.4]].forEach(([s,r])=>{E(g,'#ffe9a8',15+s*10,12,5,10);E(g,'#ffd77a',15+s*9,22,4,7)});P(g,'#ffe08a',[[11,13],[19,13],[22,34],[8,34]]);R(g,'#e8b84a',17,14,2,20);E(g,'#fff6d8',15,9,4,4.2);R(g,'#2a1608',13,9,1,1);R(g,'#2a1608',16,9,1,1)})}
 // ---- animals (facing left) ----
@@ -498,6 +510,17 @@ const OBJS={
  spring:[14,12,g=>{E(g,'#8f8a80',7,7,6,4.4);E(g,'#2c6aaa',7,6.5,3.6,2.4);R(g,'#9ad4ff',5,5,2,1)}],
  sapling:[12,16,g=>{R(g,'#7a4f2c',5,7,2,8);E(g,'#4fa249',6,6,4.5,4);E(g,'#62b548',4.5,4.5,2,1.6)}],
 };
+Object.assign(OBJS,{
+ tower:[46,62,g=>{R(g,'#8f8a80',9,16,28,46);for(let y=0;y<6;y++)for(let x=0;x<4;x++)R(g,'#a8a398',10+x*7+(y%2?3:0),19+y*7,5,3);R(g,'#7a766c',6,10,34,8);for(let k=0;k<5;k++)R(g,'#8f8a80',6+k*7.5,5,5,6);R(g,'#5a3a20',18,44,10,18);R(g,'#3a2410',19,46,8,16);R(g,'#2c2a30',20,26,6,9);R(g,'#c0392b',30,0,1,10);P(g,'#c0392b',[[31,0],[40,3],[31,6]]);R(g,'#ffd75a',22,40,2,2)}],
+ pavilion:[50,46,g=>{R(g,'#d8d2c0',2,40,46,6);R(g,'#c4bca6',2,44,46,2);[5,17,29,41].forEach(x=>{R(g,'#f4ecd8',x,16,4,25);R(g,'#c4b896',x+3,16,1,25);R(g,'#e0d6ba',x-1,15,6,2)});P(g,'#4a7ab8',[[0,16],[25,2],[50,16]]);P(g,'#6a9ad8',[[6,15],[25,4],[30,15]]);R(g,'#e8c25a',0,15,50,2);R(g,'#ffd75a',24,0,2,4)}],
+ gift:[14,14,g=>{R(g,'#d9381e',1,5,12,9);R(g,'#b82a14',1,5,12,2);R(g,'#ffd75a',6,5,2,9);R(g,'#ffd75a',1,8,12,2);E(g,'#ffd75a',5,3,2,1.6);E(g,'#ffd75a',9,3,2,1.6)}],
+ winepress:[20,20,g=>{R(g,'#8a5a2e',2,10,16,9);R(g,'#a87444',2,10,16,2);for(let k=0;k<3;k++)R(g,'#6a4426',6+k*4,12,1,7);R(g,'#6a4426',1,3,2,10);R(g,'#6a4426',17,3,2,10);R(g,'#7a4f2c',1,2,18,2);R(g,'#5a5650',9,4,2,6);R(g,'#7a3aa0',4,9,12,2)}],
+ olivepress:[20,18,g=>{E(g,'#8f8a80',10,13,9,4.5);E(g,'#a8a398',10,11,8,3.5);E(g,'#7a766c',10,8,5,5);E(g,'#94908a',9,7,3,3);R(g,'#7a4f2c',9,1,2,8);R(g,'#7a4f2c',9,1,9,2);E(g,'#55702b',5,12,1.2);E(g,'#55702b',15,12,1.2)}],
+ loom:[20,24,g=>{R(g,'#7a4f2c',2,2,2,21);R(g,'#7a4f2c',16,2,2,21);R(g,'#8a5a2e',1,2,18,2);R(g,'#8a5a2e',1,18,18,2);for(let k=0;k<5;k++)R(g,'#f4ecd8',5+k*2.4,4,1,14);R(g,'#c0392b',4,12,12,2);R(g,'#4a8ad9',4,14,12,2);R(g,'#efe6cc',4,16,12,2)}],
+ beehive:[16,20,g=>{R(g,'#6a4426',2,16,2,4);R(g,'#6a4426',12,16,2,4);R(g,'#e8c25a',2,6,12,11);for(let k=0;k<3;k++)R(g,'#c9a040',2,8+k*3,12,1);P(g,'#a87444',[[0,7],[8,1],[16,7]]);R(g,'#3a2410',6,13,4,2)}],
+ arch:[20,30,g=>{R(g,'#8a5a2e',1,8,3,22);R(g,'#8a5a2e',16,8,3,22);L(g,'#8a5a2e',3,[[2,9],[10,2],[18,9]]);[[3,6],[8,2],[13,3],[17,7],[2,14],[17,16]].forEach(([x,y],i)=>{E(g,'#4f9a3a',x,y,2.4,2);R(g,['#ff7aa8','#ffe36e','#fff'][i%3],x,y,1,1)})}],
+ wall:[16,13,g=>{R(g,'#8f8a80',0,3,16,10);[[0,3,7,4],[8,3,8,4],[0,8,4,5],[5,8,7,5],[13,8,3,5]].forEach(([x,y,w,h])=>R(g,'#a8a398',x,y,w-1,h-1));R(g,'#c4c0b6',0,2,16,2)}],
+});
 const objSpr=k=>{const o=OBJS[k];return bake('o'+k,o[0]+2,o[1]+2,g=>{g.translate(1,1);o[2](g)})};
 function fenceSpr(m){return bake('fence'+m,16,22,g=>{R(g,'#9b6b3e',6,4,4,16);R(g,'#c08a55',6,4,4,1);if(m&1){R(g,'#9b6b3e',9,8,7,2);R(g,'#9b6b3e',9,14,7,2)}if(m&2){R(g,'#9b6b3e',0,8,7,2);R(g,'#9b6b3e',0,14,7,2)}if(m&4)R(g,'#9b6b3e',7,0,2,5)})}
 function homeSpr(lv){return bake('home'+lv,lv===1?54:lv===2?82:86,lv===1?44:lv===2?66:78,g=>{
@@ -574,6 +597,7 @@ const IC={
  up_e:g=>{P(g,'#ffd23a',[[9,1],[3,9],[8,9],[6,15],[13,6],[8,6]])},
  up_b:g=>{E(g,'#f4f6ff',8,9,5,3.4);E(g,'#f4f6ff',5,6,2.4,2);P(g,'#f4f6ff',[[11,8],[15,5],[14,11]]);R(g,'#e8a020',2,6,2,1)},
 };
+IC.wine=g=>{P(g,'#b88a4a',[[5,5],[11,5],[13,10],[10,15],[6,15],[3,10]]);R(g,'#8f6a36',6,2,4,3);E(g,'#7a3aa0',8,10,2.5,2)};IC.cloth=g=>{R(g,'#f4ecd8',2,4,12,9);R(g,'#c0392b',2,7,12,1);R(g,'#4a8ad9',2,10,12,1)};
 let _tierTool='hoe';const TCOL=()=>['#9a978f','#e8b923','#2a2a36'][state?state.tier[_tierTool]||0:0];
 function icon(id){const it=ITEMS[id];const tk=it.tier?id+(state?state.tier[id]:0):id;const key='ic'+tk;let c=SPR.get(key);if(c)return c;c=mkc(16,16);const g=c.getContext('2d');
  if(IC[id]){_tierTool=id;IC[id](g,it)}else if(it.seed)IC.seed(g,it);else if(it.sap)IC.sapling(g,it);else if(it.col&&it.diff)IC.fish(g,it);
@@ -585,7 +609,7 @@ const iconURLs={};function iconURL(id){const it=ITEMS[id];const k=it.tier?id+sta
 function portrait(who){return bake('pt'+who,40,40,g=>{
  if(who==='god'){for(let r=19;r>2;r-=3){E(g,r%2?'#fff6d0':'#ffd96a',20,20,r)}for(let k=0;k<12;k++){const a=k/12*6.283;L(g,'#fff8e0',1.4,[[20+Math.cos(a)*8,20+Math.sin(a)*8],[20+Math.cos(a)*19,20+Math.sin(a)*19]])}E(g,'#ffffff',20,20,5);return}
  if(who==='serpent'){P(g,'#3f8f3a',[[4,38],[10,24],[20,14],[30,12],[37,18],[34,26],[24,26],[16,32],[14,38]]);E(g,'#4fa848',27,17,9,7);E(g,'#ffd23a',30,15,2.2);R(g,'#111',30,13,1,4);L(g,'#d93a2e',1,[[36,20],[39,22],[38,24]]);for(let k=0;k<4;k++)R(g,'#2f6e2a',12+k*4,28-k*3,2,2);return}
- if(who==='shamar'){E(g,'#f4f6ff',6,26,6,13);E(g,'#f4f6ff',34,26,6,13);P(g,'#fff',[[10,30],[30,30],[34,40],[6,40]]);E(g,'#f2e2b0',20,16,10,10);E(g,'#d9a77c',20,19,7.5,8.5);R(g,'#f2e2b0',11,12,4,12);R(g,'#f2e2b0',25,12,4,12);R(g,'#2a1608',16,18,2,2);R(g,'#2a1608',22,18,2,2);R(g,'#b8705a',18,24,4,1);g.strokeStyle='#ffd75a';g.lineWidth=2;g.beginPath();g.ellipse(20,5,9,2.4,0,0,7);g.stroke();return}
+ if(ANGEL[who]){const [sash,hair]=ANGEL[who];E(g,'#f4f6ff',6,26,6,13);E(g,'#f4f6ff',34,26,6,13);P(g,'#fff',[[10,30],[30,30],[34,40],[6,40]]);R(g,sash,9,35,22,2);E(g,hair,20,16,10,10);E(g,'#d9a77c',20,19,7.5,8.5);R(g,hair,11,12,4,12);R(g,hair,25,12,4,12);R(g,'#2a1608',16,18,2,2);R(g,'#2a1608',22,18,2,2);R(g,'#b8705a',18,24,4,1);g.strokeStyle='#ffd75a';g.lineWidth=2;g.beginPath();g.ellipse(20,5,9,2.4,0,0,7);g.stroke();return}
  const lk=who==='eve'?(state&&state.fallen?LOOK_FALL_E:LOOK_EVE):(state&&state.fallen?LOOK_FALL_A:LOOK_ADAM);
  P(g,lk.tunic,[[6,40],[10,30],[30,30],[34,40]]);R(g,lk.skin,17,27,6,4);if(lk.long){R(g,lk.hair,7,14,6,22);R(g,lk.hair,27,14,6,22)}
  E(g,lk.hair,20,16,11,11);E(g,lk.skin,20,19,8,9);R(g,lk.hair,11,8,18,5);R(g,'#2a1608',16,18,2,3);R(g,'#2a1608',22,18,2,3);R(g,'#c86a5a',18,25,4,1);if(lk.long){E(g,'#ff8fb8',28,9,2.5);R(g,'#fff',28,9,1,1)}})}
@@ -599,7 +623,7 @@ let bannerT=0;function banner(txt){const b=$('#banner');b.textContent=txt;b.clas
 const puMap={};function pickupNote(id,n){const box=$('#pickups');let e=puMap[id];if(e&&e.el.isConnected){e.n+=n;e.el.querySelector('b').textContent=itemName(id)+' ×'+e.n;clearTimeout(e.t)}else{const el=document.createElement('div');el.className='pu pn';el.innerHTML=`<img src="${iconURL(id)}"><b>${esc(itemName(id))} ×${n}</b>`;box.appendChild(el);while(box.children.length>4)box.firstChild.remove();e=puMap[id]={el,n}}e.t=setTimeout(()=>{e.el.style.transition='opacity .4s';e.el.style.opacity=0;setTimeout(()=>e.el.remove(),400)},2200)}
 
 // =============== DIALOG ===============
-const SPEAK={god:'The LORD God',serpent:'The Serpent',shamar:'Shamar',narr:'',adam:'Adam',eve:'Eve'};
+const SPEAK={god:'The LORD God',serpent:'The Serpent',shamar:'Shamar',gabriel:'Gabriel',michael:'Michael',narr:'',adam:'Adam',eve:'Eve'};
 let dlg=null;const dq=[];
 function runDialog(lines){return new Promise(res=>{dq.push({lines,res});if(!dlg)nextDialog()})}
 function nextDialog(){const d=dq.shift();if(!d){dlg=null;$('#dialog').classList.remove('on');updateControlsVis();return}dlg={lines:d.lines,res:d.res,i:0,val:null,chars:0,full:''};$('#dialog').classList.add('on');updateControlsVis();showLine()}
@@ -614,59 +638,59 @@ const ask=(t,s='narr')=>runDialog([{s,t,choices:[{t:'Yes',v:1},{t:'No',v:0}]}]);
 
 // =============== QUESTS ===============
 const got=id=>st().got[id]||0,nNamed=()=>Object.keys(state.names).length,maxHearts=()=>Math.max(0,...Object.values(state.hearts));
-const QUESTS=[
-{t:'Breath of Life',intro:[{s:'narr',t:'In the beginning God created the heaven and the earth…',ref:'Genesis 1:1'},{s:'god',t:'And the LORD God formed man of the dust of the ground, and breathed into his nostrils the breath of life; and man became a living soul.',ref:'Genesis 2:7'},{s:'god',t:'Rise, my child. I have planted a garden eastward in Eden — for you. Walk: drag anywhere on the screen, tap where you want to go, or use W A S D.'}],
- objs:[['Take your first steps',()=>Math.floor(st().walked),12]]},
-{t:'Tools for the Work',onStart:()=>{['hoe','can','axe','pick','scythe'].forEach(t=>{if(!cnt(t))addItem(t)});state.water=40;state.slot=0;toast('You received a Hoe, Watering Can, Axe, Pickaxe and Scythe!')},intro:[{s:'god',t:'And the LORD God took the man, and put him into the garden of Eden to dress it and to keep it.',ref:'Genesis 2:15'},{s:'god',t:'I give you tools for the work. They are in your toolbar below. Tap one to hold it, face something, and press USE.'},{s:'god',t:'Clear the ground around your bower: the Axe for twigs, the Pickaxe for stones, the Scythe for weeds. Hold USE to keep working.'}],
- objs:[['Chop twigs (Axe)',()=>st().twigs,5],['Break stones (Pickaxe)',()=>st().stones,5],['Cut weeds (Scythe)',()=>st().weeds,5]]},
-{t:'Every Herb Bearing Seed',onStart:()=>{addItem('seed_wheat',15);toast('You received 15 Wheat Seeds.')},intro:[{s:'god',t:'Behold, I have given you every herb bearing seed, which is upon the face of all the earth.',ref:'Genesis 1:29'},{s:'god',t:'Use the Hoe on open ground to till it. Then hold the seeds and use them on the soil to plant.'}],
- objs:[['Till the ground',()=>st().tilled,6],['Plant seeds',()=>st().planted,6]]},
-{t:'Living Water',intro:[{s:'god',t:'And a river went out of Eden to water the garden.',ref:'Genesis 2:10'},{s:'god',t:'Fill your Watering Can at the pond beside your home, then water each seed. Soil turns dark when it is watered. Water every day.'}],
- objs:[['Water planted soil',()=>st().watered,6]]},
-{t:'Shamar’s Crate',intro:[{s:'god',t:'I have set an angel near your home — Shamar, keeper of the storehouse. The crate beside your bower is his.'},{s:'god',t:'Put anything you wish to give into the crate. Shamar gathers it each night and leaves Blessings ✦ for you. You can also visit him at the storehouse to receive seeds.'}],
- objs:[['Put something in the crate',()=>st().shipped,1]]},
-{t:'The Midst of the Garden',intro:[{s:'god',t:'Now follow the path north-east, to the midst of the garden. There is something I must show you.'}],objs:[['Go to the midst of the garden',()=>state.visited[1]?1:0,1]],
- done:[{s:'god',t:'And out of the ground made the LORD God to grow every tree that is pleasant to the sight, and good for food; the tree of life also in the midst of the garden, and the tree of knowledge of good and evil.',ref:'Genesis 2:9'},{s:'god',t:'Of every tree of the garden thou mayest freely eat: But of the tree of the knowledge of good and evil, thou shalt not eat of it: for in the day that thou eatest thereof thou shalt surely die.',ref:'Genesis 2:16–17'},{s:'god',t:'The Tree of Life stands north of the spring. Eat from it once each day, and your strength will be renewed.'}]},
-{t:'Every Living Creature',intro:[{s:'god',t:'And out of the ground the LORD God formed every beast of the field, and every fowl of the air; and brought them unto Adam to see what he would call them.',ref:'Genesis 2:19'},{s:'god',t:'Go to the creatures. Face one and press ACT. Whatever you call it — that will be its name.'}],objs:[['Name creatures',nNamed,4]],
- done:[{s:'god',t:'And whatsoever Adam called every living creature, that was the name thereof.',ref:'Genesis 2:19'},{s:'god',t:'Visit them each day. Pet them, and feed them from your hand, and they will grow fond of you.'},{s:'narr',t:'Across the western river, the mist lifts from the Orchard. Reach it through the midst of the garden.'}],onDone:()=>unlock(3)},
-{t:'Seedtime and Harvest',intro:[{s:'god',t:'Your seeds grow while you rest. When evening comes, go to your bower and sleep. Some mornings a mist will rise and water the ground for you.',ref:'Genesis 2:6'},{s:'god',t:'When a crop is ripe, face it and press ACT to harvest. Each season has its own seeds — Shamar will show you which.'}],
- objs:[['Rest in your bower',()=>st().slept,1],['Harvest crops',()=>st().harvested,6]]},
-{t:'Voices in the Dark',onStart:()=>{state.whispers=true},intro:[{s:'god',t:'There are voices in this garden that are not mine. At night they whisper.'},{s:'god',t:'They cannot take what I have given you, but they will try to weaken your breath. Craft a Shepherd’s Staff to drive them off, and build a campfire. Light is a refuge.'}],
- objs:[["Craft a Shepherd's Staff",()=>cnt('staff')||cnt('bstaff')?1:0,1],['Build a campfire',()=>st().placed.campfire||0,1],['Drive away whispers',()=>st().dispelled,3]],
- done:[{s:'god',t:'And God saw the light, that it was good.',ref:'Genesis 1:4'},{s:'narr',t:'To the north-east, beyond the river Pishon, the mist lifts from the land of Havilah.'}],onDone:()=>unlock(4)},
-{t:'The Gold of That Land',intro:[{s:'god',t:'…the whole land of Havilah, where there is gold; and the gold of that land is good: there is bdellium and the onyx stone.',ref:'Genesis 2:11–12'},{s:'god',t:'Break the speckled stones with your Pickaxe. Shamar can make your tools stronger with gold and onyx.'}],
- objs:[['Mine gold',()=>got('gold'),2],['Mine onyx',()=>got('onyx'),1]],
- done:[{s:'god',t:'One land remains — the Wild Wood, beyond the southern river. Every beast of the field dwells there… and one more subtle than them all.'},{s:'narr',t:'Now the serpent was more subtil than any beast of the field which the LORD God had made.',ref:'Genesis 3:1'}],onDone:()=>unlock(5)},
-{t:'Dominion',intro:[{s:'god',t:'Have dominion over the fish of the sea, and over the fowl of the air, and over every living thing that moveth upon the earth.',ref:'Genesis 1:28'},{s:'god',t:'Craft a Fishing Rod and learn the rivers. Keep the fish inside the green bar until it is caught.'}],
- objs:[['Name creatures',nNamed,14],['Catch fish',()=>st().fish,3],['Earn Blessings (total)',()=>state.earned,1500]]},
-{t:'Not Good to Be Alone',intro:[{s:'god',t:'It is not good that the man should be alone; I will make him an help meet for him.',ref:'Genesis 2:18'},{s:'god',t:'But first, keep naming the creatures I have made. When you have known them, you will understand what is missing.'}],objs:[['Name creatures',nNamed,20]],
- done:[{s:'god',t:'And the LORD God caused a deep sleep to fall upon Adam, and he slept: and he took one of his ribs, and closed up the flesh instead thereof.',ref:'Genesis 2:21'},{s:'narr',t:'✦ Chapter One is complete. ✦  You wake to the sound of someone laughing at the water’s edge…'}],onDone:()=>{state.flags.ch1=1}},
-{t:'Bone of My Bones',onStart:()=>meetEve(),intro:[{s:'god',t:'And the rib, which the LORD God had taken from man, made he a woman, and brought her unto the man.',ref:'Genesis 2:22'},{s:'adam',t:'This is now bone of my bones, and flesh of my flesh.',ref:'Genesis 2:23'},{s:'eve',t:'Hello. He told me you’ve been keeping the garden. Will you show me?'},{s:'god',t:'She will walk beside you and help you. Speak with her — ask her to come with you, or to stay and tend your home.'}],
- objs:[['Talk with Eve',()=>st().eveTalk,1]]},
-{t:'A Home for Two',intro:[{s:'eve',t:'Your bower is lovely… for one. What if we built something bigger, with a hearth for cooking?'},{s:'god',t:'Go to your home and choose “Improve your home.”'}],objs:[['Build a Cottage',()=>homeLvl()>=2?1:0,1]],done:[{s:'eve',t:'A real kitchen! Now we can bake loaves and press olives.'}]},
-{t:'Every Tree for Food',intro:[{s:'god',t:'And out of the ground made the LORD God to grow every tree that is pleasant to the sight, and good for food.',ref:'Genesis 2:9'},{s:'god',t:'Plant trees of your own. Shamar keeps saplings in the storehouse.'}],objs:[['Plant saplings',()=>st().saplings,2]]},
-{t:'Keepers of the Flock',intro:[{s:'eve',t:'The sheep follow me now when I sing to them. I think they can tell who loves them.'},{s:'god',t:'Care for my creatures. Pet them each day, and hold grain or fruit to feed them. Those who trust you will give more.'}],objs:[['Reach 3 ♥ with a creature',maxHearts,3],['Collect wool, milk or eggs',()=>st().products,3]]},
-{t:'The Seventh Day',intro:[{s:'god',t:'And on the seventh day God ended his work which he had made; and he rested on the seventh day… And God blessed the seventh day, and sanctified it.',ref:'Genesis 2:2–3'},{s:'god',t:'Every seventh day is a Sabbath. Do no tiring work — walk, talk, pet the creatures, pray — and you will be blessed when you sleep.'}],objs:[['Keep a Sabbath day of rest',()=>st().sabbaths,1]]},
-{t:'Be Fruitful',intro:[{s:'god',t:'Be fruitful, and multiply, and replenish the earth.',ref:'Genesis 1:28'},{s:'eve',t:'Let’s make this place overflow. A real house, every kind of crop, and help for Shamar, too.'}],
- objs:[['Grow different kinds of crops',()=>Object.keys(st().cropKinds).length,4],['Finish Shamar’s requests',()=>st().requests,5],['Build a House',()=>homeLvl()>=3?1:0,1]],
- done:[{s:'god',t:'And God saw every thing that he had made, and, behold, it was very good.',ref:'Genesis 1:31'},{s:'narr',t:'✦ Chapter Two is complete. ✦  The garden is yours and Eve’s to tend. More of the story is coming.'}],onDone:()=>{state.flags.ch2=1}},
+const metCount=()=>['metShamar','metGabriel','metMichael'].filter(k=>state.flags[k]).length;
+const INTRO=[{s:'narr',t:'In the beginning God created the heaven and the earth…',ref:'Genesis 1:1'},{s:'god',t:'And the LORD God formed man of the dust of the ground, and breathed into his nostrils the breath of life; and man became a living soul.',ref:'Genesis 2:7'},{s:'god',t:'This garden is yours, to dress it and to keep it. Make it your home, and grow it as you see fit. There is no hurry here.',ref:'Genesis 2:15'},{s:'god',t:'I have left a gift beside your bower. My angels will help you, and your journal ( ! ) holds ideas for what to do next.'}];
+const EXILE_INTRO=[{s:'narr',t:'So he drove out the man; and he placed at the east of the garden of Eden Cherubims, and a flaming sword which turned every way, to keep the way of the tree of life.',ref:'Genesis 3:24'},{s:'god',t:'Cursed is the ground for thy sake; in sorrow shalt thou eat of it all the days of thy life. Thorns also and thistles shall it bring forth to thee.',ref:'Genesis 3:17–18'},{s:'god',t:'Yet I have not forsaken you. Make this ground a home.'}];
+const GOALS=[
+{id:'f1',req:()=>state.fallen,t:'Cursed Is the Ground',d:'Thorns and thistles cover this land. Clear some with your Axe or Scythe, then rest in your shelter.',objs:[['Clear thorns',()=>fsv('thorns'),5],['Rest in your shelter',()=>fsv('slept'),1]],rw:{txt:'Coats of skins (+25 max Breath)',fn:()=>{state.maxB+=25;state.breath=state.maxB;if(!state.eve.met)meetEve();runDialog([{s:'god',t:'Unto Adam also and to his wife did the LORD God make coats of skins, and clothed them.',ref:'Genesis 3:21'}])}}},
+{id:'f2',req:()=>state.fallen&&state.done.f1,t:'In the Sweat of Thy Face',d:'There is no mist here. Till, plant and water by hand, and clear the thorns that creep in.',objs:[['Till the ground',()=>fsv('tilled'),6],['Plant seeds',()=>fsv('planted'),6],['Harvest crops',()=>fsv('harvested'),6]],rw:{bless:300}},
+{id:'f3',req:()=>state.fallen&&state.done.f2,t:'An Altar of Stones',d:'Craft an altar and bring the first and best of what you have.',objs:[['Build an altar',()=>st().placed.altar||0,1],['Bring an offering',()=>fsv('offer'),1]],rw:{bless:300}},
+{id:'f4',req:()=>state.fallen&&state.done.f3,t:'Faithful in Exile',d:'Build a lasting home east of Eden.',objs:[['Build a Cottage',()=>homeLvl()>=2?1:0,1],['Earn Blessings since leaving Eden',()=>fsv('earned'),2000]],rw:{bless:1000}},
+{id:'start',t:'Getting Started',d:'Open the gift beside your bower. Till soil with the Hoe, plant the seeds, and water them with the Watering Can (refill it at the pond).',objs:[['Open the gift',()=>state.flags.gift?1:0,1],['Plant seeds',()=>st().planted,5],['Water seeds',()=>st().watered,5]],rw:{bless:100}},
+{id:'clear',t:'Clearing the Land',d:'Make room around your home: Axe for twigs, Pickaxe for stones, Scythe for weeds.',objs:[['Chop twigs',()=>st().twigs,5],['Break stones',()=>st().stones,5],['Cut weeds',()=>st().weeds,5]],rw:{bless:100}},
+{id:'crate',t:'Shamar’s Crate',d:'Put anything you want to sell in the crate beside your home. Shamar collects it overnight and leaves Blessings ✦.',objs:[['Put something in the crate',()=>st().shipped,1]],rw:{bless:50}},
+{id:'harvest',t:'Seedtime and Harvest',d:'Crops grow overnight if they were watered. Sleep in your bower, and harvest when they are ripe.',objs:[['Harvest crops',()=>st().harvested,5]],rw:{items:{seed_barley:10}}},
+{id:'meet',t:'Introductions',d:'Three angels keep the garden: Shamar at the storehouse, Gabriel at the pavilion in the midst, and Michael at the watchtower by the Wild Wood.',objs:[['Meet the angels',metCount,3]],rw:{bless:200}},
+{id:'names',t:'Every Living Creature',d:'Face a creature and press ACT. Whatever you call it, that is its name.',objs:[['Name creatures',nNamed,5]],rw:{bless:150}},
+{id:'explore',t:'The Four Lands',d:'The Tending Fields, the Orchard, Havilah and the Wild Wood all meet at the midst of the garden.',objs:[['Visit every land',()=>[2,3,4,5].filter(r=>state.visited[r]).length,4]],rw:{bless:200}},
+{id:'friend',t:'Keeper of the Flock',d:'Pet creatures each day and feed them grain or fruit from your hand.',objs:[['Reach 3 ♥ with a creature',maxHearts,3],['Collect wool, milk or eggs',()=>st().products,3]],rw:{items:{fold:1}}},
+{id:'fish',t:'Dominion over the Fish',d:'Craft a Fishing Rod. Each river holds its own fish.',objs:[['Craft a Fishing Rod',()=>cnt('rod')?1:0,1],['Catch fish',()=>st().fish,3]],rw:{bless:200}},
+{id:'light',req:()=>state.day>=3,t:'Voices in the Dark',d:'From the fourth night, whispers come after dark. Light keeps them away, and a staff drives them off.',objs:[['Get a Shepherd’s Staff',()=>cnt('staff')||cnt('bstaff')?1:0,1],['Place a campfire',()=>st().placed.campfire||0,1],['Drive away whispers',()=>st().dispelled,3]],rw:{bless:300}},
+{id:'gold',t:'The Gold of That Land',d:'Break the speckled stones of Havilah with your Pickaxe.',objs:[['Mine gold',()=>got('gold'),3],['Mine onyx',()=>got('onyx'),1]],rw:{bless:300}},
+{id:'tools',t:'Advancement',d:'Shamar can strengthen your tools with gold and onyx.',objs:[['Upgrade a tool',()=>Math.max(...Object.values(state.tier)),1]],rw:{bless:300}},
+{id:'eve',t:'Not Good to Be Alone',d:'Keep naming the creatures. When you have known them, you will understand what is missing.',objs:[['Name creatures',nNamed,12]],rw:{txt:'A helper',fn:()=>{meetEve();runDialog([{s:'god',t:'And the rib, which the LORD God had taken from man, made he a woman, and brought her unto the man.',ref:'Genesis 2:22'},{s:'adam',t:'This is now bone of my bones, and flesh of my flesh.',ref:'Genesis 2:23'},{s:'eve',t:'Hello. He told me you’ve been keeping the garden. Will you show me?'}])}}},
+{id:'home2',req:()=>state.eve.met,t:'A Home for Two',d:'Go to your home and choose “Improve your home.” A cottage has a kitchen.',objs:[['Build a Cottage',()=>homeLvl()>=2?1:0,1]],rw:{bless:300}},
+{id:'trees',t:'Every Tree for Food',d:'Shamar keeps saplings. Plant an orchard of your own.',objs:[['Plant saplings',()=>st().saplings,2]],rw:{bless:200}},
+{id:'press',t:'Oil and Wine',d:'Craft a Winepress, Olive Press, Loom or Beehive. Hold the right goods and press ACT to load it.',objs:[['Collect goods from a press, loom or hive',()=>st().made,3]],rw:{bless:400}},
+{id:'sabbath',t:'The Seventh Day',d:'Every seventh day is a Sabbath. Do no tiring work that day and you are blessed when you sleep.',objs:[['Keep a Sabbath',()=>st().sabbaths,1]],rw:{bless:200}},
+{id:'requests',t:'A Faithful Steward',d:'Shamar posts three requests every morning.',objs:[['Finish Shamar’s requests',()=>st().requests,5]],rw:{bless:500}},
+{id:'crops',t:'Be Fruitful',d:'Fill your fields through the seasons.',objs:[['Grow different kinds of crops',()=>Object.keys(st().cropKinds).length,6],['Earn Blessings (total)',()=>state.earned,10000]],rw:{bless:1000}},
+{id:'home3',req:()=>state.done.home2,t:'A Lasting House',d:'The house’s light keeps the whispers far away.',objs:[['Build a House',()=>homeLvl()>=3?1:0,1]],rw:{bless:1000}},
+{id:'resist',t:'Resist the Devil',d:'Turn away from the serpent at the Tree of Knowledge, and drive off a Tempter in the Wild Wood at night.',objs:[['Resist the serpent',()=>st().resisted,3],['Drive off a Tempter',()=>st().tempters,1]],rw:{bless:800}},
+{id:'allnames',t:'Whatsoever Adam Called Them',d:'Name every creature in Eden.',objs:[['Name creatures',nNamed,ANIMALS.length]],rw:{bless:2000}},
 ];
-const FQUESTS=[
-{t:'Cursed Is the Ground',intro:[{s:'narr',t:'So he drove out the man; and he placed at the east of the garden of Eden Cherubims, and a flaming sword which turned every way, to keep the way of the tree of life.',ref:'Genesis 3:24'},{s:'god',t:'Cursed is the ground for thy sake; in sorrow shalt thou eat of it all the days of thy life. Thorns also and thistles shall it bring forth to thee.',ref:'Genesis 3:17–18'},{s:'god',t:'In the sweat of thy face shalt thou eat bread, till thou return unto the ground; for out of it wast thou taken: for dust thou art, and unto dust shalt thou return.',ref:'Genesis 3:19'},{s:'god',t:'Yet I have not forsaken you. Clear the thorns with your Axe or Scythe. Make this ground a home.'}],
- objs:[['Clear thorns',()=>fsv('thorns'),5],['Rest in your shelter',()=>fsv('slept'),1]]},
-{t:'Coats of Skins',onStart:()=>{state.maxB+=25;state.breath=state.maxB;if(!state.eve.met)meetEve();toast('+25 max Breath')},intro:[{s:'god',t:'Unto Adam also and to his wife did the LORD God make coats of skins, and clothed them.',ref:'Genesis 3:21'},{s:'god',t:'Even here, I clothe you. Now work the ground from which you were taken.'}],objs:[['Till the ground',()=>fsv('tilled'),6],['Plant seeds',()=>fsv('planted'),6]]},
-{t:'In the Sweat of Thy Face',intro:[{s:'eve',t:'Everything is harder here. The soil fights back. But we’re still together.'},{s:'god',t:'Water your crops each day — there is no mist here — and clear the thorns that creep into your field.'}],objs:[['Harvest crops',()=>fsv('harvested'),6],['Earn Blessings since leaving Eden',()=>fsv('earned'),400]]},
-{t:'An Altar of Stones',intro:[{s:'god',t:'Build an altar of stones, and bring me an offering — the first and best of what you have grown or kept.'},{s:'narr',t:'And the LORD had respect unto Abel and to his offering.',ref:'Genesis 4:4'}],objs:[['Build an altar',()=>st().placed.altar||0,1],['Bring an offering',()=>fsv('offer'),1]]},
-{t:'Faithful in Exile',intro:[{s:'god',t:'Build a lasting home here, east of Eden. I am with you still.'}],objs:[['Build a Cottage',()=>homeLvl()>=2?1:0,1],['Earn Blessings since leaving Eden',()=>fsv('earned'),2000]],
- done:[{s:'eve',t:'I think… I think there will be children here someday. Two sons, maybe.'},{s:'narr',t:'✦ The Exile chapter is complete. ✦  Next: Cain and Abel. Coming soon.'}],onDone:()=>{state.flags.exile1=1}},
-];
-const REGION_INTRO={3:[{s:'god',t:'Behold, I have given you every tree, in the which is the fruit of a tree yielding seed; to you it shall be for meat.',ref:'Genesis 1:29'},{s:'god',t:'Fig, pomegranate, olive, date and vine — press ACT beside a fruit tree to shake its fruit down. It returns each morning.'}],
- 4:[{s:'god',t:'The stone here is rich. Gold, bdellium and onyx lie hidden in it. And the high places are home to the lion and the eagle.'}],5:[{s:'god',t:'And God made the beast of the earth after his kind… and God saw that it was good.',ref:'Genesis 1:25'},{s:'god',t:'But keep your staff close. Not everything that moves here is what it seems.'}]};
-const QL=()=>state.fallen?FQUESTS:QUESTS,qi=()=>state.fallen?state.fq:state.q,curQ=()=>QL()[qi()];
-function unlock(r){state.unlocked[r]=1;state.mist[r]=1;banner('The mist lifts');sfx.harp()}
-function checkQuest(){if(dlg||questBusy||sleeping||summaryOpen)return;const Q=curQ();if(!Q)return;if(Q.objs.every(o=>o[1]()>=o[2])){questBusy=true;completeQuest()}}
-async function completeQuest(){const Q=curQ();sfx.ok();banner('✦ '+Q.t+' ✦');if(Q.done)await runDialog(Q.done);if(Q.onDone)Q.onDone();if(state.fallen)state.fq++;else state.q++;save();await startQuest();questBusy=false}
-async function startQuest(){const Q=curQ();if(!Q){updateTracker(true);return}if(Q.onStart)Q.onStart();save();updateTracker(true);if(Q.intro)await runDialog(Q.intro)}
+const REGION_INTRO={1:[{s:'god',t:'And out of the ground made the LORD God to grow every tree that is pleasant to the sight, and good for food; the tree of life also in the midst of the garden, and the tree of knowledge of good and evil.',ref:'Genesis 2:9'},{s:'god',t:'Of every tree of the garden thou mayest freely eat: But of the tree of the knowledge of good and evil, thou shalt not eat of it: for in the day that thou eatest thereof thou shalt surely die.',ref:'Genesis 2:16–17'},{s:'god',t:'Eat from the Tree of Life, north of the spring, once each day to renew your strength.'}],
+ 3:[{s:'god',t:'Behold, I have given you every tree, in the which is the fruit of a tree yielding seed; to you it shall be for meat.',ref:'Genesis 1:29'}],
+ 4:[{s:'narr',t:'…the land of Havilah, where there is gold; and the gold of that land is good: there is bdellium and the onyx stone.',ref:'Genesis 2:11–12'}],
+ 5:[{s:'narr',t:'Now the serpent was more subtil than any beast of the field which the LORD God had made.',ref:'Genesis 3:1'}]};
+const goalActive=g=>!state.done[g.id]&&(!g.req||g.req());
+const activeGoals=()=>GOALS.filter(goalActive);
+const curQ=()=>activeGoals()[0];
+function unlock(r){state.unlocked[r]=1}
+let goalT=0;
+function checkGoals(){if(dlg||sleeping||summaryOpen||modalOpen)return;for(const g of GOALS){if(goalActive(g)&&g.objs.every(o=>o[1]()>=o[2])){completeGoal(g);return}}}
+function completeGoal(g){state.done[g.id]=state.day;sfx.ok();banner('✦ '+g.t+' ✦');const rw=g.rw||{},msg=[];if(rw.bless){earn(rw.bless);msg.push('✦'+rw.bless)}if(rw.items)for(const k in rw.items){addOrDrop(k,rw.items[k]);msg.push(rw.items[k]+' '+ITEMS[k].n)}if(rw.txt)msg.push(rw.txt);if(msg.length)toast('Goal complete! Reward: '+msg.join(', '),'tip');state.newQ=true;if(rw.fn)rw.fn();save();updateTracker(true)}
+function legacyFix(legacy){[1,2,3,4,5].forEach(r=>state.unlocked[r]=1);if(!state.done)state.done={};if(!legacy)return;if(!objs.some(o=>o&&o.t==='gift'))state.flags.gift=1;for(const g of GOALS){if(g.rw&&g.rw.fn&&!(g.id==='eve'&&state.eve.met))continue;if(g.objs.every(o=>o[1]()>=o[2]))state.done[g.id]=1}}
+const GAB_TIPS=['Crops only grow on days they were watered. A Spring Stone waters the soil beside it for you.','Each river holds different fish, and the spring in the midst holds the rarest.','Creatures you feed and pet every day will give twice as much.','Whispers cannot bear the light. Campfires, lamps and your own home keep them back.','Shamar pays more for goods you have made: bread, wine, oil and cloth.','Hold USE to keep working. Stronger tools can be charged to work several tiles at once.','Every seventh day is a Sabbath. Rest, and you will be blessed.'];
+async function talkGabriel(){const first=!state.flags.metGabriel;state.flags.metGabriel=1;const Ls=[];if(first)Ls.push({s:'gabriel',t:'Fear not! I am Gabriel, who stands in the presence of God. I carry His words to you.'},{s:'gabriel',t:'Come to me whenever you are unsure what to do next. Once a day I will speak a blessing over you.'});
+ const g=curQ();if(g)Ls.push({s:'gabriel',t:'Something you might try: “'+g.t+'.” '+(g.d||'')});Ls.push({s:'gabriel',t:pick(GAB_TIPS)});await runDialog(Ls);
+ if(state.gabDay!==state.day){state.gabDay=state.day;state.breath=state.maxB;state.energy=Math.min(state.maxE,state.energy+30);sfx.harp();burst(player.x,player.y-1,'#bfe3ff',14,2.5);toast('Gabriel blesses you. Breath restored, +30 energy.')}}
+async function talkMichael(){const first=!state.flags.metMichael;state.flags.metMichael=1;if(first)await runDialog([{s:'michael',t:'I am Michael. I keep watch at the edge of the Wild Wood, where the dark things gather.'},{s:'michael',t:'Drive off whispers, serpents and tempters, and I will reward you. I also keep an armory, if you have Blessings to spare.'}]);
+ const n=st().dispelled+st().serpents+st().tempters*3-(state.bounty||0);if(n>0){const v=n*25;state.bounty=(state.bounty||0)+n;earn(v);sfx.coin();await runDialog([{s:'michael',t:'You have stood firm since we last spoke. Take ✦'+v+' for your watch.'}])}
+ openModal([['a','Armory',b=>shopBuy(b,MSHOP)]],'a')}
+function talkNpc(n){return n.id==='shamar'?openShop():n.id==='gabriel'?talkGabriel():talkMichael()}
+function helpTab(b){const row=(id,t)=>`<div class="row"><img src="${iconURL(id)}"><div class="grow">${t}</div></div>`;
+ b.innerHTML=`<div class="h3">Walking</div><p style="margin:0 0 6px">Use the <b>joystick</b> in the bottom-left corner, or <b>tap a spot</b> and you will walk there. On a keyboard, use W A S D.</p><div class="h3">Tools</div><p style="margin:0 0 6px">Your tools are in the <b>toolbar</b> at the bottom. Tap one to hold it, face something, and press <b>USE</b>. Hold USE to keep working.</p>${row('hoe','<b>Hoe</b>: till soil for seeds')}${row('can','<b>Watering Can</b>: water soil every day; refill at water')}${row('axe','<b>Axe</b>: twigs, trees and thorns')}${row('pick','<b>Pickaxe</b>: stones and ore')}${row('scythe','<b>Scythe</b>: weeds and tall grass')}<div class="h3">Everything else</div><p style="margin:0 0 8px"><b>ACT</b> talks, opens, harvests and pets. <b>☰</b> is your satchel, crafting and map. <b>!</b> is your journal of ideas. Sleep in your bower to end the day and grow your crops.</p><div style="text-align:center"><button class="btn" id="hok">Begin</button></div>`;b.querySelector('#hok').onclick=closeModal}
 
 // =============== EVE ===============
 const eveSkip={};
@@ -703,8 +727,8 @@ function ptile(){return[Math.floor(player.x),Math.floor(player.y)]}
 function facingTile(){return[Math.floor(player.x+player.fx*.85),Math.floor(player.y-.1+player.fy*.85)]}
 function inReach(x,y){const [px,py]=ptile();return Math.max(Math.abs(x-px),Math.abs(y-py))<=1}
 function faceToward(x,y){const dx=x+.5-player.x,dy=y+.5-player.y;if(Math.abs(dx)>Math.abs(dy)){player.fx=Math.sign(dx);player.fy=0}else if(dy!==0){player.fx=0;player.fy=Math.sign(dy)}}
-function entityNear(wx,wy,r){let best=null,bd=r;if(Math.hypot(shamar.x-wx,shamar.y-.5-wy)<bd){best={k:'shamar',e:shamar};bd=Math.hypot(shamar.x-wx,shamar.y-.5-wy)}if(state.eve.met&&eve){const d=Math.hypot(eve.x-wx,eve.y-.5-wy);if(d<bd){best={k:'eve',e:eve};bd=d}}for(const a of animals){const d=Math.hypot(a.x-wx,a.y-.4-wy);if(d<bd){best={k:'animal',e:a};bd=d}}return best}
-function actFor(t){if(!t)return null;if(t.k==='shamar')return{ic:'💬',lb:'Talk',run:openShop};if(t.k==='eve')return{ic:'💬',lb:'Talk',run:talkEve};return animalAction(t.e)}
+function entityNear(wx,wy,r){let best=null,bd=r;for(const n of npcsHere()){const d=Math.hypot(n.x-wx,n.y-.5-wy);if(d<bd){best={k:'npc',e:n};bd=d}}if(state.eve.met&&eve){const d=Math.hypot(eve.x-wx,eve.y-.5-wy);if(d<bd){best={k:'eve',e:eve};bd=d}}for(const a of animals){const d=Math.hypot(a.x-wx,a.y-.4-wy);if(d<bd){best={k:'animal',e:a};bd=d}}return best}
+function actFor(t){if(!t)return null;if(t.k==='npc')return{ic:'💬',lb:'Talk',run:()=>talkNpc(t.e)};if(t.k==='eve')return{ic:'💬',lb:'Talk',run:talkEve};return animalAction(t.e)}
 function getAct(tx,ty){
  if(fish)return null;
  if(tx===undefined){const ent=entityNear(player.x+player.fx*.7,player.y+player.fy*.7,1.1);if(ent)return actFor(ent);const [fx,fy]=facingTile();const a=tileAct(fx,fy)||tileAct(...ptile());if(a)return a}
@@ -712,7 +736,14 @@ function getAct(tx,ty){
  const h=held();if(h&&ITEMS[h.id].food)return{ic:'🍽️',lb:'Eat',run:()=>eatPrompt(h.id)};
  return null}
 function tileAct(x0,y0){const r=resolve(x0,y0);if(!r||locked(idx(r.x,r.y)))return null;const {x,y,o}=r;if(!o)return null;const i=idx(x,y);
+ if(MACH[o.t]){const m=MACH[o.t];
+  if(o.out){if(state.day>=o.ready)return{ic:'🧺',lb:'Collect',run:()=>{give(o.out,1,x+.5,y+.5);bump('made');sfx.pick();if(m.auto){o.ready=state.day+m.days}else o.out=null}};return{ic:'⏳',lb:'Look',run:()=>toast(ITEMS[o.t].n+': '+ITEMS[o.out].n+' in '+(o.ready-state.day)+' day(s).')}}
+  const h=held(),rc=h&&m.rec.find(q=>q.in===h.id);
+  if(rc)return{ic:'⚙️',lb:'Load',run:()=>{if(cnt(rc.in)<rc.n){toast('It needs '+rc.n+' '+ITEMS[rc.in].n+'.');return}removeItem(rc.in,rc.n);o.out=rc.out;o.ready=state.day+m.days;sfx.build();toast(ITEMS[rc.out].n+' will be ready in '+m.days+' day(s).')}};
+  return{ic:'⚙️',lb:'Look',run:()=>toast('Hold '+m.rec.map(q=>q.n+' '+ITEMS[q.in].n).join(' or ')+' and press ACT to load it.')}}
  switch(o.t){
+  case 'tower':return{ic:'💬',lb:'Talk',run:talkMichael};case 'pavilion':return{ic:'💬',lb:'Talk',run:talkGabriel};
+  case 'gift':return{ic:'🎁',lb:'Open',run:()=>{objs[i]=null;state.flags.gift=1;sfx.ok();burst(x+.5,y+.5,'#ffd75a',14,2.5);give('seed_wheat',15,x+.5,y+.5);runDialog([{s:'narr',t:'A gift from your Maker: 15 Wheat Seeds. “Behold, I have given you every herb bearing seed.”',ref:'Genesis 1:29'}])}};
   case 'home':return{ic:'🏠',lb:'Home',run:homeMenu};case 'store':return{ic:'💬',lb:'Shop',run:openShop};case 'crate':return{ic:'📦',lb:'Give',run:openCrate};case 'chest':return{ic:'📦',lb:'Open',run:()=>openChest(o)};
   case 'life':return{ic:'✨',lb:'Eat',run:eatLife};case 'knowledge':return{ic:'🌳',lb:'Look',run:knowledge};
   case 'gate':case 'cherub':return{ic:'🔥',lb:'Look',run:()=>runDialog([{s:'narr',t:'The cherubim do not move. The flaming sword turns every way, keeping the way of the tree of life. Beyond it, the garden glows like a memory.',ref:'Genesis 3:24'}])};
@@ -729,7 +760,7 @@ function doAct(tx,ty){const a=getAct(tx,ty);if(a){a.run();player.actT=.2}}
 const lineTiles=(x,y,n)=>{const out=[];for(let k=0;k<n;k++)out.push([x+player.fx*k,y+player.fy*k]);return out};
 function useHeld(tx,ty,level=0){if(fish){reel();return}const h=held();if(!h){toast('Tap a toolbar slot to hold a tool or item.');return}const it=ITEMS[h.id];
  if(tx===undefined){[tx,ty]=facingTile()}else faceToward(tx,ty);
- player.toolT=.32;player.toolId=h.id;
+ player.toolId=h.id;player.toolT=['hoe','can','axe','pick','scythe','rod'].includes(h.id)?TOOLD:0;
  if(it.weapon){swing(it.weapon);return}
  switch(h.id){
   case 'hoe':{if(!spend(2*(level+1)))return;sfx.hoe();let did=0;for(const [x,y] of lineTiles(tx,ty,[1,3,5][level]))did+=hoeTile(x,y);if(!did&&level===0)floatText(tx+.5,ty,'…','#fff');return}
@@ -758,7 +789,7 @@ function pickTile(x0,y0){const r=resolve(x0,y0);if(!r){return}const {x,y,o}=r,i=
  if(!o){if(inb(x,y)&&tiles[i]===TILLED){tiles[i]=G;wet[i]=0;sfx.hoe();return}sfx.swing();return}
  if(o.t==='pebble'){objs[i]=null;give('stone',1,x+.5,y+.5);bump('stones');sfx.rock();burst(x+.5,y+.5,'#9a978f',6);return}
  if(o.t==='rock'||o.t==='gold'||o.t==='onyx'){o.hp-=dmg;o.shake=.25;sfx.rock();burst(x+.5,y+.5,o.t==='gold'?'#ffd84a':'#9a978f',5);if(o.hp<=0){objs[i]=null;bump('stones');if(o.t==='rock'){give('stone',ri(3,5),x+.5,y+.5);if(Math.random()<.2)give('clay',1,x+.5,y+.5)}else{give(o.t,1,x+.5,y+.5);give('stone',ri(1,2),x+.5,y+.5)}}return}
- if(['campfire','lamp','fence','flowerbed','bench','well','fold','altar','spring','chest'].includes(o.t)){if(o.t==='chest'&&o.items&&o.items.some(s=>s)){toast('Empty the chest first.');return}objs[i]=null;addOrDrop(o.t,1);sfx.rock();return}sfx.swing()}
+ if(['campfire','lamp','fence','flowerbed','bench','well','fold','altar','spring','chest','winepress','olivepress','loom','beehive','arch','wall'].includes(o.t)){if(MACH[o.t]&&o.out&&!MACH[o.t].auto){toast('It is still working. Collect from it first.');return}if(o.t==='chest'&&o.items&&o.items.some(s=>s)){toast('Empty the chest first.');return}objs[i]=null;addOrDrop(o.t,1);sfx.rock();return}sfx.swing()}
 function scytheTile(x,y){if(!inb(x,y))return;const i=idx(x,y);if(locked(i))return;const o=objs[i];
  if(o&&o.t==='weed'){objs[i]=null;bump('weeds');if(Math.random()<.6)give('fiber',ri(1,2),x+.5,y+.5);if(Math.random()<.04)give(pick(['seed_wheat','seed_barley','seed_cucumber']),1,x+.5,y+.5);burst(x+.5,y+.5,'#4f9a3a',6);return}
  if(o&&o.t==='thorns'){objs[i]=null;bump('thorns');give('fiber',1,x+.5,y+.5);burst(x+.5,y+.5,'#5e3f22',6);return}
@@ -771,7 +802,7 @@ function plantSapling(x,y,s){if(!inb(x,y))return;const i=idx(x,y),t=tiles[i];if(
 function place(x,y,s){if(!inb(x,y))return;const i=idx(x,y),pl=ITEMS[s].place,t=tiles[i];if(locked(i))return;
  if(pl==='water'){if(t!==WATER||reg[i]!==0){toast('Place a bridge on a river.');return}tiles[i]=BRIDGE}
  else if(pl==='ground'){if(objs[i]||!(t===G||t===FLOW||t===DRY||t===DARK||t===STONE||t===SAND)){toast('Lay paths on open ground.');return}tiles[i]=PATH}
- else{if(objs[i]||t===WATER||t===HEDGE||(ptile()[0]===x&&ptile()[1]===y)){toast('Something is in the way.');return}objs[i]=s==='chest'?{t:'chest',items:new Array(24).fill(null)}:{t:s};if(collides(player.x,player.y,.3,solidAt)){objs[i]=null;return}}
+ else{if(objs[i]||t===WATER||t===HEDGE||(ptile()[0]===x&&ptile()[1]===y)){toast('Something is in the way.');return}objs[i]=s==='chest'?{t:'chest',items:new Array(24).fill(null)}:MACH[s]&&MACH[s].auto?{t:s,out:MACH[s].auto,ready:state.day+MACH[s].days}:{t:s};if(collides(player.x,player.y,.3,solidAt)){objs[i]=null;return}}
  removeItem(s,1);st().placed[s]=(st().placed[s]||0)+1;sfx.build();burst(x+.5,y+.5,'#ffe08a',6)}
 async function eatPrompt(id){const it=ITEMS[id];if(state.energy>=state.maxE&&state.breath>=state.maxB){toast('You are not hungry.');return}const c=await ask('Eat the '+it.n+'? (+'+it.food+' energy)');if(c&&cnt(id)>0){removeItem(id,1);state.energy=Math.min(state.maxE,state.energy+it.food);state.breath=Math.min(state.maxB,state.breath+Math.round(it.food*.4));tone(500,.1,'square',.03,0,700);floatText(player.x,player.y-1.7,'+'+it.food+' E','#9ef08a')}}
 function harvest(x,y){const i=idx(x,y),o=objs[i],C=CROPS[o.c];objs[i]=null;give(o.c,ri(C.n[0],C.n[1]),x+.5,y+.5);bump('harvested');st().cropKinds[o.c]=1;if(Math.random()<.3)give('seed_'+o.c,1,x+.5,y+.5);sfx.pick();burst(x+.5,y+.3,'#ffe08a',8)}
@@ -801,7 +832,7 @@ function updateFish(dt){if(!fish)return;if(fish.ph==='wait'){fish.t-=dt;if(fish.
 // ---- special ----
 function eatLife(){if(state.lifeDay===state.day){toast('You have eaten from the Tree of Life today. Return tomorrow.');return}state.lifeDay=state.day;state.energy=state.maxE;state.breath=state.maxB;sfx.harp();burst(LIFE.x+.5,LIFE.y-2,'#ffe08a',24,3);toast('You eat from the Tree of Life. Your strength is renewed.')}
 async function knowledge(){
- if(state.q<=5){await runDialog([{s:'narr',t:'A tree heavy with fruit stands in the midst of the garden. Something within you grows quiet and careful here.'}]);return}
+ if(state.day<2){await runDialog([{s:'narr',t:'A tree heavy with fruit stands in the midst of the garden. Something within you grows quiet and careful here.'}]);return}
  if(state.serpentDay===state.day){await runDialog([{s:'narr',t:'The serpent is gone for now. The fruit still hangs there, beautiful and silent.'}]);return}
  const r=st().resisted;const open=[[{s:'serpent',t:'Yea, hath God said, Ye shall not eat of every tree of the garden?',ref:'Genesis 3:1'}],[{s:'serpent',t:'Back again? You keep coming to look at it. Surely that means something.'}],[{s:'serpent',t:'You have worked so hard. Doesn’t a keeper deserve a taste of what he keeps?'}]][Math.min(r,2)];
  const c=await runDialog([...open,{s:'serpent',t:'Look at it. Pleasant to the eyes. Good for food. One taste…',choices:[{t:'“God said we must not eat of it.”',v:'no'},{t:'Take the fruit and eat',v:'eat'}]}]);if(c==='eat')return theFall();
@@ -813,7 +844,7 @@ async function theFall(){sfx.dark();$('#fade').classList.add('on');await wait(12
 async function beginExile(){$('#fall').classList.remove('on');fallOpen=false;$('#fade').classList.add('on');await wait(900);
  state.fallen=true;state.fq=0;state.fs={};state.unlocked[6]=1;state.whispers=true;state.time=360;state.energy=state.maxE;state.breath=state.maxB;fish=null;enemies=[];drops=[];
  if(!maps.east){const keep=curMap;genEast();useMap(keep)}useMap('east');player.x=M().home.x+.5;player.y=M().home.y+1.6;player.fx=0;player.fy=1;spawnAnimals();if(state.eve.met)placeEveNear(player.x,player.y);snapCam();
- save();saveMorning();updateControlsVis();await wait(500);$('#fade').classList.remove('on');banner('East of Eden');refreshBar();startQuest()}
+ save();saveMorning();updateControlsVis();await wait(500);$('#fade').classList.remove('on');banner('East of Eden');refreshBar();runDialog(EXILE_INTRO)}
 async function homeMenu(){const o=homeObj(),lv=o.lvl||1;const late=state.time>=18*60;const ch=[{t:'Sleep until morning',v:'rest'}];if(lv<3)ch.push({t:'Improve your home → '+HOME_LV[lv+1].n,v:'up'});ch.push({t:'Not yet',v:0});
  const c=await runDialog([{s:'narr',t:'Your '+HOME_LV[lv].n.toLowerCase()+'. '+(late?'The day is done.':'It is still day.')+(isSabbath()&&!state.sabbathWorked?' It is the Sabbath — you have rested well today.':''),choices:ch}]);if(c==='rest')doSleep(false);else if(c==='up')openUpgrade()}
 function setHomeFoot(o){const h=M().home,L2=HOME_LV[o.lvl];const hw=Math.floor(L2.fw/2);for(let yy=h.y-L2.fh+1;yy<=h.y;yy++)for(let xx=h.x-hw;xx<=h.x+hw;xx++){if(!inb(xx,yy))continue;const i=idx(xx,yy);if(xx===h.x&&yy===h.y)continue;if(objs[i]&&objs[i].t!=='block'&&['crop','chest'].includes(objs[i].t))addOrDrop(objs[i].t==='chest'?'chest':'wood',1);objs[i]={t:'block',mx:h.x,my:h.y};if(tiles[i]===TILLED)tiles[i]=G}}
@@ -828,7 +859,7 @@ function earn(v){state.bless+=v;state.earned+=v;if(state.fallen)state.fs.earned=
 async function doSleep(fainted){if(sleeping)return;sleeping=true;fish=null;$('#fade').classList.add('on');await wait(1100);
  let sab=false;if(!fainted&&isSabbath()&&!state.sabbathWorked){bump('sabbaths');state.maxE+=10;earn(100);sab=true}
  const shipped=state.shipped;let total=0;shipped.forEach(s=>total+=ITEMS[s.id].p*s.n);if(total){earn(total)}state.shipped=[];
- const fromDay=state.day;newDay(fainted);player.x=M().home.x+.5;player.y=M().home.y+1.6;player.fx=0;player.fy=1;snapCam();enemies=enemies.filter(e=>e.k!=='whisper');drops=[];if(state.eve.met)placeEveNear(player.x+1,player.y);
+ const fromDay=state.day;newDay(fainted);player.x=M().home.x+.5;player.y=M().home.y+1.6;player.fx=0;player.fy=1;snapCam();enemies=enemies.filter(e=>e.k==='serpent');drops=[];if(state.eve.met)placeEveNear(player.x+1,player.y);
  if(!fainted)bump('slept');save();saveMorning();
  await showSummary(fromDay,shipped,total,sab,fainted);
  $('#fade').classList.remove('on');sleeping=false;banner(SEASONS[season()]+' '+sday()+' · '+DAYNAMES[(state.day-1)%7]);
@@ -875,7 +906,8 @@ function inLight(x,y){for(const [lx,ly,r] of lightsNear(x,y,8))if(Math.hypot(lx-
 
 // =============== ENEMIES ===============
 function spawnTick(){
- if(state.whispers&&isNight()){const pr=reg[idx(Math.floor(player.x),Math.floor(player.y))];const ws=enemies.filter(e=>e.k==='whisper').length;const cap=pr===5?5:state.fallen?4:3;if(ws<cap&&Math.random()<.5){for(let k=0;k<20;k++){const a=Math.random()*6.283,d=rnd(9,12);const x=player.x+Math.cos(a)*d,y=player.y+Math.sin(a)*d;const tx=Math.floor(x),ty=Math.floor(y);if(!inb(tx,ty)||solidAt(tx,ty)||reg[idx(tx,ty)]<2||inLight(x,y))continue;enemies.push({k:'whisper',x,y,hp:3,fade:1,flash:0,kx:0,ky:0,ph:Math.random()*6});break}}}
+ if(isNight()&&!enemies.some(e=>e.k==='tempter')&&Math.random()<.12){const pr0=reg[idx(Math.floor(player.x),Math.floor(player.y))];if(state.fallen?fsv('slept')>=3:(state.day>=6&&pr0===5)){for(let k=0;k<20;k++){const a=Math.random()*6.283,d=rnd(9,12);const x=player.x+Math.cos(a)*d,y=player.y+Math.sin(a)*d;const tx=Math.floor(x),ty=Math.floor(y);if(!inb(tx,ty)||solidAt(tx,ty)||reg[idx(tx,ty)]<2||inLight(x,y))continue;enemies.push({k:'tempter',x,y,hp:10,flash:0,kx:0,ky:0,ph:0});toast('Something darker than a whisper is near…','whisper');break}}}
+ if((state.day>=4||state.fallen)&&isNight()){const pr=reg[idx(Math.floor(player.x),Math.floor(player.y))];const ws=enemies.filter(e=>e.k==='whisper').length;const cap=pr===5?5:state.fallen?4:3;if(ws<cap&&Math.random()<.5){for(let k=0;k<20;k++){const a=Math.random()*6.283,d=rnd(9,12);const x=player.x+Math.cos(a)*d,y=player.y+Math.sin(a)*d;const tx=Math.floor(x),ty=Math.floor(y);if(!inb(tx,ty)||solidAt(tx,ty)||reg[idx(tx,ty)]<2||inLight(x,y))continue;enemies.push({k:'whisper',x,y,hp:3,fade:1,flash:0,kx:0,ky:0,ph:Math.random()*6});break}}}
  if(curMap==='eden'&&state.unlocked[5]){const ss=enemies.filter(e=>e.k==='serpent').length;if(ss<5&&Math.random()<.3){for(let k=0;k<20;k++){const x=rnd(CX+4,W-4),y=rnd(CY+4,H-4);const tx=Math.floor(x),ty=Math.floor(y);if(reg[idx(tx,ty)]!==5||solidAt(tx,ty))continue;if(Math.hypot(x-player.x,y-player.y)<10)continue;enemies.push({k:'serpent',x:tx+.5,y:ty+.5,hp:5,flash:0,kx:0,ky:0,cd:0,vx:0,vy:0,t:0,lunge:0,anim:0});break}}}}
 function enemySolid(x,y){if(solidAt(x,y))return true;return reg[idx(x,y)]===1}
 function updateEnemies(dt){const night=isNight();
@@ -885,11 +917,12 @@ function updateEnemies(dt){const night=isNight();
   if(e.k==='whisper'){e.ph+=dt;if(!night){e.fade-=dt*.8;if(e.fade<=0)e.hp=-99}const lit=inLight(e.x,e.y),plLit=inLight(player.x,player.y)||(has('lantern')&&d<2.4);const sp=1.6;
    if(lit||plLit){moveEnt(e,-dx/d*sp*dt,-dy/d*sp*dt,.25,enemySolid);if(lit)e.fade-=dt*.5;if(e.fade<=0)e.hp=-99}else if(d<14)moveEnt(e,(dx/d*sp+Math.sin(e.ph*2)*.6)*dt,(dy/d*sp+Math.cos(e.ph*1.7)*.6)*dt,.25,enemySolid);
    if(d<.65&&player.hurtCd<=0)hurt(8,e,pick(state.fallen?WHISPERS_FALL.concat(WHISPERS):WHISPERS))}
+  else if(e.k==='tempter'){e.ph+=dt;if(!night)e.hp=-99;if(inLight(e.x,e.y))moveEnt(e,-dx/d*2*dt,-dy/d*2*dt,.25,enemySolid);else if(d<16)moveEnt(e,dx/d*1.25*dt,dy/d*1.25*dt,.25,enemySolid);if(d<.7&&player.hurtCd<=0)hurt(15,e,pick(TEMPT))}
   else{if(e.lunge>0){e.lunge-=dt;moveEnt(e,e.vx*dt,e.vy*dt,.25,enemySolid)}
    else if(d<6&&reg[idx(Math.floor(player.x),Math.floor(player.y))]!==1){if(d<2.3&&e.cd<=0){e.vx=dx/d*7;e.vy=dy/d*7;e.lunge=.25;e.cd=1.6;tone(1200,.2,'sawtooth',.015,0,500)}else{e.vx=dx/d*1.3;e.vy=dy/d*1.3;moveEnt(e,e.vx*dt,e.vy*dt,.25,enemySolid)}}
    else{e.t-=dt;if(e.t<=0){const a=Math.random()*6.283;e.vx=Math.cos(a)*.7;e.vy=Math.sin(a)*.7;e.t=rnd(1,3)}moveEnt(e,e.vx*dt,e.vy*dt,.25,enemySolid)}
    if(d<.6&&player.hurtCd<=0)hurt(10,e,null)}}
- for(const e of enemies)if(e.hp<=0&&e.hp>-50){burst(e.x,e.y-.5,e.k==='whisper'?'#d9c2ff':'#6fcf5a',14,2.5);if(e.k==='whisper'){st().dispelled++;floatText(e.x,e.y-1,'Dispelled')}else{st().serpents++;give('scale',1,e.x,e.y)}}
+ for(const e of enemies)if(e.hp<=0&&e.hp>-50){burst(e.x,e.y-.5,e.k==='whisper'?'#d9c2ff':'#6fcf5a',14,2.5);if(e.k==='whisper'){st().dispelled++;floatText(e.x,e.y-1,'Dispelled')}else if(e.k==='tempter'){st().tempters++;give('gold',1,e.x,e.y);earn(100);floatText(e.x,e.y-1.6,'“Get thee hence!” ✦100','#ffe08a')}else{st().serpents++;give('scale',1,e.x,e.y)}}
  enemies=enemies.filter(e=>e.hp>0)}
 function hurt(n,e,line){state.breath=Math.max(0,state.breath-n);player.hurtCd=1;player.flash=.6;sfx.hurt();floatText(player.x,player.y-1.8,'-'+n,'#ff6a5a');const dx=player.x-e.x,dy=player.y-e.y,d=Math.hypot(dx,dy)||1;for(let k=0;k<6;k++)moveEnt(player,dx/d*.1,dy/d*.1,.3,solidAt);if(line)toast('“'+line+'”','whisper');
  if(state.breath<30&&state.guardDay!==state.day&&isNight()){state.guardDay=state.day;guardian()}if(state.breath<=0)passOut('breath')}
@@ -915,7 +948,7 @@ function openNaming(a){const sp=a.sp;const img=animSpr(sp.id,0).toDataURL();open
  b.querySelector('#nm').onclick=done;inp.onkeydown=e=>{if(e.key==='Enter')done();e.stopPropagation()};setTimeout(()=>inp.focus(),50)}]],'n')}
 async function openShop(){if(!state.flags.metShamar){state.flags.metShamar=1;await runDialog([{s:'shamar',t:'Peace to you, son of the dust! I am Shamar — the name means “keeper.” I keep this storehouse, as you keep the garden.'},{s:'shamar',t:'Put whatever you gather, grow or catch into the crate beside your home. I collect it each night and leave Blessings ✦. Here you may receive seeds, saplings and gifts — and I can strengthen your tools with gold and onyx.'}])}
  if(state.fallen&&!state.flags.shamarEast){state.flags.shamarEast=1;await runDialog([{s:'shamar',t:'You did not think I would leave you, did you? I may not pass the sword, but I may still keep a storehouse at its edge.'}])}
- openModal([['b','Receive',shopBuy],['r','Requests',shopReq],['u','Tools',shopTools],['s','Give',shopSell]],'b')}
+ openModal([['b','Receive',b=>shopBuy(b)],['r','Requests',shopReq],['u','Tools',shopTools],['s','Give',shopSell]],'b')}
 function shopSell(b){const ids=uniqueItems().filter(id=>ITEMS[id].p);let h=`<div class="muted" style="margin-bottom:6px">You have <span class="nameb">✦ ${fmt(state.bless)}</span></div>`;if(!ids.length)h+='<p class="muted">Nothing to give right now.</p>';
  ids.forEach(id=>{h+=`<div class="row"><img src="${iconURL(id)}"><div class="grow"><div class="t1">${ITEMS[id].n} ×${cnt(id)}</div><div class="t2">✦ ${ITEMS[id].p} each</div></div><button class="btn alt" data-s1="${id}">1</button><button class="btn" data-sa="${id}">All</button></div>`});b.innerHTML=h;
  const sell=(id,n)=>{n=Math.min(n,cnt(id));if(n<=0)return;removeItem(id,n);earn(ITEMS[id].p*n);st().sold+=n;sfx.coin();const sc=b.scrollTop;shopSell(b);b.scrollTop=sc};
@@ -928,12 +961,12 @@ function shopReq(b){if(!state.req||state.req.day!==state.day)genRequests();let h
  b.innerHTML=h+'<p class="muted">New requests every morning.</p>';
  b.querySelectorAll('[data-rq]').forEach(e=>e.onclick=()=>{const r=state.req.list[+e.dataset.rq];if(cnt(r.id)<r.n||r.done)return;removeItem(r.id,r.n);r.done=true;earn(r.r);bump('requests');sfx.ok();toast('Request fulfilled! ✦'+r.r);shopReq(b)})}
 function shopPrice(s){const it=ITEMS[s.id];return it.up?s.p+state.ups[it.up]*500:s.p}
-function shopBuy(b){let h=`<div class="muted" style="margin-bottom:6px">You have <span class="nameb">✦ ${fmt(state.bless)}</span> · ${SEASONS[season()]} ${sday()}/${SEASON_LEN}</div>`;let sec='';
- SHOP.forEach(s=>{const it=ITEMS[s.id];const cat=it.seed?'Seeds':it.sap?'Saplings':'Gifts';if(cat!==sec){sec=cat;h+=`<div class="h3">${cat}</div>`}
-  const own=(it.perk&&has(s.id))||(s.id==='bstaff'&&cnt('bstaff')),p=shopPrice(s),maxed=it.up&&state.ups[it.up]>=3;const outS=it.seed&&!CROPS[it.seed].s.includes(season());
+function shopBuy(b,list=SHOP){let h=`<div class="muted" style="margin-bottom:6px">You have <span class="nameb">✦ ${fmt(state.bless)}</span> · ${SEASONS[season()]} ${sday()}/${SEASON_LEN}</div>`;let sec='';
+ list.forEach(s=>{const it=ITEMS[s.id];const cat=it.seed?'Seeds':it.sap?'Saplings':'Gifts';if(cat!==sec){sec=cat;h+=`<div class="h3">${cat}</div>`}
+  const own=(it.perk&&has(s.id))||((s.id==='bstaff'||s.id==='staff')&&cnt(s.id)),p=shopPrice(s),maxed=it.up&&state.ups[it.up]>=3;const outS=it.seed&&!CROPS[it.seed].s.includes(season());
   const desc=it.seed?('Grows in '+CROPS[it.seed].days+' days · '+CROPS[it.seed].s.map(k=>SEASONS[k]).join(', ')+' · sells ✦'+ITEMS[it.seed].p):(it.sap?'Bears fruit in 4 days, every day after.':(it.d||''));
   h+=`<div class="row" style="${outS?'opacity:.5':''}"><img src="${iconURL(s.id)}"><div class="grow"><div class="t1">${it.n}</div><div class="t2">${desc}</div></div>${it.seed&&!outS?`<button class="btn alt" data-b5="${s.id}" ${state.bless<p*5?'disabled':''}>×5</button>`:''}<button class="btn" data-b="${s.id}" ${own||maxed||outS||state.bless<p?'disabled':''}>${own?'Owned':maxed?'Max':outS?'Not now':'✦ '+p}</button></div>`});b.innerHTML=h;
- const buy=(id,n)=>{const s=SHOP.find(x=>x.id===id),it=ITEMS[id],p=shopPrice(s)*n;if(state.bless<p)return;state.bless-=p;if(it.up){state.ups[it.up]++;if(it.up==='e'){state.maxE+=30;state.energy=state.maxE}else{state.maxB+=25;state.breath=state.maxB}}else addOrDrop(id,n);sfx.coin();const sc=b.scrollTop;shopBuy(b);b.scrollTop=sc};
+ const buy=(id,n)=>{const s=list.find(x=>x.id===id),it=ITEMS[id],p=shopPrice(s)*n;if(state.bless<p)return;state.bless-=p;if(it.up){state.ups[it.up]++;if(it.up==='e'){state.maxE+=30;state.energy=state.maxE}else{state.maxB+=25;state.breath=state.maxB}}else addOrDrop(id,n);sfx.coin();const sc=b.scrollTop;shopBuy(b,list);b.scrollTop=sc};
  b.querySelectorAll('[data-b]').forEach(e=>e.onclick=()=>buy(e.dataset.b,1));b.querySelectorAll('[data-b5]').forEach(e=>e.onclick=()=>buy(e.dataset.b5,5))}
 function shopTools(b){let h='<p style="margin-top:0">“Bring me gold or onyx and I will strengthen your tools. Stronger hoes and cans work 3 or 5 tiles at once — hold USE to charge.”</p>';
  UPG.forEach(t=>{const tr=state.tier[t];if(tr>=2){h+=`<div class="row"><img src="${iconURL(t)}"><div class="grow"><div class="t1">${itemName(t)}</div><div class="t2">Fully strengthened.</div></div></div>`;return}
@@ -964,7 +997,9 @@ function craftTab(b){const kit=homeLvl()>=2;let h='';let kitHead=false;
   const req=Object.entries(r.need).map(([k,v])=>`<span class="${cnt(k)>=v?'have':'lack'}">${ITEMS[k].n} ${cnt(k)}/${v}</span>`).join(' · ');
   h+=`<div class="row" style="${r.k&&!kit?'opacity:.5':''}"><img src="${iconURL(r.id)}"><div class="grow"><div class="t1">${it.n}${r.n?' ×'+r.n:''}</div><div class="t2">${it.d||(it.food?'Restores '+it.food+' energy. Worth ✦'+it.p+'.':'')}</div><div class="req">${req}</div></div><button class="btn" data-c="${r.id}" ${ok?'':'disabled'}>Craft</button></div>`});
  b.innerHTML=h;b.querySelectorAll('[data-c]').forEach(e=>e.onclick=()=>{const r=RECIPES.find(x=>x.id===e.dataset.c);if(r.k&&homeLvl()<2)return;if(!Object.entries(r.need).every(([k,v])=>cnt(k)>=v))return;Object.entries(r.need).forEach(([k,v])=>removeItem(k,v));addOrDrop(r.id,r.n||1);st().crafted[r.id]=1;sfx.build();const sc=b.scrollTop;craftTab(b);b.scrollTop=sc})}
-function questTab(b){const Q=curQ();let h='';if(Q){h+=`<div class="h3">${Q.t}</div>`;Q.objs.forEach(o=>{const c=Math.min(o[1](),o[2]);h+=`<div class="row"><div class="grow">${c>=o[2]?'✅':'⬜'} ${o[0]}</div><div class="muted">${Math.floor(c)}/${o[2]}</div></div>`});const last=(Q.intro||[]).filter(l=>l.s==='god').slice(-1)[0];if(last)h+=`<p><i>“${last.t}”</i></p>`}else h+='<div class="h3">Chapter complete</div><p>The land is yours to tend. More of the story is coming.</p>';
+function questTab(b){state.newQ=false;const act=activeGoals();let h='<p class="muted" style="margin-top:0">Ideas for what to do next. There is no hurry: do them in any order, or not at all.</p>';
+ act.forEach(g=>{h+=`<div class="h3">${g.t}</div>${g.d?`<p style="margin:0 0 5px">${g.d}</p>`:''}`;g.objs.forEach(o=>{const c=Math.min(o[1](),o[2]);h+=`<div class="row"><div class="grow">${c>=o[2]?'✅':'⬜'} ${o[0]}</div><div class="muted">${Math.floor(c)}/${o[2]}</div></div>`});const rw=g.rw||{};const r=[rw.bless?'✦'+rw.bless:'',...Object.entries(rw.items||{}).map(([k,v])=>v+' '+ITEMS[k].n),rw.txt||''].filter(Boolean).join(', ');if(r)h+=`<div class="muted">Reward: ${r}</div>`});
+ const dn=GOALS.filter(g=>state.done[g.id]);if(dn.length)h+=`<div class="h3">Completed (${dn.length})</div><p class="muted">${dn.map(g=>'✓ '+g.t).join(' · ')}</p>`;
  h+=`<div class="h3">Journey</div><p class="muted">${SEASONS[season()]} ${sday()}, Day ${state.day} · ${nNamed()}/${ANIMALS.length} creatures named · ${st().fish} fish · ${st().requests} requests · ✦${fmt(state.earned)} earned · Sabbaths kept: ${st().sabbaths} · Resisted the serpent ${st().resisted}×</p>`;b.innerHTML=h}
 function namesTab(b){let h=`<div class="muted" style="margin-bottom:6px">“Whatsoever Adam called every living creature, that was the name thereof.” ${nNamed()}/${ANIMALS.length}</div><div class="grid" style="grid-template-columns:repeat(auto-fill,74px)">`;
  ANIMALS.forEach(a=>{const n=state.names[a.id];const hv=Math.floor(state.hearts[a.id]||0);const s=animSpr(a.id,0);h+=`<div class="row" style="flex-direction:column;gap:2px;padding:4px;margin:0;${n?'':'opacity:.45'}"><img src="${s.toDataURL()}" style="width:${Math.min(56,s.width*2)}px;height:auto;${n?'':'filter:brightness(0)'}"><div style="font-size:12px;text-align:center;line-height:1.1">${n?'<b>'+esc(n)+'</b><br><span class="muted">'+a.real+'</span><br><span class="hearts">'+'♥'.repeat(hv)+'<span style="opacity:.3">'+'♥'.repeat(5-hv)+'</span></span>':'???<br><span class="muted">'+REGION_NAMES[a.r].replace('The ','')+'</span>'}</div></div>`});b.innerHTML=h+'</div>'}
@@ -975,7 +1010,7 @@ function mapTab(b){const c=document.createElement('canvas');c.width=W*3;c.height
 const TCOLM={[G]:'#68b34f',[TALL]:'#5fa646',[WATER]:'#3b8ad0',[SAND]:'#e3cf93',[STONE]:'#9d9a8f',[DRY]:'#b8b462',[DARK]:'#3f8a44',[GROVE]:'#7fd066',[TILLED]:'#8a5a33',[PATH]:'#c9b384',[HEDGE]:'#2b6130',[BRIDGE]:'#a87444',[FLOW]:'#6cb851'};
 function prayTab(b){const can=state.prayDay!==state.day;b.innerHTML=`<div style="text-align:center;padding:10px"><img src="${portrait('god').toDataURL()}" style="width:80px;image-rendering:pixelated"><p>Speak with your Maker. Once each day, prayer restores your breath.</p><button class="btn" id="pr" ${can?'':'disabled'}>${can?'Pray':'You have prayed today'}</button><div id="prr" style="margin-top:14px"></div></div>`;
  const btn=b.querySelector('#pr');if(btn)btn.onclick=()=>{state.prayDay=state.day;state.breath=state.maxB;sfx.harp();const lines=state.fallen?['I have not forsaken you. Work the ground, and I will give the increase.','The way back is kept — but I am not kept from you.','Dust you are. But today you are breath, and I am with you.']:['And God saw every thing that he had made, and, behold, it was very good. — Genesis 1:31','So God created man in his own image. — Genesis 1:27','I am with you. Tend the garden, and do not fear the dark.','Every creature you name, I made. And I made you to know them.','Rest when evening comes. The ground will still be here in the morning.'];b.querySelector('#prr').innerHTML='<i>'+pick(lines)+'</i>';btn.disabled=true;btn.textContent='Amen'}}
-function optionsTab(b){b.innerHTML=`<div class="h3">Controls</div><p class="muted"><b>Phone:</b> drag to walk, or tap a spot to walk there. Tap something next to you to use what you're holding on it — or to talk, harvest and gather. <b>USE</b> = use the held tool/item (hold to repeat or charge). <b>ACT</b> = talk, harvest, pet, open, eat.<br><b>Keyboard:</b> WASD move · C/Space use · X/F act · 1–9, 0, -, = select slot · scroll wheel cycles · E/Esc menu. Left click = use at cursor, right click = act.</p>
+function optionsTab(b){b.innerHTML=`<div class="h3">Controls</div><p class="muted"><b>Phone:</b> use the joystick in the bottom-left to walk, or tap a spot to walk there. Tap something next to you to use what you're holding on it — or to talk, harvest and gather. <b>USE</b> = use the held tool/item (hold to repeat or charge). <b>ACT</b> = talk, harvest, pet, open, eat.<br><b>Keyboard:</b> WASD move · C/Space use · X/F act · 1–9, 0, -, = select slot · scroll wheel cycles · E/Esc menu. Left click = use at cursor, right click = act.</p>
  <div class="h3">Settings</div><div class="row"><div class="grow">Music</div><button class="btn alt" id="mus">${state.music?'On':'Off'}</button></div><div class="row"><div class="grow">Sound effects</div><button class="btn alt" id="snd">${state.sound?'On':'Off'}</button></div>
  <div class="row"><div class="grow">Save now</div><button class="btn alt" id="sv">Save</button></div><div class="row"><div class="grow">Start over<div class="t2">Erases this garden.</div></div><button class="btn alt" id="rs">Start over</button></div>`;
  b.querySelector('#mus').onclick=()=>{state.music=!state.music;ensureAudio();optionsTab(b)};b.querySelector('#snd').onclick=()=>{state.sound=!state.sound;optionsTab(b)};b.querySelector('#sv').onclick=()=>{save();toast('Saved.')};
@@ -995,17 +1030,18 @@ let lastWaterShown=-1;
 function updateHUD(){const ef=state.energy/state.maxE;$('#enBar .fill').style.height=(ef*100)+'%';$('#enBar .fill').style.background=ef>.5?'#5ad040':ef>.25?'#e8c020':'#e04020';$('#hpBar .fill').style.height=(state.breath/state.maxB*100)+'%';$('#hpBar .fill').style.background='#4aa8ff';
  $('#cDate').textContent=(isSabbath()?'✨ ':'')+DAYNAMES[(state.day-1)%7]+' · '+SEASONS[season()]+' '+sday();$('#cTime').textContent=fmtTime(state.time)+(isNight()?' 🌙':' ☀');$('#cGold').textContent='✦ '+fmt(state.bless);
  if(lastWaterShown!==state.water){lastWaterShown=state.water;barKey=''}refreshBar();
- const a=(!dlg&&!modalOpen)?getAct():null;$('#actIc').textContent=a?a.ic:'✋';$('#actLb').textContent=a?a.lb:'Act';$('#btnAct').style.opacity=a?1:.6;updateTracker()}
-function updateControlsVis(){const hide=!!dlg||modalOpen||titleOpen||fallOpen;$('#ctrl').style.display=hide?'none':'block';const hud=(titleOpen||fallOpen)?'hidden':'visible';$('#hud').style.visibility=hud;$('#toolbar').style.visibility=hud;$('#bars').style.visibility=hud;if(hide)endJoy()}
+ const a=(!dlg&&!modalOpen)?getAct():null;$('#actIc').textContent=a?a.ic:'✋';$('#actLb').textContent=a?a.lb:'Act';$('#btnAct').style.opacity=a?1:.6;$('#bJournal').classList.toggle('new',!!state.newQ);updateTracker()}
+function updateControlsVis(){const hide=!!dlg||modalOpen||titleOpen||fallOpen;$('#ctrl').style.display=hide?'none':'block';const hud=(titleOpen||fallOpen)?'hidden':'visible';$('#hud').style.visibility=hud;$('#toolbar').style.visibility=hud;$('#bars').style.visibility=hud;if(joyFixed)$('#joy').style.display=hide?'none':'block';if(hide)endJoy()}
 
 // =============== INPUT ===============
-const keys={};let joy=null,touchRec=null,useDownT=-1,useRepeat=0,charge=null,mouse={x:-1,y:-1,in:false},path=null,pathCb=null;
-function endJoy(){joy=null;$('#joy').style.display='none'}
+let joyFixed=false;const keys={};let joy=null,touchRec=null,useDownT=-1,useRepeat=0,charge=null,mouse={x:-1,y:-1,in:false},path=null,pathCb=null;
+function endJoy(){joy=null;if(joyFixed)$('#knob').style.transform='';else $('#joy').style.display='none'}
+function joyMove(e){let jx=e.clientX-joy.ox,jy=e.clientY-joy.oy;const l=Math.hypot(jx,jy),m=46;if(l>m){jx=jx/l*m;jy=jy/l*m}joy.dx=jx/m;joy.dy=jy/m;$('#knob').style.transform=`translate(${jx}px,${jy}px)`}
 function screenToTile(sx,sy){const wx=(sx*dpr/SC+camX)/TS,wy=(sy*dpr/SC+camY)/TS;return[wx,wy]}
 function useTarget(){if(mouse.in&&mouse.x>=0){const [wx,wy]=screenToTile(mouse.x,mouse.y);const tx=Math.floor(wx),ty=Math.floor(wy);if(inReach(tx,ty))return[tx,ty]}return facingTile()}
 function useDown(tx,ty){if(fish){if(fish.ph==='game'){fishHold=true;return}reel();return}const h=held();if(tx===undefined)[tx,ty]=useTarget();
  if(h&&(h.id==='hoe'||h.id==='can')&&state.tier[h.id]>0&&!(h.id==='can'&&(tiles[idx(tx,ty)]===WATER))){faceToward(tx,ty);charge={t:0,max:state.tier[h.id],tx,ty};return}
- useHeld(tx,ty,0);useDownT=0;useRepeat=.38}
+ useHeld(tx,ty,0);useDownT=0;useRepeat=.44}
 function useUp(){fishHold=false;useDownT=-1;if(charge){const lv=Math.min(charge.max,Math.floor(charge.t/.5));const c=charge;charge=null;useHeld(c.tx,c.ty,lv)}}
 function smartTap(sx,sy){const [wx,wy]=screenToTile(sx,sy);const tx=Math.floor(wx),ty=Math.floor(wy);
  const ent=entityNear(wx,wy+.3,.9);if(ent){const e=ent.e;if(Math.hypot(e.x-player.x,e.y-player.y)<1.7){faceToward(Math.floor(e.x),Math.floor(e.y));const a=actFor(ent);if(a)a.run()}else walkTo(Math.floor(e.x),Math.floor(e.y),true,()=>{if(Math.hypot(e.x-player.x,e.y-player.y)<2){faceToward(Math.floor(e.x),Math.floor(e.y));const a=actFor(ent);if(a)a.run()}});return}
@@ -1025,10 +1061,11 @@ function setupInput(){
  cv.addEventListener('pointerdown',e=>{ensureAudio();if(titleOpen||summaryOpen)return;if(dlg){dialogTap();return}if(modalOpen||fallOpen||sleeping)return;
   if(fish&&fish.ph==='game'){fishHold=true;return}
   if(e.pointerType==='mouse'){mouse.x=e.clientX;mouse.y=e.clientY;mouse.in=true;const [wx,wy]=screenToTile(e.clientX,e.clientY);const tx=Math.floor(wx),ty=Math.floor(wy);if(e.button===2){if(inReach(tx,ty)){faceToward(tx,ty);const ent=entityNear(wx,wy+.3,.9);if(ent){const a=actFor(ent);if(a)a.run()}else doAct(tx,ty)}else doAct()}else if(e.button===0){if(inReach(tx,ty)&&tileAct(tx,ty)&&!(held()&&ITEMS[held().id].tool)){faceToward(tx,ty);doAct(tx,ty)}else if(inReach(tx,ty))useDown(tx,ty);else smartTap(e.clientX,e.clientY)}return}
+  if(joyFixed&&!touchRec){const r=$('#joy').getBoundingClientRect(),cx=r.left+60,cy=r.top+60;if(Math.hypot(e.clientX-cx,e.clientY-cy)<95){path=null;joy={id:e.pointerId,ox:cx,oy:cy,dx:0,dy:0};touchRec={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:true};joyMove(e);return}}
   if(!touchRec)touchRec={id:e.pointerId,x:e.clientX,y:e.clientY,t:performance.now(),moved:false}});
  window.addEventListener('pointermove',e=>{if(e.pointerType==='mouse'){mouse.x=e.clientX;mouse.y=e.clientY;mouse.in=true}
-  if(touchRec&&e.pointerId===touchRec.id){const dx=e.clientX-touchRec.x,dy=e.clientY-touchRec.y;if(!touchRec.moved&&Math.hypot(dx,dy)>12){touchRec.moved=true;path=null;joy={id:e.pointerId,ox:touchRec.x,oy:touchRec.y,dx:0,dy:0};const j=$('#joy');j.style.display='block';j.style.left=(touchRec.x-60)+'px';j.style.top=(touchRec.y-60)+'px'}
-   if(joy){let jx=e.clientX-joy.ox,jy=e.clientY-joy.oy;const l=Math.hypot(jx,jy),m=46;if(l>m){jx=jx/l*m;jy=jy/l*m}joy.dx=jx/m;joy.dy=jy/m;$('#knob').style.transform=`translate(${jx}px,${jy}px)`}}});
+  if(touchRec&&e.pointerId===touchRec.id){const dx=e.clientX-touchRec.x,dy=e.clientY-touchRec.y;if(!joyFixed&&!touchRec.moved&&Math.hypot(dx,dy)>12){touchRec.moved=true;path=null;joy={id:e.pointerId,ox:touchRec.x,oy:touchRec.y,dx:0,dy:0};const j=$('#joy');j.style.display='block';j.style.left=(touchRec.x-60)+'px';j.style.top=(touchRec.y-60)+'px'}
+   if(joy)joyMove(e)}});
  const up=e=>{fishHold=false;if(e.pointerType==='mouse'){useUp();return}if(touchRec&&e.pointerId===touchRec.id){if(!touchRec.moved&&performance.now()-touchRec.t<400&&!dlg&&!modalOpen)smartTap(touchRec.x,touchRec.y);touchRec=null;endJoy()}};
  window.addEventListener('pointerup',up);window.addEventListener('pointercancel',up);
  cv.addEventListener('mouseleave',()=>{mouse.in=false});
@@ -1062,16 +1099,16 @@ function hasSave(){try{return !!localStorage.getItem(KEY)}catch(e){return false}
 function migrate(old){const f=freshState();const keep=['day','names','hearts','fedDay','petDay','tips','visited','unlocked','eve','fallen','flags','ups','prayDay','resisted','whispers','sound','music','maxB','earned'];keep.forEach(k=>{if(old[k]!==undefined)f[k]=old[k]});
  f.bless=Math.max(500,(old.bless||0)*5);f.stats=Object.assign(f.stats,old.stats||{});f.stats.cropKinds=f.stats.cropKinds||{};
  const qm=[0,1,1,2,3,5,6,7,7,8,9,10,11];f.q=old.q>=13?old.q-1:qm[old.q||0];f.fq=old.fq||0;f.fs=old.fs||{};
- const items=old.inv||{};const add=(id,n)=>{if(ITEMS[id]&&!ITEMS[id].tool)addTo(f,id,n)};if(f.q>=1)['hoe','can','axe','pick','scythe'].forEach(t=>addTo(f,t,1));const tools=old.tools||{};if(tools.rod)addTo(f,'rod',1);if(tools.staff)addTo(f,'staff',1);if(tools.bstaff)addTo(f,'bstaff',1);if(tools.harp)addTo(f,'harp',1);['basket','sandals','lantern'].forEach(p=>{if(tools[p])f.perks[p]=1});
+ const items=old.inv||{};const add=(id,n)=>{if(ITEMS[id]&&!ITEMS[id].tool)addTo(f,id,n)};['hoe','can','axe','pick','scythe'].forEach(t=>addTo(f,t,1));const tools=old.tools||{};if(tools.rod)addTo(f,'rod',1);if(tools.staff)addTo(f,'staff',1);if(tools.bstaff)addTo(f,'bstaff',1);if(tools.harp)addTo(f,'harp',1);['basket','sandals','lantern'].forEach(p=>{if(tools[p])f.perks[p]=1});
  for(const id in items)add(id,items[id]);return f}
 function addTo(s,id,n){for(const x of s.inv)if(x&&x.id===id&&!ITEMS[id].tool){x.n+=n;return}const i=s.inv.findIndex(x=>!x);if(i>=0)s.inv[i]={id,n}}
 function load(key){try{const s=localStorage.getItem(key);if(!s)return false;const d=JSON.parse(s);for(const k in maps)delete maps[k];
- if(!d.v||d.v<3){const old=d.st;state=migrate(old);genEden();if(state.fallen)genEast();useMap(state.fallen?'east':'eden');const hm=homeObj();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();enemies=[];eve=null;if(state.eve.met)placeEveNear(player.x,player.y);state.flags.migrated=1;return true}
+ if(!d.v||d.v<3){const old=d.st;state=migrate(old);genEden();if(state.fallen)genEast();useMap(state.fallen?'east':'eden');const hm=homeObj();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();enemies=[];eve=null;if(state.eve.met)placeEveNear(player.x,player.y);state.flags.migrated=1;legacyFix(true);return true}
  genEden();for(const k in d.maps){if(k==='east')genEast();const m=maps[k];const t=b64d(d.maps[k].t);if(t.length!==m.W*m.H)return false;m.tiles=t;m.wet=d.maps[k].w?b64d(d.maps[k].w):new Uint8Array(m.W*m.H);m.objs=new Array(m.W*m.H).fill(null);for(const [i,o] of d.maps[k].o)m.objs[i]=o}
- const f=freshState();state=Object.assign(f,d.st);state.stats=Object.assign(freshState().stats,d.st.stats);state.eve=Object.assign({met:false,mode:'follow'},d.st.eve||{});state.tier=Object.assign({hoe:0,can:0,axe:0,pick:0},d.st.tier||{});
- useMap(state.map&&maps[state.map]?state.map:'eden');player=mkPlayer(state.px||M().home.x+.5,state.py||M().home.y+1.6);spawnAnimals();enemies=[];drops=[];eve=null;if(state.eve.met)placeEveNear(player.x,player.y);return true}catch(e){console.warn(e);return false}}
+ const legacy=!d.st.done;const f=freshState();state=Object.assign(f,d.st);state.stats=Object.assign(freshState().stats,d.st.stats);state.eve=Object.assign({met:false,mode:'follow'},d.st.eve||{});state.tier=Object.assign({hoe:0,can:0,axe:0,pick:0},d.st.tier||{});
+ useMap('eden');ensureLandmarks();useMap(state.map&&maps[state.map]?state.map:'eden');player=mkPlayer(state.px||M().home.x+.5,state.py||M().home.y+1.6);spawnAnimals();enemies=[];drops=[];eve=null;if(state.eve.met)placeEveNear(player.x,player.y);legacyFix(legacy);return true}catch(e){console.warn(e);return false}}
 function mkPlayer(x,y){return{x,y,fx:0,fy:1,anim:0,moving:false,swingT:0,toolT:0,actT:0,hurtCd:0,flash:0,toolId:null}}
-function newGame(){for(const k in maps)delete maps[k];genEden();useMap('eden');state=freshState();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();enemies=[];drops=[];eve=null;titleOpen=false;save();saveMorning()}
+function newGame(){for(const k in maps)delete maps[k];genEden();useMap('eden');state=freshState();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();enemies=[];drops=[];eve=null;titleOpen=false;['hoe','can','axe','pick','scythe'].forEach(t=>addItem(t));save();saveMorning()}
 
 // =============== UPDATE ===============
 let spawnT=0,hudT=0,saveT=0,birdT=5,regT=0;
@@ -1095,11 +1132,11 @@ function update(dt){GT+=dt;tickDialog(dt);musicTick(dt);
  if((mx||my)&&path)path=null;
  if(!mx&&!my&&path&&path.length&&!fishing){const [nx,ny]=path[0];const dx=nx-player.x,dy=ny-player.y,d=Math.hypot(dx,dy);if(d<.12){path.shift();if(!path.length){path=null;if(pathCb){const cb=pathCb;pathCb=null;cb()}}}else{mx=dx/d;my=dy/d;path.stuck=(path.stuck||0)}}
  if((mx||my)&&!fishing&&player.toolT<=.05){const l=Math.hypot(mx,my);if(l>1){mx/=l;my/=l}const ti=tiles[idx(Math.floor(player.x),Math.floor(player.y))];const sp=(has('sandals')?5:4)*(ti===TALL?.85:ti===PATH?1.15:1);const ox=player.x,oy=player.y;moveEnt(player,mx*sp*dt,my*sp*dt,.3,solidAt);const mv=Math.hypot(player.x-ox,player.y-oy);
-  st().walked+=mv;player.moving=mv>.0005;player.anim+=dt;if(Math.abs(mx)>Math.abs(my)+.05){player.fx=Math.sign(mx);player.fy=0}else if(my){player.fx=0;player.fy=Math.sign(my)}
+  st().walked+=mv;player.moving=mv>.0005;player.anim+=mv/4;if(Math.abs(mx)>Math.abs(my)+.05){player.fx=Math.sign(mx);player.fy=0}else if(my){player.fx=0;player.fy=Math.sign(my)}
   if(path&&mv<.001){path.stuck=(path.stuck||0)+dt;if(path.stuck>.5){path=null;pathCb=null}}}else player.moving=false;
  player.swingT=Math.max(0,player.swingT-dt);player.toolT=Math.max(0,player.toolT-dt);player.actT=Math.max(0,player.actT-dt);player.hurtCd=Math.max(0,player.hurtCd-dt);player.flash=Math.max(0,player.flash-dt);
  if(charge){charge.t+=dt;const lv=Math.min(charge.max,Math.floor(charge.t/.5));if(lv!==charge.lv){charge.lv=lv;if(lv)tone(600+lv*200,.06,'square',.03)}}
- if(useDownT>=0&&!charge&&!fish){useDownT+=dt;useRepeat-=dt;if(useRepeat<=0){useRepeat=.32;const h=held();if(h&&(ITEMS[h.id].tool&&h.id!=='rod'&&h.id!=='harp')){if(keys[' ']||keys.c||$('#btnUse').classList.contains('dn')||mouse.in)useHeld(...useTarget(),0)}}}
+ if(useDownT>=0&&!charge&&!fish){useDownT+=dt;useRepeat-=dt;if(useRepeat<=0){useRepeat=.44;const h=held();if(h&&(ITEMS[h.id].tool&&h.id!=='rod'&&h.id!=='harp')){if(keys[' ']||keys.c||$('#btnUse').classList.contains('dn')||mouse.in)useHeld(...useTarget(),0)}}}
  if(!isNight()||inLight(player.x,player.y))state.breath=Math.min(state.maxB,state.breath+dt*(state.fallen?.3:.6));
  updateFish(dt);
  // drops
@@ -1112,7 +1149,7 @@ function update(dt){GT+=dt;tickDialog(dt);musicTick(dt);
  regT-=dt;if(regT<=0){regT=.3;regionCheck()}
  saveT-=dt;if(saveT<=0){saveT=20;save()}
  if(curMap==='east'&&Math.random()<dt*8)parts.push({x:8.5+rnd(-.4,.4),y:GY+rnd(-1.4,.4),vx:rnd(-.3,.3),vy:rnd(-1.5,-.5),life:rnd(.3,.7),col:pick(['#ffb030','#ff6a20','#ffe070']),g:0});
- checkQuest();camTarget(player.x,player.y-.5,Math.min(1,dt*8))}
+ goalT-=dt;if(goalT<=0){goalT=.5;checkGoals()}camTarget(player.x,player.y-.5,Math.min(1,dt*8))}
 function regionCheck(){const i=idx(Math.floor(player.x),Math.floor(player.y)),r=reg[i];if(r===lastRegion||r===0)return;lastRegion=r;if(REGION_NAMES[r])banner(REGION_NAMES[r]);if(!state.visited[r]){state.visited[r]=1;if(REGION_INTRO[r])runDialog(REGION_INTRO[r])}}
 
 // =============== RENDER ===============
@@ -1135,9 +1172,9 @@ function render(){const bw=buf.width,bh=buf.height;bx.setTransform(1,0,0,1,0,0);
  const D=[];for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const o=objs[idx(x,y)];if(o&&o.t!=='block')D.push([y+.99,0,o,x,y])}
  const inV=e=>e.x>x0-2&&e.x<x1+3&&e.y>y0-1&&e.y<y1+3;
  for(const a of animals)if(inV(a))D.push([a.y,1,a]);for(const e of enemies)if(inV(e))D.push([e.y,2,e]);
- if(!titleOpen)D.push([player.y,3,player]);D.push([shamar.y,4,shamar]);if(state.eve.met&&eve&&!titleOpen)D.push([eve.y,5,eve]);for(const d of drops)if(inV(d))D.push([d.y+.01,6,d]);
+ if(!titleOpen)D.push([player.y,3,player]);for(const n of npcsHere())D.push([n.y,4,n]);if(state.eve.met&&eve&&!titleOpen)D.push([eve.y,5,eve]);for(const d of drops)if(inV(d))D.push([d.y+.01,6,d]);
  D.sort((a,b)=>a[0]-b[0]);
- for(const d of D){const k=d[1];if(k===0)drawObj(d[2],d[3],d[4]);else if(k===1)drawAnimal(d[2]);else if(k===2)drawEnemy(d[2]);else if(k===3)drawPerson(player,state.fallen?LOOK_FALL_A:LOOK_ADAM,true);else if(k===4)drawShamar();else if(k===5)drawPerson(eve,state.fallen?LOOK_FALL_E:LOOK_EVE,false);else drawDrop(d[2])}
+ for(const d of D){const k=d[1];if(k===0)drawObj(d[2],d[3],d[4]);else if(k===1)drawAnimal(d[2]);else if(k===2)drawEnemy(d[2]);else if(k===3)drawPerson(player,state.fallen?LOOK_FALL_A:LOOK_ADAM,true);else if(k===4)drawNpc(d[2]);else if(k===5)drawPerson(eve,state.fallen?LOOK_FALL_E:LOOK_EVE,false);else drawDrop(d[2])}
  if(fish&&fish.ph!=='game'){const bxp=fish.x*TS,byp=fish.y*TS+Math.sin(GT*4)+(fish.ph==='bite'?Math.sin(GT*30)*1.5:0);bx.strokeStyle='rgba(255,255,255,.7)';bx.lineWidth=1;bx.beginPath();bx.moveTo(player.x*TS+player.fx*8,player.y*TS-20);bx.lineTo(bxp,byp);bx.stroke();bx.fillStyle='#fff';bx.fillRect(bxp-1,byp-1,3,3);bx.fillStyle='#d93a2e';bx.fillRect(bxp-1,byp-2,3,1);if(fish.ph==='bite'){bx.fillStyle='#ffd23a';bx.fillRect(player.x*TS-1,player.y*TS-38,3,7);bx.fillRect(player.x*TS-1,player.y*TS-29,3,2)}}
  // mist
  for(let y=y0;y<=y1;y++)for(let x=x0;x<=x1;x++){const i=idx(x,y),r=reg[i];if(r<2)continue;let a=0;if(!state.unlocked[r])a=r===7?.55:.88;else if(state.mist[r])a=.88*state.mist[r];if(a<=0)continue;bx.fillStyle=r===7?'rgba(255,248,222,'+a+')':'rgba(236,240,250,'+a+')';bx.fillRect(x*TS,y*TS,TS,TS);const h=hash(x*3,y*5);if(h<.1){bx.fillStyle='rgba(255,255,255,'+(a*.5)+')';bx.beginPath();bx.arc(x*TS+8+Math.sin(GT*.4+h*50)*6,y*TS+8+Math.cos(GT*.3+h*30)*4,14,0,7);bx.fill()}}
@@ -1148,7 +1185,7 @@ function render(){const bw=buf.width,bh=buf.height;bx.setTransform(1,0,0,1,0,0);
   if(dk>.2){lx.globalCompositeOperation='destination-out';const hole=(x,y,r,f)=>{const R2=r*TS*(1+Math.sin(GT*7+x)*f);const sx=x*TS-camX,sy=y*TS-camY;const g=lx.createRadialGradient(sx,sy,0,sx,sy,R2);g.addColorStop(0,'rgba(0,0,0,1)');g.addColorStop(.5,'rgba(0,0,0,.8)');g.addColorStop(1,'rgba(0,0,0,0)');lx.fillStyle=g;lx.fillRect(sx-R2,sy-R2,R2*2,R2*2)};
    hole(player.x,player.y-.5,has('lantern')?3.4:1.8,0);const LL=lightsNear(camFX/TS,camFY/TS,Math.max(bw,bh)/TS/2+6);for(const [x,y,r] of LL)hole(x,y,r,.04);for(const p of parts)if(p.angel)hole(p.x,p.y,6,0);
    bx.drawImage(lc,0,0);bx.globalCompositeOperation='lighter';for(const [x,y,r] of LL){const sx=x*TS-camX,sy=y*TS-camY,R2=r*TS*.7;const g=bx.createRadialGradient(sx,sy,0,sx,sy,R2);g.addColorStop(0,'rgba(255,160,60,'+(.22*dk)+')');g.addColorStop(1,'rgba(255,160,60,0)');bx.fillStyle=g;bx.fillRect(sx-R2,sy-R2,R2*2,R2*2)}bx.globalCompositeOperation='source-over';
-   bx.translate(-camX,-camY);for(const e of enemies)if(e.k==='whisper'&&inV(e))drawEnemy(e);bx.setTransform(1,0,0,1,0,0)}else bx.drawImage(lc,0,0)}
+   bx.translate(-camX,-camY);for(const e of enemies)if(e.k!=='serpent'&&inV(e))drawEnemy(e);bx.setTransform(1,0,0,1,0,0)}else bx.drawImage(lc,0,0)}
  // fishing minigame
  if(fish&&fish.ph==='game')drawFishGame();
  if(charge){const px=Math.round(player.x*TS-camX),py=Math.round(player.y*TS-camY)-34;bx.fillStyle='#2c1608';bx.fillRect(px-9,py,18,4);bx.fillStyle='#ffd23a';bx.fillRect(px-8,py+1,16*Math.min(1,charge.t/(.5*charge.max)),2)}
@@ -1159,8 +1196,8 @@ function render(){const bw=buf.width,bh=buf.height;bx.setTransform(1,0,0,1,0,0);
  if(titleOpen)return;ctx.textAlign='center';ctx.textBaseline='middle';const fs=Math.max(10,Math.round(SC*4.5));ctx.font=`600 ${fs}px 'Pixelify Sans',monospace`;ctx.lineWidth=Math.max(2,SC*.9);ctx.strokeStyle='rgba(30,15,5,.85)';
  const tx=(wx,wy,txt,col)=>{const sx=(wx*TS-camX)*SC,sy=(wy*TS-camY)*SC;ctx.strokeText(txt,sx,sy);ctx.fillStyle=col;ctx.fillText(txt,sx,sy)};
  for(const f of floats){ctx.globalAlpha=clamp(f.life*1.5,0,1);tx(f.x,f.y,f.txt,f.col)}ctx.globalAlpha=1;
- for(const a of animals){if(!inV(a))continue;const d=Math.hypot(a.x-player.x,a.y-player.y);const n=state.names[a.sp.id];const top=a.y-animSpr(a.sp.id,0).height/TS-.45;if(n&&d<2.6){const hv=Math.floor(state.hearts[a.sp.id]||0);tx(a.x,top,n+(hv?' '+'♥'.repeat(hv):''),'#ffe9a8')}else if(!n&&d<6&&state.q>=6)tx(a.x,top+Math.sin(GT*3+a.bob)*.06,'?','#fff')}
- if(Math.hypot(shamar.x-player.x,shamar.y-player.y)<3)tx(shamar.x,shamar.y-2.3,'Shamar','#d6e6ff');
+ for(const a of animals){if(!inV(a))continue;const d=Math.hypot(a.x-player.x,a.y-player.y);const n=state.names[a.sp.id];const top=a.y-animSpr(a.sp.id,0).height/TS-.45;if(n&&d<2.6){const hv=Math.floor(state.hearts[a.sp.id]||0);tx(a.x,top,n+(hv?' '+'♥'.repeat(hv):''),'#ffe9a8')}else if(!n&&d<6)tx(a.x,top+Math.sin(GT*3+a.bob)*.06,'?','#fff')}
+ for(const n of npcsHere())if(Math.hypot(n.x-player.x,n.y-player.y)<3)tx(n.x,n.y-2.3,n.name,'#d6e6ff');
  if(state.eve.met&&eve&&Math.hypot(eve.x-player.x,eve.y-player.y)<3.5)tx(eve.x,eve.y-2,'Eve','#ffc4d8')}
 function drawSpr(s,cx,by,flip){const x=Math.round(cx-s.width/2),y=Math.round(by-s.height);if(flip){bx.save();bx.translate(x+s.width,y);bx.scale(-1,1);bx.drawImage(s,0,0);bx.restore()}else bx.drawImage(s,x,y)}
 function shadow(cx,by,w){bx.fillStyle='rgba(0,0,0,.22)';bx.beginPath();bx.ellipse(Math.round(cx),Math.round(by),w,Math.max(1.5,w*.35),0,0,7);bx.fill()}
@@ -1173,7 +1210,7 @@ function drawObj(o,x,y){const cx=x*TS+8,by=y*TS+16;const sh=o.shake?Math.round(M
   case 'store':shadow(cx,by-1,22);drawSpr(storeSpr(),cx,by+1);break;
   case 'life':case 'knowledge':{const life=o.t==='life';const gl=bx.createRadialGradient(cx,by-40,4,cx,by-40,50);gl.addColorStop(0,life?'rgba(255,230,140,'+(.35+.1*Math.sin(GT*2))+')':'rgba(170,90,200,'+(.15+.06*Math.sin(GT*1.3))+')');gl.addColorStop(1,'rgba(0,0,0,0)');bx.fillStyle=gl;bx.fillRect(cx-50,by-90,100,100);shadow(cx,by-2,22);drawSpr(bigTreeSpr(life),cx,by+2);
    [[-14,-50],[10,-56],[-2,-66],[16,-44],[-20,-60],[4,-46],[12,-68]].forEach(([dx,dy],i)=>{const fx=cx+dx,fy=by+dy;bx.fillStyle='#2c1608';bx.fillRect(fx-1,fy-1,5,5);bx.fillStyle=life?'#ffd54a':'#e0303a';bx.fillRect(fx,fy,3,3);bx.fillStyle='rgba(255,255,255,.7)';bx.fillRect(fx,fy,1,1);if(life&&Math.sin(GT*3+i)>.6){bx.fillStyle='rgba(255,240,160,.8)';bx.fillRect(fx+1,fy-3,1,1)}});
-   if(!life&&state.q>5&&state.serpentDay!==state.day){const s=bake('snk'+(Math.floor(GT*2)%2),20,12,g=>{const w=Math.floor(GT*2)%2;L(g,'#4f9a3a',3,[[2,9],[6,5+w],[10,9],[14,5-w+1]]);E(g,'#5fb04a',16,5,3,2.4);R(g,'#d93a2e',18,4,1,1)});drawSpr(s,cx+10,by-6,true)}break}
+   if(!life&&state.day>1&&state.serpentDay!==state.day){const s=bake('snk'+(Math.floor(GT*2)%2),20,12,g=>{const w=Math.floor(GT*2)%2;L(g,'#4f9a3a',3,[[2,9],[6,5+w],[10,9],[14,5-w+1]]);E(g,'#5fb04a',16,5,3,2.4);R(g,'#d93a2e',18,4,1,1)});drawSpr(s,cx+10,by-6,true)}break}
   case 'gate':{const y2=by-14;const gl=bx.createRadialGradient(cx,y2,2,cx,y2,34);gl.addColorStop(0,'rgba(255,150,40,.55)');gl.addColorStop(1,'rgba(255,120,30,0)');bx.fillStyle=gl;bx.fillRect(cx-34,y2-34,68,68);bx.save();bx.translate(cx,y2);bx.rotate(GT*2.4);bx.fillStyle='#fff3c0';bx.fillRect(-1,-22,3,22);bx.fillStyle='#d9a414';bx.fillRect(-5,-1,11,3);bx.fillRect(-1,2,3,6);bx.fillStyle='rgba(255,120,30,.85)';for(let k=0;k<5;k++)bx.fillRect(Math.round(Math.sin(GT*20+k)*2)-1,-6-k*4,3,3);bx.restore();break}
   case 'cherub':shadow(cx,by-1,9);drawSpr(cherubSpr(),cx,by+Math.round(Math.sin(GT*1.5)*1.5)-2);break;
   case 'fence':{const n=(dx,dy)=>{const q=inb(x+dx,y+dy)&&objs[idx(x+dx,y+dy)];return q&&q.t==='fence'};drawSpr(fenceSpr((n(1,0)?1:0)|(n(-1,0)?2:0)|(n(0,-1)?4:0)),cx,by+1);break}
@@ -1183,15 +1220,19 @@ function drawObj(o,x,y){const cx=x*TS+8,by=y*TS+16;const sh=o.shake?Math.round(M
   case 'hive':drawSpr(objSpr('hive'),cx,by+1);if(o.n>0){bx.fillStyle='#ffd23a';for(let k=0;k<3;k++)bx.fillRect(Math.round(cx+Math.sin(GT*3+k*2)*9),Math.round(by-16+Math.cos(GT*4+k)*4),1,1)}break;
   case 'sapling':{const s=objSpr('sapling');const k2=.6+o.g*.14;bx.drawImage(s,Math.round(cx-s.width*k2/2),Math.round(by-s.height*k2),Math.round(s.width*k2),Math.round(s.height*k2));break}
   case 'lamp':drawSpr(objSpr('lamp'),cx,by);break;
-  default:if(OBJS[o.t]){if(['rock','gold','onyx','stump'].includes(o.t))shadow(cx,by-3,7);drawSpr(objSpr(o.t),cx+sh,by)}}}
+  default:if(OBJS[o.t]){if(['rock','gold','onyx','stump'].includes(o.t))shadow(cx,by-3,7);if(o.t==='tower'||o.t==='pavilion')shadow(cx,by-1,22);drawSpr(objSpr(o.t),cx+sh,by);if(MACH[o.t]&&o.out&&state.day>=o.ready)bx.drawImage(icon(o.out),cx-6,by-objSpr(o.t).height-11+Math.round(Math.sin(GT*4)*1.5),12,12)}}}
+const TOOLD=.4;
 function drawPerson(p,lk,isPlayer){if(!p)return;if(isPlayer&&p.flash>0&&Math.floor(GT*20)%2)return;const px=p.x*TS,py=p.y*TS;const fx=p.fx||0,fy=p.fy===undefined?1:p.fy;const dir=fy<0?1:fx!==0?2:0;
- const fr=p.moving?[0,1,0,3][Math.floor(p.anim*8)%4]:0;const act=isPlayer&&p.toolT>0?(p.toolT>.18?1:2):0;shadow(px,py,6);
- const s=charSpr(lk,dir,fr,act);drawSpr(s,px,py+2,fx>0);
- if(isPlayer&&(p.toolT>0||p.swingT>0)&&p.toolId){const ic=icon(p.toolId);const prog=p.toolT>0?1-p.toolT/.32:1-p.swingT/.3;const base=dir===2?(fx>0?0:Math.PI):dir===1?-Math.PI/2:Math.PI/2;const ang=base-1.4+prog*1.8*(fx<0?-1:1)*(dir===2?1:1);
-  bx.save();bx.translate(Math.round(px+Math.cos(ang)*7),Math.round(py-12+Math.sin(ang)*7));bx.rotate(ang+Math.PI/4);bx.drawImage(ic,-6,-6,12,12);bx.restore()}}
-function drawShamar(){const b=Math.round(Math.sin(GT*1.8)*1.5);const x=shamar.x*TS,y=shamar.y*TS;shadow(x,y,7);drawSpr(shamarSpr(),x,y-3+b);drawSpr(haloSpr(),x,y-28+b)}
+ const fr=p.moving?[0,1,0,3][Math.floor(p.anim*8)%4]:0;const tooling=isPlayer&&p.toolT>0&&p.toolId;const prog=tooling?1-p.toolT/TOOLD:0;const act=tooling?(prog<.45?1:2):0;const bob=(fr===1||fr===3)?1:0;const lean=tooling&&prog>=.45?1:0;shadow(px,py,6);
+ drawSpr(charSpr(lk,dir,fr,act),px+lean*fx,py+2-bob+lean*(fy>0?1:0),fx>0);
+ if(tooling){const ic=icon(p.toolId),flip=fx<0;let ox,oy,rot;
+  if(prog<.45){ox=0;oy=-27;rot=-Math.PI/4-.35*(1-prog/.45)}else{const k=Math.min(1,(prog-.45)/.22);if(dir===2){ox=4+6*k;oy=-20+11*k;rot=-Math.PI/4+k*1.9}else if(dir===0){ox=3;oy=-18+14*k;rot=-Math.PI/4+k*2.6}else{ox=3;oy=-27+5*k;rot=-Math.PI/4-.25*k}}
+  bx.save();bx.translate(Math.round(px+(flip?-ox:ox)),Math.round(py+oy));if(flip)bx.scale(-1,1);bx.rotate(rot);bx.drawImage(ic,-8,-8,16,16);bx.restore()}
+ else if(isPlayer&&p.swingT>0&&p.toolId){const ic=icon(p.toolId);const pr=1-p.swingT/.3;const base=dir===2?(fx>0?0:Math.PI):dir===1?-Math.PI/2:Math.PI/2;const ang=base-1.2+pr*2.4*(fx<0?-1:1);bx.save();bx.translate(Math.round(px+Math.cos(ang)*9),Math.round(py-12+Math.sin(ang)*9));bx.rotate(ang+Math.PI/4);bx.drawImage(ic,-7,-7,14,14);bx.restore()}}
+function drawNpc(n){const b=Math.round(Math.sin(GT*1.8+n.x)*1.5);const x=n.x*TS,y=n.y*TS;shadow(x,y,7);drawSpr(shamarSpr(n.id),x,y-3+b);drawSpr(haloSpr(),x,y-28+b)}
 function drawAnimal(a){const x=a.x*TS,y=a.y*TS;const moving=a.vx||a.vy;const f=moving?Math.floor(a.bob*6)%2+1:0;const s=animSpr(a.sp.id,f===2?2:f);shadow(x,y-1,Math.max(4,s.width*.32));const fly=a.sp.id==='butterfly'?Math.round(Math.sin(GT*3+a.bob)*3)-8:0;drawSpr(s,x,y+1+fly,a.face)}
 function drawEnemy(e){const x=e.x*TS,y=e.y*TS;
+ if(e.k==='tempter'){const f=Math.floor(e.ph*4)%2;const s=bake('tmp'+f,22,30,g=>{P(g,'#1a0a1e',[[5,10],[17,10],[20,29],[14,26+f],[11,29],[8,26+f],[2,29]]);E(g,'#2a1030',11,8,5,5.5);P(g,'#3a1a40',[[6,5],[4,0],[9,4]]);P(g,'#3a1a40',[[16,5],[18,0],[13,4]]);R(g,'#ff3a2a',8,7,2,2);R(g,'#ff3a2a',12,7,2,2);R(g,'#5a2a6a',9,14,4,8)});if(e.flash>0)bx.globalAlpha=.5;drawSpr(s,x,y+Math.round(Math.sin(e.ph*2))-2);bx.globalAlpha=1;return}
  if(e.k==='whisper'){const s=bake('wisp'+(Math.floor(e.ph*3)%2),18,22,g=>{const w=Math.floor(e.ph*3)%2;E(g,'#2a1040',9,9,7,7);P(g,'#2a1040',[[3,11],[15,11],[11+w*2,21],[8,16],[5-w,21]]);E(g,'#4a2a6a',7,7,3,3);R(g,'#e9d8ff',5,8,2,2);R(g,'#e9d8ff',11,8,2,2)});bx.globalAlpha=clamp(e.fade,0,1)*(e.flash>0?.4:.85);drawSpr(s,x,y+Math.round(Math.sin(e.ph*3)*2)-6);bx.globalAlpha=1}
  else{shadow(x,y,7);const s=bake('serp'+(Math.floor(e.anim*6)%2),20,12,g=>{const w=Math.floor(e.anim*6)%2;L(g,'#4f9a3a',3,[[2,9],[6,5+w],[10,9],[14,5-w+1]]);E(g,'#5fb04a',16,5,3,2.4);R(g,'#ffd23a',17,4,1,1)});if(e.flash>0)bx.globalAlpha=.5;drawSpr(s,x,y+1,(e.vx||0)>0);bx.globalAlpha=1}}
 function drawDrop(d){const s=icon(d.id);const x=Math.round(d.x*TS-6),y=Math.round(d.y*TS-12-d.z+Math.sin(GT*4+d.x)*1);bx.fillStyle='rgba(0,0,0,.2)';bx.fillRect(Math.round(d.x*TS-4),Math.round(d.y*TS-1),8,2);bx.drawImage(s,x,y,12,12)}
@@ -1209,14 +1250,15 @@ function titleScreen(){titleOpen=true;updateControlsVis();const tb=$('#tbtns');t
  if(sv)mk('Continue',()=>{if(!load(KEY)){newGame();startPlay(true)}else startPlay(false)});
  mk(sv?'New Game':'Begin',b=>{if(sv&&!confirmNew){confirmNew=true;b.textContent='Tap again — erases your garden';return}newGame();startPlay(true)},sv)}
 function startPlay(fresh){titleOpen=false;$('#title').style.display='none';updateControlsVis();snapCam();lastRegion=-1;barKey='';refreshBar();updateTracker(true);updateHUD();
- if(fresh)startQuest();else{banner(SEASONS[season()]+' '+sday()+' · '+DAYNAMES[(state.day-1)%7]);if(state.flags.migrated){state.flags.migrated=0;runDialog([{s:'narr',t:'The garden has been made new — pixel by pixel. Your names, friendships, Blessings and story carry on, and you have new tools in your toolbar. Tap ☰ for your items, crafting and more.'}]);if(curQ()&&curQ().onStart&&state.q===1)curQ().onStart()}else toast('Welcome back'+(state.fallen?'.':' to the garden.'))}}
+ if(fresh){state.newQ=true;runDialog(INTRO).then(()=>openModal([['h','How to Play',helpTab]],'h'))}
+ else{banner(SEASONS[season()]+' '+sday()+' · '+DAYNAMES[(state.day-1)%7]);if(state.flags.migrated){state.flags.migrated=0;runDialog([{s:'narr',t:'The garden has been made new. Your names, friendships and Blessings carry on, and you have tools in your toolbar. Tap ☰ for your items and crafting, and ! for your journal.'}])}else toast('Welcome back'+(state.fallen?'.':' to the garden.'))}}
 $('#fallBack').onclick=()=>{fallOpen=false;$('#fall').classList.remove('on');if(!load(KEYM))newGame();else save();snapCam();updateControlsVis();barKey='';refreshBar();updateTracker(true);toast('You wake at home. The garden is still here.')};
 $('#fallGo').onclick=()=>beginExile();
 function loop(t){const dt=Math.min(.05,(t-(loop.l||t))/1000);loop.l=t;try{update(dt);render()}catch(e){console.error(e)}requestAnimationFrame(loop)}
 function boot(){cv=$('#c');ctx=cv.getContext('2d');buf=mkc(10,10);bx=buf.getContext('2d');lc=mkc(10,10);lx=lc.getContext('2d');resize();addEventListener('resize',resize);
- genEden();useMap('eden');state=freshState();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();camFX=CX*TS;camFY=CY*TS;setupInput();titleScreen();requestAnimationFrame(loop);
+ genEden();useMap('eden');state=freshState();player=mkPlayer(M().home.x+.5,M().home.y+1.6);spawnAnimals();camFX=CX*TS;camFY=CY*TS;joyFixed=('ontouchstart' in window)||matchMedia('(pointer:coarse)').matches;if(joyFixed)$('#joy').classList.add('fixed');setupInput();titleScreen();requestAnimationFrame(loop);
  try{if('serviceWorker' in navigator&&location.protocol==='https:'&&window.self===window.top&&!/claude|anthropic/.test(location.hostname))navigator.serviceWorker.register('sw.js').catch(()=>{})}catch(e){}
- window.EDEN={get state(){return state},get player(){return player},get animals(){return animals},get enemies(){return enemies},get eve(){return eve},get map(){return curMap},get fish(){return fish},objs:()=>objs,tiles:()=>tiles,wet:()=>wet,reg:()=>reg,getAct,doAct,useHeld,newDay,unlock,addItem,give,beginExile,meetEve,useMap,save,load,doSleep,cnt,facingTile,smartTap,walkTo,get drops(){return drops}}}
+ window.EDEN={get state(){return state},get player(){return player},get animals(){return animals},get enemies(){return enemies},get eve(){return eve},get map(){return curMap},get fish(){return fish},objs:()=>objs,tiles:()=>tiles,wet:()=>wet,reg:()=>reg,getAct,doAct,useHeld,checkGoals,talkNpc,NPCS,GOALS,newDay,unlock,addItem,give,beginExile,meetEve,useMap,save,load,doSleep,cnt,facingTile,smartTap,walkTo,get drops(){return drops}}}
 boot();
 })();
 </script>
