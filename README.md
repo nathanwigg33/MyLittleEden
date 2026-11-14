@@ -1,6 +1,10 @@
 # Eden: The First Garden
 
-A gathering, crafting and farming game set in the Garden of Eden, made to play on an iPhone (or any browser). God gives the tutorial using Genesis verses. You gather and craft, farm through the seasons, name every creature, build a home, and keep the one command.
+A cozy pixel-art farming game set in the Garden of Eden, made to play on an iPhone (or any browser). It plays like the classic farm-sim games: a toolbar of tools, an energy bar, crops you water daily, a shipping crate that sells overnight, and a fishing minigame. All the art is original pixel art drawn in code. God gives the tutorial using Genesis verses. You gather and craft, farm through the seasons, name every creature, build a home, and keep the one command.
+
+## Controls
+- **Phone:** drag to walk, or tap a spot to walk there. Tap something next to you to use your held tool on it (or talk/harvest). **USE** uses the held tool or item (hold to repeat; stronger hoes and cans charge). **ACT** talks, harvests, pets, opens and eats.
+- **Keyboard:** WASD to move, C/Space to use, X/F to act, 1–0/-/= to pick a toolbar slot, E/Esc for the menu. Left-click uses the tool at the cursor; right-click acts.
 
 ## What's in the game
 - **Chapter One:** formed from the dust, you learn to gather, craft, farm, fish and name the animals. The four regions of Eden (the Orchard, Havilah, the Tending Fields and the Wild Wood) open up as you go.
