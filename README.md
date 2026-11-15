@@ -31,3 +31,10 @@ First-time setup:
 
 ## Art credit
 Most of the pixel art is from **Sunnyside World** by danieldiggle (https://danieldiggle.itch.io/sunnyside), used under its license for free and commercial projects. The packed sprite sheet is in `art/`. Angels, the serpent, most wild animals and a few buildings are drawn in code for this game.
+
+## Island update (Mini Mini Farm style)
+- Drag anywhere to walk; walk into things to gather, push into trees and rocks.
+- Overgrown places with a lock sign are cleared with ✦; see-through objects are bought to develop an area.
+- Reach 80% in an area to build its house: an angel moves in, helps harvest, and a bridge opens to the next area (3 areas).
+- Request board with ⏱ rush requests (double pay), regrowing crop beds, animals with ❗ when ready, fishing levels, hidden blue-flower isles.
+- The previous version is at /garden-v1.html and the classic big game at /classic.html.
