@@ -32,3 +32,6 @@ First-time setup:
 
 ## Testing locally
 `npx wrangler dev` runs it at http://localhost:8787. Opening `public/index.html` directly in a browser works too.
+
+## Art credit
+Most of the pixel art is from **Sunnyside World** by danieldiggle (https://danieldiggle.itch.io/sunnyside), used under its license for free and commercial projects. The packed sprite sheet is in `art/`. Angels, the serpent, most wild animals and a few buildings are drawn in code for this game.
