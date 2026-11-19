@@ -86,7 +86,7 @@ async function action() {
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   const it = interactTarget();
   if (it) {
-    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'church') visitChurch(); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say('A villager’s home. The door is closed.'); return }
+    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'synagogue') visitChurch(); else if (k === 'carpenter') openCarpenter(); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say('A villager’s home. The door is closed.'); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
@@ -238,7 +238,7 @@ function load() {
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
-    storeMap('farm'); useMap(state.map === 'town' ? 'town' : 'farm');
+    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the synagogue.' }); storeMap('farm'); useMap(state.map === 'town' ? 'town' : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
@@ -470,7 +470,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && o.t === 'tent') lamp(x + .5, y + .6, 26, .7); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (showPlayer) lamp(player.x, player.y - .5, 34, .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3) { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
@@ -496,7 +496,7 @@ function showTitle() {
 function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); World.soil = {}; storeMap('farm'); useMap('farm'); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
 function startPlay(fresh) {
   mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); snapCam(); hudSig = ''; updateHUD();
-  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn and a church. Sleep in your tent when the day is done.`), 900) }
+  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a synagogue. Sleep in your tent when the day is done.`), 900) }
   else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }
 }
 let last = 0, hudT = 0;

@@ -4,7 +4,7 @@ const VILLAGERS = [
   { id: 'tobiah', name: 'Tobiah', role: 'Market merchant', shop: 'market', spot: [22.5, 24.9], roam: 1.2, look: { hair: 'curly', hairCol: 1, skin: 2, shirt: 5, pants: 0 },
     lines: ['Fresh seeds and fair prices! Well… mostly fair.', 'A heavy bag and light pockets? Let me help with that.', 'Caravans come through from Egypt to Damascus. Every one of them stops in Bethlehem for bread.', 'Barley comes in first, then wheat. Plant both and you’ll never go hungry.', 'I hear the Jordan is lovely this time of year. Not that I ever leave my stall.'],
     warm: ['You’re becoming my best customer. Don’t tell the others.', 'My father sold seeds from this very corner. Now I sell them to you.'] },
-  { id: 'jesse', name: 'Jesse', role: 'Blacksmith', shop: 'smithy', spot: [50.5, 24.8], roam: .8, look: { hair: 'short', hairCol: 0, skin: 3, shirt: 6, pants: 1 },
+  { id: 'jesse', name: 'Jesse', role: 'Blacksmith', shop: 'smithy', spot: [47.5, 25.8], roam: .8, look: { hair: 'short', hairCol: 0, skin: 3, shirt: 6, pants: 1 },
     lines: ['“Iron sharpeneth iron.” Proverbs 27:17. Bring me your tools and some shekels.', 'A dull axe takes twice the strength. Ecclesiastes says so, and so do my arms.', 'Bronze first, then iron. Each one makes the work lighter.', 'The forge never really goes cold. Neither do I.', 'Swing from the shoulders, not the wrists. Your tools will thank you.'],
     warm: ['You take good care of your tools. I can tell.', 'My grandfather taught me to hammer on this anvil. Maybe I’ll teach someone one day.'] },
   { id: 'naomi', name: 'Naomi', role: 'Widow of Bethlehem', spot: [36.5, 31.5], roam: 2.5, look: { hair: 'long', hairCol: 6, skin: 1, shirt: 4, pants: 2 },
@@ -16,12 +16,15 @@ const VILLAGERS = [
   { id: 'boaz', name: 'Boaz', role: 'Landowner', spot: [40.5, 29.2], roam: 2, look: { hair: 'short', hairCol: 6, skin: 2, shirt: 0, pants: 2 },
     lines: ['“The LORD be with you!” That’s how we greet our workers in Bethlehem.', 'A good farmer rises early and rests well. Both matter.', 'My fields are east of here. Yours will grow just as fine with patience.', 'Never trust a man who doesn’t know when his barley is ripe.', 'Generosity is the best fertilizer, I always say.'],
     warm: ['You work your land with honor. That is rare.', 'If you ever need advice about the harvest, you know where to find me.'] },
-  { id: 'simeon', name: 'Elder Simeon', role: 'Church elder', spot: [34.5, 21.2], roam: 1, look: { hair: 'mop', hairCol: 6, skin: 1, shirt: 0, pants: 0 },
-    lines: ['Welcome, child. The doors of the church are always open.', '“This is the day which the LORD hath made; we will rejoice and be glad in it.” Psalm 118:24', 'Come on the Sabbath morning. The whole town gathers here.', '“Commit thy works unto the LORD, and thy thoughts shall be established.” Proverbs 16:3', 'I have prayed for your fields. Now go water them!'],
+  { id: 'simeon', name: 'Elder Simeon', role: 'Synagogue elder', spot: [34.5, 21.2], roam: 1, look: { hair: 'mop', hairCol: 6, skin: 1, shirt: 0, pants: 0 },
+    lines: ['Welcome, child. The doors of the synagogue are always open.', '“This is the day which the LORD hath made; we will rejoice and be glad in it.” Psalm 118:24', 'Come to the synagogue on the Sabbath morning. The whole town gathers here.', '“Commit thy works unto the LORD, and thy thoughts shall be established.” Proverbs 16:3', 'I have prayed for your fields. Now go water them!'],
     warm: ['You are a blessing to this town.', 'I have seen many farmers come and go. I hope you stay.'] },
-  { id: 'miriam', name: 'Miriam', role: 'Innkeeper', shop: 'inn', spot: [46.5, 39.6], roam: 1.2, look: { hair: 'curly', hairCol: 0, skin: 3, shirt: 1, pants: 3 },
+  { id: 'miriam', name: 'Miriam', role: 'Innkeeper', shop: 'inn', spot: [45.5, 40.4], roam: 1.2, look: { hair: 'curly', hairCol: 0, skin: 3, shirt: 1, pants: 3 },
     lines: ['Hungry? A warm meal brings your strength right back.', 'Travelers sleep here every night. Some even sleep in the stable when we’re full.', 'My lentil stew is famous from here to Jerusalem.', 'Eat well, sleep well, work well. That’s my whole philosophy.', 'The fig cakes go fast. Come early!'],
     warm: ['For you, the bread is always fresh.', 'You’re always welcome at my table, friend.'] },
+  { id: 'joseph', name: 'Joseph', role: 'Carpenter', shop: 'carpenter', spot: [15.5, 36.2], roam: 1, look: { hair: 'short', hairCol: 2, skin: 2, shirt: 6, pants: 2 },
+    lines: ['A good house starts with good timber. Bring me wood and stone and I’ll build you anything.', '“Except the LORD build the house, they labour in vain that build it.” Psalm 127:1', 'Measure twice, cut once. My father taught me that.', 'My family comes from the line of David, like many here in Bethlehem.', 'A barn full of animals is a happy barn. A coop too!'],
+    warm: ['Your farm is coming along nicely. I’d like to see it someday.', 'Every beam I set, I set to last a lifetime. Yours too.'] },
 ];
 const npcs = [];   // live villagers on the town map
 function initVillagers() {
@@ -31,7 +34,7 @@ const isSabbath = () => weekday() === 'Sabbath';
 const heartsOf = id => Math.min(10, Math.floor(((state.friends || {})[id] || { pts: 0 }).pts / 20));
 // where each villager wants to be right now
 function villagerHome(n, k) {
-  if (isSabbath() && state.time >= 9 * 60 && state.time < 13 * 60) return [30 + k * 1.4, 22.6 + (k % 2) * .7, .3];     // gathered at the church
+  if (isSabbath() && state.time >= 9 * 60 && state.time < 13 * 60) return [29.5 + k * 1.3, 21.6 + (k % 2) * .8, .3];     // gathered at the synagogue
   return [n.v.spot[0], n.v.spot[1], n.v.roam];
 }
 const villagersOut = () => state.time >= 7 * 60 && state.time < 19 * 60;
@@ -67,7 +70,7 @@ async function talkTo(n) {
   await say(text, null, { name: v.name, frames: n.frames });
   if (first && heartsOf(v.id) > Math.floor((f.pts - (isSabbath() ? 8 : 5)) / 20)) { toast(`${v.name} likes you more! ♥ ${heartsOf(v.id)}`); sfx.pick() }
   n.talking = false; n.wait = 1.5;
-  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn })[v.shop]();
+  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter })[v.shop]();
 }
 function drawVillager(g, n) {
   const fx = n.x * 16, fy = n.y * 16; g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(Math.round(fx), Math.round(fy), 5, 2, 0, 0, 7); g.fill();
@@ -80,7 +83,7 @@ function drawPortrait(c, frames) {
   g.save(); g.scale(3, 3); drawChar(g, frames, 'idle_s', 0, c.width / 6, c.height / 3 + 4, false); g.restore();
 }
 function peopleTab(b) {
-  let h = '<p class="muted" style="margin-top:0">Talk to villagers each day to become friends. Everyone gathers at the church on Sabbath mornings.</p>';
+  let h = '<p class="muted" style="margin-top:0">Talk to villagers each day to become friends. Everyone gathers at the synagogue on Sabbath mornings.</p>';
   for (const v of VILLAGERS) {
     const f = (state.friends || {})[v.id], hs = heartsOf(v.id);
     h += `<div class="person"><canvas width="48" height="48" data-p="${v.id}"></canvas><div class="pi"><b>${f && f.met ? v.name : '???'}</b><div class="muted">${f && f.met ? v.role : 'Not met yet'}</div><div class="hearts">${'♥'.repeat(hs)}<span>${'♥'.repeat(10 - hs)}</span></div></div></div>`;

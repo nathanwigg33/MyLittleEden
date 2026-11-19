@@ -116,7 +116,10 @@ E['soil_dry'] = Image.open(CR + 'soil_00.png').convert('RGBA'); E['soil_wet'] = 
 
 # ---------- Bethlehem buildings (drawn for this game, see buildings.py) ----------
 from buildings import build_all
-E.update(build_all())
+from room_buildings import pack_buildings
+E.update({k: v for k, v in build_all().items() if k.startswith('stall_') or k == 'torch'})
+E.update(pack_buildings())
+E['well_pack'] = trim(gm('spr_deco_well'))
 E['anvil'] = trim(gm('spr_deco_anvil'))
 
 # ---------- item icons ----------

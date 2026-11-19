@@ -27,7 +27,7 @@ const rowLen = id => [0, 1, 3, 5][toolLv(id)];
 function toolName(id) { const lv = toolLv(id); return (lv > 1 && UPG_TOOLS[id] ? TOOL_LV[lv] + ' ' : '') + ITEMS[id].n }
 
 // ---------- opening hours ----------
-const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'] };
+const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'], carpenter: [9, 17, 'Carpenter'] };
 function shopOpen(k) { const [a, b] = HOURS[k]; if (k !== 'inn' && isSabbath()) return false; return state.time >= a * 60 && state.time < b * 60 }
 function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 'inn' ? `The ${n.toLowerCase()} is closed for the Sabbath. Come back tomorrow.` : `The ${n.toLowerCase()} is closed. Open ${a % 12 || 12}${a < 12 ? ' am' : ' pm'} to ${b % 12 || 12}${b < 12 || b === 24 ? (b === 24 ? ' midnight' : ' am') : ' pm'}.` }
 function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }
@@ -81,6 +81,38 @@ function renderInn() {
   b.innerHTML = h;
   b.querySelectorAll('[data-food]').forEach(el => el.onclick = () => { const k = el.dataset.food; if (state.money < FOODS[k].cost) return; if (addItem(k, 1)) { toast('Your bag is full.'); return } state.money -= FOODS[k].cost; sfx.pick(); renderInn() });
 }
+// ---------- the carpenter ----------
+const CARP = [
+  { id: 'farmhouse', n: 'Farmhouse', d: 'Replace your tent with a cozy wooden house. Sleeping there gives +30 max energy.', money: 3000, wood: 150, stone: 50 },
+  { id: 'coop', n: 'Chicken Coop', d: 'A home for chickens, west of your tent. Chickens are coming soon.', money: 1500, wood: 100, stone: 30 },
+  { id: 'barn', n: 'Barn', d: 'A home for goats, sheep and cattle, east of your tent. Animals are coming soon.', money: 3500, wood: 200, stone: 100 },
+];
+function openCarpenter() { if (!shopOpen('carpenter')) { say(closedMsg('carpenter')); return } openShopModal("Joseph’s Workshop", renderCarpenter) }
+function renderCarpenter() {
+  const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Build on your farm</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me timber and stone and I’ll have it standing on your farm by the time you get home.”</p>`;
+  for (const c of CARP) {
+    const done = (state.built || {})[c.id], ok = state.money >= c.money && count('wood') >= c.wood && count('stone') >= c.stone;
+    h += `<div class="shoprow"><img class="bimg" src="${bldIcon(c.id)}"><div class="si"><b>${c.n}</b><div class="muted">${c.d}</div>${done ? '<div class="req ok">Built ✓</div>' : `<div class="req"><span class="${state.money >= c.money ? 'ok' : 'no'}">₪ ${c.money.toLocaleString()}</span> · <span class="${count('wood') >= c.wood ? 'ok' : 'no'}">${c.wood} wood</span> · <span class="${count('stone') >= c.stone ? 'ok' : 'no'}">${c.stone} stone</span></div>`}</div>${done ? '' : `<div class="sb"><button class="btn" data-build="${c.id}" ${ok ? '' : 'disabled'}>Build</button></div>`}</div>`;
+  }
+  b.innerHTML = h;
+  b.querySelectorAll('[data-build]').forEach(el => el.onclick = () => {
+    const c = CARP.find(q => q.id === el.dataset.build); if ((state.built || {})[c.id] || state.money < c.money || count('wood') < c.wood || count('stone') < c.stone) return;
+    state.money -= c.money; takeItem('wood', c.wood); takeItem('stone', c.stone); (state.built = state.built || {})[c.id] = 1; farmBuild(c.id);
+    if (c.id === 'farmhouse') { state.maxE += 30; state.energy += 30 }
+    sfx.chop(); setTimeout(() => sfx.chop(), 160); setTimeout(() => { sfx.pick(); toast(`Your ${c.n.toLowerCase()} is built on your farm!`) }, 340); renderCarpenter(); save();
+  });
+}
+const bldIconCache = {};
+function bldIcon(id) { if (bldIconCache[id]) return bldIconCache[id]; const s = AT['bld_' + id][0], c = mkc(40, 40), g = c.getContext('2d'), k = Math.min(40 / s.width, 40 / s.height); g.imageSmoothingEnabled = false; g.drawImage(s, (40 - s.width * k) / 2, 40 - s.height * k, s.width * k, s.height * k); return bldIconCache[id] = c.toDataURL() }
+// put a building on the farm map (works from town too), clearing whatever was in the way
+function farmBuild(id) {
+  const prev = World.cur; useMap('farm'); const T = World.TENT;
+  const clear = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inb(x, y)) { const o = World.objs[idx(x, y)]; if (o && !['bin', 'crate', 'campfire'].includes(o.t)) World.objs[idx(x, y)] = null; delete World.soil[idx(x, y)]; if (World.ground[idx(x, y)] === WATER) World.ground[idx(x, y)] = DIRT } };
+  if (id === 'farmhouse') { clear(T.x - 1, T.y - 1, T.x + 1, T.y); placeBld(T.x - 1, T.y, 'farmhouse') }
+  if (id === 'coop') { clear(T.x - 10, T.y - 1, T.x - 7, T.y + 3); placeBld(T.x - 9, T.y + 1, 'coop') }
+  if (id === 'barn') { clear(T.x + 5, T.y - 2, T.x + 11, T.y + 3); placeBld(T.x + 6, T.y + 1, 'barn') }
+  useMap(prev);
+}
 const VERSES = [['The LORD is my shepherd; I shall not want.', 'Psalm 23:1'], ['Whatsoever a man soweth, that shall he also reap.', 'Galatians 6:7'], ['He that tilleth his land shall have plenty of bread.', 'Proverbs 12:11'], ['While the earth remaineth, seedtime and harvest… shall not cease.', 'Genesis 8:22'], ['Consider the lilies of the field, how they grow; they toil not, neither do they spin.', 'Matthew 6:28'], ['I have planted, Apollos watered; but God gave the increase.', '1 Corinthians 3:6'], ['Come unto me, all ye that labour and are heavy laden, and I will give you rest.', 'Matthew 11:28']];
 async function visitChurch() {
   const v = VERSES[(state.totalDay - 1) % VERSES.length];
@@ -93,5 +125,5 @@ async function visitChurch() {
     await say(`You worshipped with the whole town. Elder Simeon read: “${v[0]}” (${v[1]}). You feel completely rested, and everyone is glad you came.`);
     return;
   }
-  await say(`The church is quiet and cool inside. A verse is written by the door today: “${v[0]}” (${v[1]})`);
+  await say(`The synagogue is quiet and cool inside. A verse is written by the door today: “${v[0]}” (${v[1]})`);
 }
