@@ -4,7 +4,8 @@
 html,body{margin:0;height:100%;overflow:hidden;background:#2a1c14;color:#4a2a12;font-family:'Pixelify Sans',ui-monospace,monospace;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent;overscroll-behavior:none}
 #c{position:fixed;inset:0;width:100vw;height:100vh;image-rendering:pixelated;display:block}
 button{font:inherit;cursor:pointer}
-#loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;color:#f7d9a0;font-size:22px;z-index:99;background:#2a1c14}
+#loading{position:fixed;inset:0;display:flex;flex-direction:column;gap:16px;align-items:center;justify-content:center;color:#f7d9a0;font-size:22px;z-index:99;background:#2a1c14}
+.badge{width:min(46vw,210px);height:auto;border:4px solid #5b2e12;border-radius:16px;box-shadow:inset 0 0 0 3px #e8a35a,0 5px 0 rgba(0,0,0,.35);display:block;margin:0 auto 12px}
 
 /* wood + paper look */
 .wood{background:#e8a35a;border:3px solid #5b2e12;border-radius:8px;box-shadow:inset 0 0 0 2px #f6c886,inset 0 -3px 0 2px #c9803f,0 3px 0 rgba(0,0,0,.35)}
@@ -81,7 +82,7 @@ button{font:inherit;cursor:pointer}
 .kv{display:flex;justify-content:space-between;gap:12px;font-size:14px;margin-top:4px}
 
 /* title */
-#title{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 12vh) 20px calc(env(safe-area-inset-bottom) + 40px);background:linear-gradient(rgba(255,190,110,.15),rgba(0,0,0,0) 40%,rgba(30,12,0,.45))}
+#title{position:fixed;inset:0;z-index:40;display:none;flex-direction:column;align-items:center;justify-content:space-between;padding:calc(env(safe-area-inset-top) + 7vh) 20px calc(env(safe-area-inset-bottom) + 40px);background:linear-gradient(rgba(255,190,110,.15),rgba(0,0,0,0) 40%,rgba(30,12,0,.45))}
 #title.on{display:flex}
 .logo{text-align:center;color:#ffe7a8;text-shadow:4px 0 #4a2a12,-4px 0 #4a2a12,0 4px #4a2a12,0 -4px #4a2a12,3px 3px #4a2a12,-3px -3px #4a2a12,3px -3px #4a2a12,-3px 3px #4a2a12,0 9px 0 rgba(0,0,0,.25);font-weight:700}
 .logo .l1{font-size:min(9vw,40px);letter-spacing:2px}
