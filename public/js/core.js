@@ -42,7 +42,7 @@ const iconCache = {};
 function iconURL(name) {
   if (iconCache[name]) return iconCache[name];
   const s = AT[name] && AT[name][0]; if (!s) return '';
-  const c = mkc(16, 16); c.getContext('2d').drawImage(s, Math.round(8 - s.width / 2), Math.round(8 - s.height / 2));
+  const k = s.width <= 8 && s.height <= 8 ? 2 : 1, c = mkc(16, 16); c.getContext('2d').drawImage(s, Math.round(8 - s.width * k / 2), Math.round(8 - s.height * k / 2), s.width * k, s.height * k);
   return iconCache[name] = c.toDataURL();
 }
 
@@ -77,5 +77,9 @@ const sfx = {
   tap: () => tone(660, .04, 'square', .02),
   no: () => tone(220, .12, 'square', .03, 0, 180),
   sleep: () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, .5, 'sine', .04, i * .18)) },
+  dig: () => { noise(.12, .12, 250); tone(120, .08, 'triangle', .04, 0, 80) },
+  water: () => { noise(.25, .05, 2600); tone(1500, .06, 'sine', .015, .05, 1200) },
+  splash: () => { noise(.35, .1, 900); tone(500, .2, 'sine', .03, 0, 250) },
+  plant: () => { tone(520, .06, 'triangle', .03); tone(780, .08, 'triangle', .025, .06) },
   bird: () => { const b = rnd(2200, 3000); tone(b, .07, 'sine', .015, 0, b * 1.3); tone(b * 1.1, .06, 'sine', .012, .1, b * 1.4) },
 };

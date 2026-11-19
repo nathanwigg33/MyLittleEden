@@ -10,7 +10,8 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0 };
+Object.assign(ITEMS, farmItems());
+const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
 let state = null, player = null, look = null, drops = [], parts = [], notes = [], falling = [], birds = [];
@@ -19,8 +20,9 @@ const keys = {};
 G.state = null;
 
 function freshState(lk, seed) {
-  const inv = new Array(INV_SIZE).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 };
-  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], chest: new Array(INV_SIZE).fill(null), inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
+  const inv = new Array(INV_SIZE).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 }; inv[3] = { id: 'hoe', n: 1 }; inv[4] = { id: 'can', n: 1 };
+  const chest = new Array(INV_SIZE).fill(null); chest[0] = { id: 'seed_wheat', n: 15 };
+  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], chest, can: CAN_MAX, farmStart: 1, inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
 }
 const weekday = () => WEEK[(state.totalDay - 1) % 7];
 const fmtTime = m => { m = m % 1440; let h = Math.floor(m / 60), mm = m % 60, am = h < 12; h = h % 12 || 12; return h + ':' + String(mm).padStart(2, '0') + (am ? ' am' : ' pm') };
@@ -75,7 +77,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -86,17 +88,25 @@ async function action() {
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
     if (it.o.t === 'crate') { openChest(); return }
+    if (it.o.t === 'cart') { openShop(); return }
     if (it.o.t === 'campfire') { say('The campfire crackles. It will keep you warm at night.'); return }
   }
-  const s = selItem(), tool = s && ITEMS[s.id].tool; if (!tool) { sfx.no(); return }
-  const cost = TOOL_COST[tool]; if (state.energy < cost) { toast('Too tired… go to your tent and sleep.'); sfx.no(); return }
-  const tgt = findTarget(tool); if (tgt) faceToward(tgt.x, tgt.y);
+  const hv = harvestTarget(); if (hv) { faceToward(hv.x, hv.y); harvest(hv); return }
+  const s = selItem(), item = s && ITEMS[s.id];
+  if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
+  const tool = item && item.tool; if (!tool) { sfx.no(); return }
+  let cell = null, cost = TOOL_COST[tool];
+  if (tool === 'hoe' || tool === 'can') { cell = toolCell(item); if (cell) faceToward(cell.x, cell.y); if (tool === 'can' && cell && isWater(cell.x, cell.y)) cost = 0 }
+  if (state.energy < cost) { toast('Too tired… go to your tent and sleep.'); sfx.no(); return }
+  if (tool !== 'hoe' && tool !== 'can') { const tgt = findTarget(tool); if (tgt) faceToward(tgt.x, tgt.y) }
   if (player.dir === 'l' || player.dir === 'r') player.side = player.dir === 'l' ? -1 : 1;
   const anim = TOOL_ANIM[tool], n = ATMETA.char.counts[anim];
-  player.act = { anim, t: 0, dur: n / 16, hitAt: tool === 'scythe' ? .3 : .55, hit: false, tool };
+  player.act = { anim, t: 0, dur: n / (TOOL_SPEED[anim] || 16), hitAt: tool === 'scythe' ? .3 : tool === 'can' ? .4 : .55, hit: false, tool, cell };
   state.energy = Math.max(0, state.energy - cost);
 }
-function hit(tool) {
+function hit(tool, act) {
+  if (tool === 'hoe') { if (act.cell && canTill(act.cell.x, act.cell.y)) till(act.cell); else sfx.miss(); return }
+  if (tool === 'can') { if (act.cell) water(act.cell); else sfx.miss(); return }
   if (tool === 'scythe') {
     sfx.swish(); const [dx, dy] = faceVec(), [fx, fy] = facingCell(); const cells = [[fx, fy], [fx + dy, fy + dx], [fx - dy, fy - dx], [Math.floor(player.x), Math.floor(player.y)]];
     const t = findTarget('scythe'); if (t) cells.push([t.x, t.y]);
@@ -148,11 +158,12 @@ function newDay(passed) {
   // sell everything in the shipping bin
   state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
   state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
-  const late = state.time; state.totalDay++; state.day++; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; if (state.season === 0) state.year++ }
+  const late = state.time; state.totalDay++; state.day++; let newSeason = false; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; newSeason = true; if (state.season === 0) state.year++ }
+  state.withered = growNight(newSeason);
   state.time = 360; minuteAcc = 0; state.energy = passed ? Math.round(state.maxE / 2) : (late > 24 * 60 ? Math.round(state.maxE * .8) : state.maxE); state.stats.days++;
   // a little regrowth overnight: weeds and grass creep back in
   const R = Math.random; let n = ri(3, 6);
-  for (let k = 0; k < 200 && n > 0; k++) { const x = ri(3, W - 4), y = ri(3, H - 4), i = idx(x, y); if (World.objs[i] || World.ground[i] === WATER) continue; if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4) continue; World.objs[i] = R() < .5 ? { t: 'weed', hp: 1, v: ri(0, 3) } : { t: 'grass', hp: 1, v: ri(0, 7) }; n-- }
+  for (let k = 0; k < 200 && n > 0; k++) { const x = ri(3, W - 4), y = ri(3, H - 4), i = idx(x, y); if (World.objs[i] || World.ground[i] === WATER || World.soil[i]) continue; if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4) continue; World.objs[i] = R() < .5 ? { t: 'weed', hp: 1, v: ri(0, 3) } : { t: 'grass', hp: 1, v: ri(0, 7) }; n-- }
   player.x = World.TENT.x + .5; player.y = World.TENT.y + 1.7; player.dir = 's'; drops.forEach(d => { d.x = player.x; d.y = player.y });
   save();
 }
@@ -202,30 +213,31 @@ function b64d(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i =
 function save() {
   if (!state) return; state.px = player.x; state.py = player.y;
   const o = []; World.objs.forEach((q, i) => { if (q) { const c = Object.assign({}, q); delete c.shake; o.push([i, c]) } });
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, st: state, g: b64e(World.ground), o, w: W, h: H, drops: drops.map(d => [d.id, d.x, d.y]) })) } catch (e) { console.warn(e) }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, st: state, g: b64e(World.ground), o, soil: World.soil, w: W, h: H, drops: drops.map(d => [d.id, d.x, d.y]) })) } catch (e) { console.warn(e) }
 }
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY) } catch (e) { return false } }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state;
     genFarm(state.seed); const g = b64d(d.g);
-    if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q }
+    World.soil = {};
+    if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q; World.soil = d.soil || {} }
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
-    if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin();
+    if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); ensureCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
 }
 
 // ---------- HUD ----------
 function renderHotbar() {
-  const hb = $('#hotbar'); if (hb.children.length !== HOTBAR) { hb.innerHTML = ''; for (let i = 0; i < HOTBAR; i++) { const s = document.createElement('div'); s.className = 'slot'; s.dataset.i = i; s.innerHTML = '<img><span class="n"></span>'; s.addEventListener('pointerdown', e => { e.stopPropagation(); ensureAudio(); state.sel = i; sfx.tap(); renderHotbar() }); hb.appendChild(s) } }
-  [...hb.children].forEach((el, i) => { const s = state.inv[i]; el.classList.toggle('sel', i === state.sel); const img = el.querySelector('img'); if (s) { img.src = iconURL(ITEMS[s.id].icon); img.style.visibility = 'visible' } else img.style.visibility = 'hidden'; el.querySelector('.n').textContent = s && s.n > 1 ? s.n : '' });
+  const hb = $('#hotbar'); if (hb.children.length !== HOTBAR) { hb.innerHTML = ''; for (let i = 0; i < HOTBAR; i++) { const s = document.createElement('div'); s.className = 'slot'; s.dataset.i = i; s.innerHTML = '<img><span class="n"></span><span class="wb"><i></i></span>'; s.addEventListener('pointerdown', e => { e.stopPropagation(); ensureAudio(); state.sel = i; sfx.tap(); renderHotbar() }); hb.appendChild(s) } }
+  [...hb.children].forEach((el, i) => { const s = state.inv[i]; el.classList.toggle('sel', i === state.sel); const img = el.querySelector('img'); if (s) { img.src = iconURL(ITEMS[s.id].icon); img.style.visibility = 'visible' } else img.style.visibility = 'hidden'; el.querySelector('.n').textContent = s && s.n > 1 ? s.n : ''; const wb = el.querySelector('.wb'); wb.style.display = s && s.id === 'can' ? 'block' : 'none'; if (s && s.id === 'can') wb.firstChild.style.width = (state.can / CAN_MAX * 100) + '%' });
   const s = selItem(); $('#btnA img').src = s ? iconURL(ITEMS[s.id].icon) : ''; $('#btnA img').style.visibility = s ? 'visible' : 'hidden';
 }
 let hudSig = '';
 function updateHUD() {
-  const sig = [state.time, state.money, state.day, Math.round(state.energy), state.sel, JSON.stringify(state.inv.slice(0, HOTBAR))].join('|');
+  const sig = [state.can, state.time, state.money, state.day, Math.round(state.energy), state.sel, JSON.stringify(state.inv.slice(0, HOTBAR))].join('|');
   $('#btnA').classList.toggle('talk', !!interactTarget());
   if (sig === hudSig) return; hudSig = sig;
   $('#cDay').textContent = `${weekday()}. ${SEASONS[state.season]} ${state.day}`; $('#cTime').textContent = fmtTime(state.time);
@@ -355,7 +367,7 @@ function update(dt) {
   if (joy && Math.hypot(joy.dx, joy.dy) > .18) { mx = joy.dx; my = joy.dy }
   const act = player.act;
   if (act) {
-    act.t += dt; if (!act.hit && act.t >= act.dur * act.hitAt) { act.hit = true; hit(act.tool) } if (act.t >= act.dur) player.act = null;
+    act.t += dt; if (!act.hit && act.t >= act.dur * act.hitAt) { act.hit = true; hit(act.tool, act) } if (act.t >= act.dur) player.act = null;
   } else if (mx || my) {
     const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l }
     const sp = 4.2 * (World.ground[idx(Math.floor(player.x), Math.floor(player.y))] === DIRT ? 1.05 : 1);
@@ -403,15 +415,16 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  drawTerrain(bx, x0, y0, x1, y1, GT);
+  drawTerrain(bx, x0, y0, x1, y1, GT); drawSoil(bx, x0, y0, x1, y1);
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
-    const s = selItem(), tool = s && ITEMS[s.id].tool, t = interactTarget() || (tool && findTarget(tool));
+    const s = selItem(), it = s && ITEMS[s.id], tool = it && it.tool, t = interactTarget() || harvestTarget() || toolCell(it) || (tool && tool !== 'hoe' && tool !== 'can' && findTarget(tool));
     if (t) { bx.strokeStyle = `rgba(255,255,255,${.45 + .2 * Math.sin(GT * 6)})`; bx.lineWidth = 1; bx.strokeRect(t.x * 16 + .5, t.y * 16 + .5, 15, 15) }
   }
   // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part') D.push([y + (o.t === 'grass' ? .4 : .9), 0, o, x, y]) }
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const f of falling) D.push([f.y + .95, 2, f]);
   D.sort((a, b) => a[0] - b[0]);
@@ -419,6 +432,7 @@ function render() {
   for (const d of D) {
     const g = d[0] <= py ? bx : bx2;
     if (d[1] === 0) drawObject(g, d[2], d[3], d[4], GT);
+    else if (d[1] === 4) drawCrop(g, d[2], d[3], d[4], GT);
     else if (d[1] === 1) { const q = d[2], s = AT[ITEMS[q.id].icon][0]; g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(Math.round(q.x * 16 - 3), Math.round(q.y * 16), 6, 2); g.drawImage(s, Math.round(q.x * 16 - s.width / 2), Math.round(q.y * 16 - s.height - q.z * 10 + Math.sin(GT * 4 + q.x) * (q.vz ? 0 : 1))) }
     else { const f = d[2], s = treeSprite(f.o, 0, f.x, f.y), k = Math.min(1, f.t / .9), a = f.side * k * k * 1.45; g.save(); g.globalAlpha = f.t > .9 ? 1 - (f.t - .9) / .4 : 1; g.translate(f.x * 16 + 8, f.y * 16 + 16); g.rotate(a); g.drawImage(s, -s.width / 2, -s.height + 3); g.restore() }
   }
@@ -459,10 +473,10 @@ function showTitle() {
   if (hasSave()) mk('Continue', () => { if (load()) startPlay(false); else newGame() });
   mk('New Farm', b => { if (hasSave() && !b.dataset.c) { b.dataset.c = 1; b.textContent = 'Tap again to erase your farm'; return } newGame() }, hasSave());
 }
-function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
+function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); World.soil = {}; ensureCart(); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
 function startPlay(fresh) {
   mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); snapCam(); hudSig = ''; updateHUD();
-  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but with an axe, a pickaxe and a scythe you can clear it. Your tent is behind you. Sleep there when the day is done.`), 900) }
+  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin, and buy more seeds at the merchant's cart. Sleep in your tent when the day is done.`), 900) }
   else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }
 }
 let last = 0, hudT = 0;

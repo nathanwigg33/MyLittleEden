@@ -102,6 +102,18 @@ def draw_tent():
     return im
 E['tent'] = draw_tent()
 
+
+# ---------- crops: seeds icon (_00), growth stages (_01.._04), harvest icon (_05) ----------
+CR = A + 'Elements/Crops/'
+CROPART = {'wheat': ('wheat', None), 'barley': ('wheat', ((.86, .93, .72), (26, 22, 18))), 'leek': ('parsnip', None), 'garlic': ('cauliflower', None),
+           'cucumber': ('kale', None), 'melon': ('pumpkin', ((.62, 1.05, .55), (0, 12, 0))), 'lentil': ('potato', None), 'onion': ('radish', ((1.0, .78, .62), (20, 30, 10))),
+           'flax': ('sunflower', ((.5, .75, 1.45), (0, 0, 40)))}
+for mine, (pk, tn) in CROPART.items():
+    fr = [Image.open(CR + f'{pk}_{s:02d}.png').convert('RGBA') for s in range(6)]
+    if tn: fr = [tint(fr[0], *tn)] + [tint(f, *tn) if s >= 2 else f for s, f in enumerate(fr[1:], 1)]
+    E['seed_' + mine] = fr[0]; E['item_' + mine] = fr[5]; E['crop_' + mine] = fr[1:5]
+E['soil_dry'] = Image.open(CR + 'soil_00.png').convert('RGBA'); E['soil_wet'] = Image.open(CR + 'soil_01.png').convert('RGBA')
+
 # ---------- item icons ----------
 for k, n in [('axe', 'axe'), ('pick', 'pickaxe'), ('hoe', 'shovel'), ('can', 'water'), ('scythe', 'sword'), ('rod', 'rod'),
              ('wood', 'wood'), ('stone', 'rock'), ('seeds', 'seeds_generic'), ('basket', 'basket')]:

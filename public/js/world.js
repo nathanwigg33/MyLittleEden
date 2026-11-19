@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -195,6 +195,7 @@ function drawObject(g, o, x, y, t) {
     case 'campfire': shadow(7); spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'crate': shadow(7); spr(AT.crate[0], 0); break;
     case 'bin': spr(BIN, 4); break;
+    case 'cart': spr(CART, 2); break;
     case 'sign': shadow(6); spr(SIGN, 0); break;
   }
   if (o.shake) o.shake = Math.max(0, o.shake - 1 / 60);
