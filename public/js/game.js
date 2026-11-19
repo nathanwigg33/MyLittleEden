@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack' }, TOOL_COST = { axe: 2, pick: 2, scythe: 0 };
+const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0 };
 const INV_SIZE = 24, HOTBAR = 8;
 
 let state = null, player = null, look = null, drops = [], parts = [], notes = [], falling = [], birds = [];
@@ -20,7 +20,7 @@ G.state = null;
 
 function freshState(lk, seed) {
   const inv = new Array(INV_SIZE).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 };
-  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 100, maxE: 100, inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
+  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
 }
 const weekday = () => WEEK[(state.totalDay - 1) % 7];
 const fmtTime = m => { m = m % 1440; let h = Math.floor(m / 60), mm = m % 60, am = h < 12; h = h % 12 || 12; return h + ':' + String(mm).padStart(2, '0') + (am ? ' am' : ' pm') };
@@ -75,7 +75,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -84,6 +84,7 @@ async function action() {
   if (it) {
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
+    if (it.o.t === 'bin') { openBin(); return }
     if (it.o.t === 'crate') { say('An old crate left behind by the last farmer. Empty for now.'); return }
     if (it.o.t === 'campfire') { say('The campfire crackles. It will keep you warm at night.'); return }
   }
@@ -144,6 +145,9 @@ function tickTime(dt) {
 async function passOut() { if (sleeping) return; sleeping = true; await fadeOut(); newDay(true); await nightScreen(true); sleeping = false }
 async function goSleep() { if (sleeping) return; sleeping = true; sfx.sleep(); await fadeOut(); newDay(false); await nightScreen(false); sleeping = false }
 function newDay(passed) {
+  // sell everything in the shipping bin
+  state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
+  state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
   const late = state.time; state.totalDay++; state.day++; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; if (state.season === 0) state.year++ }
   state.time = 360; minuteAcc = 0; state.energy = passed ? Math.round(state.maxE / 2) : (late > 24 * 60 ? Math.round(state.maxE * .8) : state.maxE); state.stats.days++;
   // a little regrowth overnight: weeds and grass creep back in
@@ -157,8 +161,10 @@ function nightScreen(passed) {
   return new Promise(r => {
     const el = $('#night'); el.querySelector('.n1').textContent = passed ? 'You passed out from exhaustion…' : 'Good night, ' + state.look.name + '.';
     el.querySelector('.n2').textContent = `${weekday()}, ${SEASONS[state.season]} ${state.day}`;
-    el.querySelector('.n3').textContent = 'Your farm has been saved.'; el.classList.add('on');
-    setTimeout(() => { el.classList.remove('on'); $('#fade').classList.remove('on'); snapCam(); banner(`${SEASONS[state.season]} ${state.day}`); r() }, 2200);
+    const sh = state.lastShip || [], tot = sh.reduce((a, b) => a + b.v, 0);
+    el.querySelector('.n3').innerHTML = (sh.length ? `<div class="ship"><div class="sh-t">Shipped</div>${sh.map(b => `<div class="sh-r"><img src="${iconURL(ITEMS[b.id].icon)}"><span>${ITEMS[b.id].n} ×${b.n}</span><b>${b.v}</b></div>`).join('')}<div class="sh-r tot"><span>Total</span><b>₪ ${tot}</b></div></div>` : '') + '<div class="saved">Your farm has been saved.</div>';
+    el.classList.add('on');
+    setTimeout(() => { el.classList.remove('on'); $('#fade').classList.remove('on'); snapCam(); banner(`${SEASONS[state.season]} ${state.day}`); if (tot) { toast(`You earned ₪ ${tot} from the shipping bin.`); sfx.pick() } r() }, sh.length ? 4200 : 2200);
   });
 }
 
@@ -177,6 +183,7 @@ function load() {
     genFarm(state.seed); const g = b64d(d.g); if (g.length === W * H) World.ground = g;
     World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q;
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
+    if (!state.bin) state.bin = []; if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin();
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
 }
@@ -211,7 +218,7 @@ function renderMenu(tab) {
     b.innerHTML = h;
     b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i; sfx.tap(); if (bagSel === null || bagSel === i) { bagSel = bagSel === i ? null : i } else { const t = state.inv[i]; state.inv[i] = state.inv[bagSel]; state.inv[bagSel] = t; bagSel = null } renderMenu('bag') });
   } else if (tab === 'farm') {
-    b.innerHTML = `<div class="farmcard"><canvas id="mPort" width="128" height="128"></canvas><div><div class="big">${esc(state.look.name)}</div><div class="muted">${esc(state.look.farm)}</div><div class="kv"><span>Day</span><b>${weekday()}, ${SEASONS[state.season]} ${state.day}, Year ${state.year}</b></div><div class="kv"><span>Shekels</span><b>${state.money.toLocaleString()}</b></div><div class="kv"><span>Trees felled</span><b>${state.stats.chopped}</b></div><div class="kv"><span>Rocks broken</span><b>${state.stats.rocks}</b></div><div class="kv"><span>Weeds cleared</span><b>${state.stats.weeds}</b></div></div></div>`;
+    b.innerHTML = `<div class="farmcard"><canvas id="mPort" width="128" height="128"></canvas><div><div class="big">${esc(state.look.name)}</div><div class="muted">${esc(state.look.farm)}</div><div class="kv"><span>Day</span><b>${weekday()}, ${SEASONS[state.season]} ${state.day}, Year ${state.year}</b></div><div class="kv"><span>Shekels</span><b>${state.money.toLocaleString()}</b></div><div class="kv"><span>Trees felled</span><b>${state.stats.chopped}</b></div><div class="kv"><span>Rocks broken</span><b>${state.stats.rocks}</b></div><div class="kv"><span>Weeds cleared</span><b>${state.stats.weeds}</b></div><div class="kv"><span>Shekels earned</span><b>${state.stats.earned || 0}</b></div></div></div>`;
     const c = $('#mPort').getContext('2d'); c.imageSmoothingEnabled = false; c.scale(4, 4); drawChar(c, look, 'idle_s', 0, 16, 29, false);
   } else {
     b.innerHTML = `<div class="row"><span>Sound</span><button class="btn alt" id="oSnd">${state.opts.sound ? 'On' : 'Off'}</button></div><div class="row"><span>Save now</span><button class="btn alt" id="oSave">Save</button></div><div class="row"><span>Start a new farm<div class="muted">Erases this one.</div></span><button class="btn alt" id="oNew">New farm</button></div><p class="muted">Controls: drag on the left side to walk. Press the big button to use the tool you have selected, or to talk and use things. Tap the toolbar to switch tools. On a keyboard: WASD to walk, Space to act, 1–8 for tools.</p><p class="muted">Art: Sunnyside World by danieldiggle.</p>`;
@@ -219,6 +226,31 @@ function renderMenu(tab) {
     $('#oSave').onclick = () => { save(); toast('Saved.') };
     $('#oNew').onclick = e => { if (e.target.dataset.c) { localStorage.removeItem(SAVE_KEY); location.reload() } else { e.target.dataset.c = 1; e.target.textContent = 'Tap again' } };
   }
+}
+
+// ---------- shipping bin ----------
+let binSel = null;
+function openBin() { menuOpen = true; binSel = null; $('#binM').classList.add('on'); sfx.tap(); renderBin() }
+function closeBin() { menuOpen = false; $('#binM').classList.remove('on'); renderHotbar(); save() }
+function shipFromSlot(i, n) {
+  const s = state.inv[i]; if (!s || !ITEMS[s.id].price) return; n = Math.min(n, s.n);
+  const b = state.bin.find(q => q.id === s.id); if (b) b.n += n; else state.bin.push({ id: s.id, n });
+  s.n -= n; if (s.n <= 0) { state.inv[i] = null; binSel = null } sfx.pick(); renderBin();
+}
+function renderBin() {
+  const b = $('#binM .mbody'), tot = state.bin.reduce((a, q) => a + q.n * ITEMS[q.id].price, 0);
+  let h = `<div class="binhead"><span>In the bin</span><b>₪ ${tot}</b></div><p class="muted" style="margin:2px 0 6px">Everything in the bin is sold overnight. Tap something in the bin to take it back.</p><div class="grid binrow">`;
+  if (!state.bin.length) h += '<div class="muted" style="grid-column:1/-1;text-align:center;padding:8px">Empty</div>';
+  state.bin.forEach((q, k) => h += `<div class="slot" data-b="${k}"><img src="${iconURL(ITEMS[q.id].icon)}"><span class="n">${q.n}</span></div>`);
+  h += '</div><div class="h3">Your bag</div><div class="grid">';
+  state.inv.forEach((s, i) => { const ok = s && ITEMS[s.id].price; h += `<div class="slot ${i === binSel ? 'pick' : ''} ${s && !ok ? 'dim' : ''}" data-i="${i}">${s ? `<img src="${iconURL(ITEMS[s.id].icon)}"><span class="n">${s.n > 1 ? s.n : ''}</span>` : ''}</div>` });
+  h += '</div>';
+  const s = binSel !== null && state.inv[binSel];
+  h += s ? `<div class="detail"><img src="${iconURL(ITEMS[s.id].icon)}"><div style="flex:1"><b>${ITEMS[s.id].n} ×${s.n}</b><div class="muted">Sells for ₪ ${ITEMS[s.id].price} each</div></div><button class="btn alt" id="ship1">Ship 1</button><button class="btn" id="shipAll">Ship all</button></div>` : '<p class="muted">Tap an item in your bag to put it in the bin. Tools can\'t be sold.</p>';
+  b.innerHTML = h;
+  b.querySelectorAll('[data-b]').forEach(el => el.onclick = () => { const q = state.bin[+el.dataset.b]; const left = addItem(q.id, q.n); if (left) { q.n = left; toast('Your bag is full.') } else state.bin.splice(+el.dataset.b, 1); sfx.tap(); renderBin() });
+  b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i, q = state.inv[i]; if (!q) return; if (!ITEMS[q.id].price) { toast("You can't sell your tools."); sfx.no(); return } binSel = i; sfx.tap(); renderBin() });
+  const s1 = $('#ship1'), sa = $('#shipAll'); if (s1) s1.onclick = () => shipFromSlot(binSel, 1); if (sa) sa.onclick = () => shipFromSlot(binSel, 999);
 }
 
 // ---------- input ----------
@@ -241,6 +273,7 @@ function setupInput() {
   const upA = () => { $('#btnA').classList.remove('dn'); clearInterval(holdA) }; $('#btnA').addEventListener('pointerup', upA); $('#btnA').addEventListener('pointercancel', upA); $('#btnA').addEventListener('pointerleave', upA);
   $('#btnB').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); let i = state.sel; for (let k = 0; k < HOTBAR; k++) { i = (i + 1) % HOTBAR; if (state.inv[i] && ITEMS[state.inv[i].id].tool) break } state.sel = i; sfx.tap(); renderHotbar() });
   $('#btnMenu').onclick = () => { ensureAudio(); sfx.tap(); openMenu('bag') };
+  $('#binM .x').onclick = closeBin; $('#binM').addEventListener('pointerdown', e => { if (e.target.id === 'binM') closeBin() });
   $('#menu .x').onclick = closeMenu; $('#menu').addEventListener('pointerdown', e => { if (e.target.id === 'menu') closeMenu() });
   $$('#menu .tab').forEach(t => t.onclick = () => { sfx.tap(); $$('#menu .tab').forEach(q => q.classList.toggle('on', q === t)); renderMenu(t.dataset.tab) });
   addEventListener('keydown', e => {
@@ -249,7 +282,7 @@ function setupInput() {
     if (dlgOpen) { if (k === ' ' || k === 'enter' || k === 'e') { const b = $('#dialog .dch button'); if (b) b.click(); else $('#dialog').click() } return }
     if (k === ' ' || k === 'e' || k === 'enter') { e.preventDefault(); action() }
     if (/^[1-8]$/.test(k)) { state.sel = +k - 1; renderHotbar() }
-    if (k === 'i' || k === 'escape') { menuOpen ? closeMenu() : openMenu('bag') }
+    if (k === 'i' || k === 'escape') { if ($('#binM').classList.contains('on')) closeBin(); else menuOpen ? closeMenu() : openMenu('bag') }
   });
   addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
   addEventListener('blur', () => { for (const k in keys) keys[k] = false });

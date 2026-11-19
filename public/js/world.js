@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -50,6 +50,7 @@ function genFarm(seed) {
   World.footprint(T.x, T.y, 3, 2, { t: 'tent' });
   World.place(T.x + 3, T.y + 1, { t: 'campfire' });
   World.place(T.x - 3, T.y, { t: 'crate' });
+  World.place(T.x + 3, T.y - 1, { t: 'bin' });
   World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'Bethlehem — the road to town is still being built' });
   const keep = (x, y) => Math.hypot((x - T.x) / 6.5, (y - T.y - 1) / 4.5) < 1 || roadSet.has(idx(x, y));
   // forest border (cannot be cleared)
@@ -143,6 +144,15 @@ function drawTerrain(g, x0, y0, x1, y1, t) {
 }
 
 // ---------- object sprites ----------
+// make sure an older farm gets a shipping bin beside the tent
+function ensureBin() {
+  if (World.objs.some(o => o && o.t === 'bin')) return; const T = World.TENT;
+  for (const [dx, dy] of [[3, -1], [2, 1], [-2, 1], [4, 0], [-4, 1], [3, 2], [-3, 2], [0, 3]]) { const x = T.x + dx, y = T.y + dy; if (inb(x, y) && !World.objs[idx(x, y)] && World.ground[idx(x, y)] !== WATER) { World.place(x, y, { t: 'bin' }); return } }
+}
+const BIN = (() => { const c = mkc(22, 20), g = c.getContext('2d'), R = (col, x, y, w, h) => { g.fillStyle = col; g.fillRect(x, y, w, h) };
+  R('#2a1610', 0, 4, 22, 16); R('#8a5530', 1, 5, 20, 14); R('#a8703e', 1, 5, 20, 3); R('#6e4024', 1, 12, 20, 1); R('#6e4024', 1, 16, 20, 1);
+  R('#2a1610', 0, 0, 22, 6); R('#c38a4e', 1, 1, 20, 4); R('#e0a865', 1, 1, 20, 1); R('#f2c94c', 9, 2, 4, 2); R('#2a1610', 10, 5, 2, 2);
+  R('#c9a24a', 2, 6, 1, 13); R('#c9a24a', 19, 6, 1, 13); return c })();
 const SIGN = (() => { const c = mkc(16, 18), g = c.getContext('2d'); g.fillStyle = '#24141e'; g.fillRect(6, 8, 4, 10); g.fillRect(0, 0, 16, 11); g.fillStyle = '#8a5a34'; g.fillRect(7, 9, 2, 9); g.fillStyle = '#c99256'; g.fillRect(1, 1, 14, 9); g.fillStyle = '#a8703e'; g.fillRect(1, 8, 14, 2); g.fillStyle = '#6a4024'; g.fillRect(3, 3, 10, 1); g.fillRect(3, 5, 7, 1); return c })();
 function treeSprite(o, t, x, y) {
   const set = o.t === 'olive' || (o.t === 'wild' && o.k === 'olive') ? AT.olive : (o.k === 'tree2' ? AT.tree2 : o.k === 'pine' ? AT.pine : AT.oak);
@@ -167,6 +177,7 @@ function drawObject(g, o, x, y, t) {
     case 'tent': g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(cx, by - 2, 26, 6, 0, 0, 7); g.fill(); spr(AT.tent[0], 2); break;
     case 'campfire': shadow(7); spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'crate': shadow(7); spr(AT.crate[0], 0); break;
+    case 'bin': shadow(10); spr(BIN, 1); break;
     case 'sign': shadow(6); spr(SIGN, 0); break;
   }
   if (o.shake) o.shake = Math.max(0, o.shake - 1 / 60);

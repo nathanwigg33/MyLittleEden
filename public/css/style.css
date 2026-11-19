@@ -64,7 +64,19 @@ button{font:inherit;cursor:pointer}
 
 /* menu */
 #menu{position:fixed;inset:0;background:rgba(20,10,4,.5);display:none;align-items:center;justify-content:center;z-index:30;padding:calc(env(safe-area-inset-top) + 12px) 10px calc(env(safe-area-inset-bottom) + 12px)}
-#menu.on{display:flex}
+#menu.on,#binM.on{display:flex}
+#binM{position:fixed;inset:0;background:rgba(20,10,4,.5);display:none;align-items:center;justify-content:center;z-index:30;padding:calc(env(safe-area-inset-top) + 12px) 10px calc(env(safe-area-inset-bottom) + 12px)}
+#binM .card{width:min(520px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
+.ttl{flex:1;font-weight:700;font-size:20px;padding-left:6px}
+.binhead{display:flex;justify-content:space-between;align-items:center;font-weight:700;font-size:17px}.binhead b{background:#3a1e08;color:#ffd75a;border-radius:6px;padding:2px 10px}
+.binrow{min-height:52px;background:#e9c58d;border-radius:8px;padding:4px}
+.h3{font-weight:700;margin:12px 0 6px}
+.slot.dim{opacity:.45}
+#night .ship{background:rgba(255,240,210,.08);border:2px solid rgba(255,220,160,.4);border-radius:10px;padding:8px 14px;min-width:220px;margin-bottom:10px}
+.sh-t{font-weight:700;margin-bottom:4px}
+.sh-r{display:flex;align-items:center;gap:8px;font-size:15px;justify-content:space-between}.sh-r img{width:24px;height:24px;image-rendering:pixelated}.sh-r span{flex:1;text-align:left}
+.sh-r.tot{border-top:1px solid rgba(255,220,160,.4);margin-top:4px;padding-top:4px;font-weight:700;color:#ffd75a}
+.saved{font-size:13px;opacity:.7}
 #menu .card{width:min(520px,100%);max-height:100%;display:flex;flex-direction:column;overflow:hidden}
 .mhead{display:flex;align-items:center;gap:6px;padding:8px 8px 0}
 .tabs{display:flex;gap:4px;flex:1}
@@ -124,7 +136,7 @@ button{font:inherit;cursor:pointer}
   #eTrack{height:82px}
   #clock{min-width:150px;padding:4px 8px}
   #cTime{font-size:18px;margin:2px 0}
-  #hotbar{left:calc(env(safe-area-inset-left) + 12px);transform:none;bottom:calc(env(safe-area-inset-bottom) + 6px)}
+  #hotbar{left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom) + 6px)}
   #btnA{bottom:calc(env(safe-area-inset-bottom) + 14px);right:calc(env(safe-area-inset-right) + 16px);width:76px;height:76px}
   #btnA img{width:42px;height:42px}
   #btnB{bottom:calc(env(safe-area-inset-bottom) + 12px);right:calc(env(safe-area-inset-right) + 102px)}
