@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, deco: { solid: 0 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -52,7 +52,7 @@ function genFarm(seed) {
   World.place(T.x + 3, T.y + 1, { t: 'campfire' });
   World.place(T.x - 3, T.y, { t: 'crate' });
   World.place(T.x + 3, T.y - 1, { t: 'bin' });
-  World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'Bethlehem — the road to town is still being built' });
+  World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn and the church.' });
   const keep = (x, y) => Math.hypot((x - T.x) / 5.5, (y - T.y - 1) / 4) < 1 || roadSet.has(idx(x, y));
   // forest border (cannot be cleared)
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -189,14 +189,94 @@ function drawObject(g, o, x, y, t) {
     case 'rock': shadow(6); spr(o.v ? AT.rock_m[0] : AT.stone[0], -1); break;
     case 'boulder': shadow(9); spr(AT.boulder[0], 0); break;
     case 'weed': spr([AT.weed, AT.weed2, AT.weed3, AT.weed4][o.v || 0][0], -1); break;
-    case 'grass': spr(AT.leafy[(o.v || 0) % AT.leafy.length], -2); break;
+    case 'grass': case 'deco': spr(AT.leafy[(o.v || 0) % AT.leafy.length], -2); break;
     case 'bush': shadow(10); spr(AT.bush[0], 3); break;
     case 'tent': g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(cx, by - 2, 26, 6, 0, 0, 7); g.fill(); spr(AT.tent[0], 2); break;
     case 'campfire': shadow(7); spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'crate': shadow(7); spr(AT.crate[0], 0); break;
     case 'bin': spr(BIN, 4); break;
+    case 'bld': { const b = BLD[o.k], s = AT[b[0]][0], bx0 = x * 16 + b[1] * 8; g.fillStyle = 'rgba(30,20,10,.22)'; g.fillRect(Math.round(bx0 - s.width / 2) + 2, by - 3, s.width - 2, 4); g.drawImage(s, Math.round(bx0 - s.width / 2), by - s.height + 1); break }
+    case 'anvil': shadow(6); spr(AT.anvil[0], 0); break;
+    case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
+    case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;
     case 'cart': spr(CART, 2); break;
     case 'sign': shadow(6); spr(SIGN, 0); break;
   }
   if (o.shake) o.shake = Math.max(0, o.shake - 1 / 60);
+}
+
+// ================= maps: the farm and the town share one size and swap in and out =================
+World.maps = {}; World.cur = 'farm'; World.pave = null;
+function useMap(name) { const m = World.maps[name]; World.ground = m.ground; World.objs = m.objs; World.soil = m.soil; World.pave = m.pave || null; World.cur = name }
+function storeMap(name) { World.maps[name] = { ground: World.ground, objs: World.objs, soil: World.soil || {}, pave: World.pave } }
+
+// ---------- Bethlehem ----------
+const TOWN = { entry: { x: 1, y: 27 }, plaza: { x: 34, y: 28 } };
+const BLD = { // sprite, width in tiles, depth in tiles (solid rows)
+  church: ['bld_church', 7, 3], smithy: ['bld_smithy', 5, 2], inn: ['bld_inn', 6, 2],
+  house1: ['bld_house1', 4, 2], house2: ['bld_house2', 4, 2], house3: ['bld_house3', 5, 2], house4: ['bld_house4', 3, 2],
+  stall_red: ['stall_red', 3, 1], stall_blue: ['stall_blue', 3, 1], stall_green: ['stall_green', 3, 1], well: ['well_big', 2, 1],
+};
+// place a building with its bottom-left cell at (x, y)
+function placeBld(x, y, k, extra) {
+  const [, w, d] = BLD[k];
+  for (let yy = y - d + 1; yy <= y; yy++) for (let xx = x; xx < x + w; xx++) World.objs[idx(xx, yy)] = { t: 'part', ox: x, oy: y };
+  World.objs[idx(x, y)] = Object.assign({ t: 'bld', k }, extra || {});
+}
+function genTown() {
+  const g = World.ground = new Uint8Array(W * H).fill(GRASS), o = World.objs = new Array(W * H).fill(null), pv = World.pave = new Uint8Array(W * H); World.soil = {};
+  const R = mulberry(777), seed = 777;
+  const noise = (x, y, s) => { const fx = x / s, fy = y / s, x0 = Math.floor(fx), y0 = Math.floor(fy), tx = fx - x0, ty = fy - y0, sm = t => t * t * (3 - 2 * t), h = (a, b) => hash(a * 13 + seed, b * 7 - seed); return lerp(lerp(h(x0, y0), h(x0 + 1, y0), sm(tx)), lerp(h(x0, y0 + 1), h(x0 + 1, y0 + 1), sm(tx)), sm(ty)) };
+  const dirt = (x0, y0, x1, y1) => { for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (inb(x, y)) g[idx(x, y)] = DIRT };
+  const P = TOWN.plaza;
+  // streets
+  dirt(0, 27, P.x, 28);                        // road in from the farm
+  dirt(P.x, 12, P.x + 1, 46);                  // north-south
+  dirt(P.x, 27, 58, 28);                       // east street
+  dirt(16, 17, 30, 25);                        // market square
+  dirt(42, 22, 51, 25); dirt(42, 37, 50, 39);  // in front of the smithy and the inn
+  dirt(24, 12, 25, 18); dirt(24, 6, 25, 12);   // path north toward Mount Sinai
+  dirt(16, 36, 22, 38); dirt(24, 41, 29, 43); dirt(51, 31, 57, 33); dirt(12, 18, 16, 20);
+  dirt(35, 39, 42, 40); dirt(46, 25, 47, 27); dirt(22, 37, 33, 38); dirt(28, 42, 33, 43); dirt(54, 29, 55, 31);   // paths linking doors to the streets
+  // paved plaza
+  for (let y = P.y - 7; y <= P.y + 7; y++) for (let x = P.x - 10; x <= P.x + 10; x++) if (inb(x, y) && Math.hypot((x - P.x) / 8, (y - P.y) / 5.2) < 1) { pv[idx(x, y)] = 1; g[idx(x, y)] = DIRT }
+  // buildings
+  placeBld(31, 19, 'church');
+  placeBld(17, 22, 'stall_red', { shop: 'market' }); placeBld(21, 22, 'stall_blue', { shop: 'market' }); placeBld(25, 22, 'stall_green', { shop: 'market' });
+  placeBld(44, 23, 'smithy'); World.place(50, 23, { t: 'anvil' });
+  placeBld(43, 37, 'inn');
+  placeBld(17, 36, 'house1'); placeBld(24, 41, 'house2'); placeBld(52, 31, 'house3'); placeBld(12, 18, 'house4');
+  placeBld(33, 28, 'well');
+  for (const [x, y] of [[26, 24], [42, 24], [26, 32], [42, 32], [30, 20], [38, 20], [42, 38], [49, 38], [16, 25]]) World.place(x, y, { t: 'torch' });
+  World.place(2, 25, { t: 'sign', text: 'Bethlehem — “house of bread”. Your farm is back down the road to the west.' });
+  World.place(26, 7, { t: 'sign', text: 'North: the road to Mount Sinai. (Not open yet.)' });
+  World.place(36, 46, { t: 'sign', text: 'South: the way to the Jordan River. (Not open yet.)' });
+  for (const [x, y, k] of [[48, 21, 'barrel'], [49, 21, 'crate'], [41, 36, 'barrel'], [50, 36, 'barrel'], [16, 21, 'crate'], [29, 21, 'barrel'], [22, 34, 'crate']]) World.place(x, y, { t: k });
+  for (const [x, y] of [[14, 24], [20, 30], [29, 36], [39, 34], [47, 30], [55, 26], [38, 15], [20, 14], [30, 44], [56, 37], [11, 33], [44, 44], [28, 10], [40, 10]]) World.place(x, y, { t: 'wild', k: 'olive', v: ri(0, 3) });
+  // forest edge and a few bushes
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+    const i = idx(x, y); if (o[i] || g[i] === DIRT) continue;
+    const edge = Math.min(x, y, W - 1 - x, H - 1 - y) + noise(x, y, 2) * 1.6, inTown = x > 7 && x < 60 && y > 5 && y < 49;
+    if (edge < 2.4 || (!inTown && R() < .55)) o[i] = { t: 'wild', k: pick(['oak', 'oak', 'pine', 'tree2', 'olive']), v: ri(0, 3) };
+    else if (R() < .05) o[i] = { t: 'bush', v: 0 };
+    else if (R() < .12) o[i] = { t: 'deco', v: ri(0, 7) };
+  }
+}
+// cobbled plaza
+const PAVE = (() => {
+  const out = []; for (let v = 0; v < 4; v++) {
+    const c = mkc(16, 16), g = c.getContext('2d'), r = mulberry(91 + v); g.fillStyle = '#b8a582'; g.fillRect(0, 0, 16, 16);
+    const rows = [[0, 5], [5, 5], [10, 6]];
+    rows.forEach(([y, h], ri) => { let x = -((ri + v) % 3) * 2; while (x < 16) { const w = 4 + Math.floor(r() * 3); const t = r(); g.fillStyle = t < .3 ? '#d9c8a2' : t < .7 ? '#cdbb94' : '#c2ae86'; g.fillRect(x + 1, y + 1, w - 1, h - 1); g.fillStyle = 'rgba(255,255,255,.22)'; g.fillRect(x + 1, y + 1, w - 1, 1); x += w } });
+    out.push(c);
+  } return out;
+})();
+function drawPave(g, x0, y0, x1, y1) {
+  if (!World.pave) return;
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+    if (!World.pave[idx(x, y)]) continue; g.drawImage(PAVE[Math.floor(hash(x, y) * 4)], x * 16, y * 16);
+    const p = (a, b) => inb(a, b) && World.pave[idx(a, b)]; g.fillStyle = '#9a8662';
+    if (!p(x, y - 1)) g.fillRect(x * 16, y * 16, 16, 1); if (!p(x - 1, y)) g.fillRect(x * 16, y * 16, 1, 16); if (!p(x + 1, y)) g.fillRect(x * 16 + 15, y * 16, 1, 16);
+    if (!p(x, y + 1)) { g.fillStyle = 'rgba(60,40,20,.35)'; g.fillRect(x * 16, y * 16 + 15, 16, 1) }
+  }
 }

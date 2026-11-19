@@ -1,0 +1,97 @@
+// Bethlehem's shops: the market, the blacksmith, the inn and the church.
+'use strict';
+// ---------- food (from the inn) ----------
+const FOODS = { bread: { n: 'Bread', cost: 25, e: 30 }, stew: { n: 'Lentil Stew', cost: 55, e: 65 }, figcake: { n: 'Fig Cake', cost: 90, e: 110 } };
+function foodIcons() {
+  const mk = (k, f) => { const c = mkc(16, 16), g = c.getContext('2d'), R = (col, x, y, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(x, y, w, h) }; f(R); AT['ic_' + k] = [c] };
+  mk('bread', R => { R('#5b2e12', 2, 6, 12, 7); R('#5b2e12', 3, 5, 10, 1); R('#d9963e', 3, 6, 10, 6); R('#f0bd6a', 4, 6, 8, 2); R('#a8642a', 3, 11, 10, 1); R('#fff1c8', 5, 7, 2, 1); R('#a8642a', 6, 9, 1, 1); R('#a8642a', 9, 9, 1, 1) });
+  mk('stew', R => { R('#5b2e12', 2, 7, 12, 6); R('#5b2e12', 3, 13, 10, 1); R('#b8673a', 3, 8, 10, 5); R('#8a4524', 3, 11, 10, 2); R('#7a3c18', 3, 7, 10, 1); R('#c7853e', 4, 7, 8, 1); R('#e8b04a', 5, 7, 2, 1); R('#6ea83a', 9, 7, 1, 1); R('rgba(255,255,255,.6)', 7, 3, 1, 3); R('rgba(255,255,255,.6)', 9, 2, 1, 3) });
+  mk('figcake', R => { R('#5b2e12', 2, 6, 12, 8); R('#7a3e5a', 3, 7, 10, 6); R('#a65c7e', 3, 7, 10, 2); R('#e8c25a', 3, 9, 10, 1); R('#5a2a40', 3, 12, 10, 1); R('#6ea83a', 7, 4, 2, 2); R('#4a7a2a', 7, 5, 1, 1) });
+}
+function townItems() {
+  const o = {}; for (const k in FOODS) o[k] = { n: FOODS[k].n, icon: 'ic_' + k, food: FOODS[k].e, price: Math.floor(FOODS[k].cost / 2), d: `Restores ${FOODS[k].e} energy. Select it and press the action button to eat.` }; return o;
+}
+function eat(slot) {
+  const s = state.inv[slot], it = ITEMS[s.id]; if (state.energy >= state.maxE) { toast('You’re not hungry right now.'); return }
+  state.energy = Math.min(state.maxE, state.energy + it.food); s.n--; if (s.n <= 0) state.inv[slot] = null;
+  tone(400, .08, 'square', .03); tone(520, .08, 'square', .03, .1); toast(`Ate ${it.n}. +${it.food} energy`);
+}
+
+// ---------- tool upgrades ----------
+const TOOL_LV = ['', 'Basic', 'Bronze', 'Iron'];
+const UPGRADES = { 2: { money: 600, stone: 30, wood: 20 }, 3: { money: 2000, stone: 80, wood: 50 } };
+const UPG_TOOLS = { axe: 'Chops harder: fewer swings per tree.', pick: 'Breaks stone faster: fewer swings per rock.', hoe: 'Digs a longer row with each swing.', can: 'Holds more water and waters a longer row.' };
+const toolLv = id => (state.toolLv || {})[id] || 1;
+const canMax = () => [0, 40, 70, 100][toolLv('can')];
+const rowLen = id => [0, 1, 3, 5][toolLv(id)];
+function toolName(id) { const lv = toolLv(id); return (lv > 1 && UPG_TOOLS[id] ? TOOL_LV[lv] + ' ' : '') + ITEMS[id].n }
+
+// ---------- opening hours ----------
+const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'] };
+function shopOpen(k) { const [a, b] = HOURS[k]; if (k !== 'inn' && isSabbath()) return false; return state.time >= a * 60 && state.time < b * 60 }
+function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 'inn' ? `The ${n.toLowerCase()} is closed for the Sabbath. Come back tomorrow.` : `The ${n.toLowerCase()} is closed. Open ${a % 12 || 12}${a < 12 ? ' am' : ' pm'} to ${b % 12 || 12}${b < 12 || b === 24 ? (b === 24 ? ' midnight' : ' am') : ' pm'}.` }
+function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }
+let townRender = null, marketTab = 'buy';
+const money = () => `<b>₪ ${state.money.toLocaleString()}</b>`;
+const tabsHTML = (cur, list) => `<div class="stabs">${list.map(([k, l]) => `<button class="stab ${k === cur ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
+
+function openMarket() {
+  if (!shopOpen('market')) { say(closedMsg('market')); return }
+  marketTab = 'buy'; openShopModal('Bethlehem Market', renderMarket);
+}
+function renderMarket() {
+  const b = $('#binM .mbody');
+  let h = `<div class="binhead"><span>Tobiah’s stalls</span>${money()}</div>` + tabsHTML(marketTab, [['buy', 'Buy seeds'], ['sell', 'Sell']]);
+  if (marketTab === 'buy') {
+    for (const k in CROPS) {
+      const c = CROPS[k], inS = c.seasons.includes(state.season), id = 'seed_' + k;
+      h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
+    }
+  } else {
+    const rows = state.inv.map((s, i) => [s, i]).filter(([s]) => s && ITEMS[s.id].price && !ITEMS[s.id].tool);
+    if (!rows.length) h += '<p class="muted">Nothing to sell. Tobiah buys crops, wood, stone and fiber at the same price as your shipping bin, but pays right away.</p>';
+    for (const [s, i] of rows) h += `<div class="shoprow"><img src="${iconURL(ITEMS[s.id].icon)}"><div class="si"><b>${ITEMS[s.id].n} ×${s.n}</b><div class="muted">₪ ${ITEMS[s.id].price} each</div></div><div class="sb"><button class="btn alt" data-sell="${i}" data-n="1">Sell 1</button><button class="btn" data-sell="${i}" data-n="999">All ₪${ITEMS[s.id].price * s.n}</button></div></div>`;
+  }
+  b.innerHTML = h;
+  b.querySelectorAll('.stab').forEach(el => el.onclick = () => { marketTab = el.dataset.tab; sfx.tap(); renderMarket() });
+  b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n, cost = CROPS[k].seed * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
+  b.querySelectorAll('[data-sell]').forEach(el => el.onclick = () => { const i = +el.dataset.sell, s = state.inv[i]; if (!s) return; const n = Math.min(+el.dataset.n, s.n); state.money += n * ITEMS[s.id].price; state.stats.earned = (state.stats.earned || 0) + n * ITEMS[s.id].price; s.n -= n; if (s.n <= 0) state.inv[i] = null; tone(988, .06, 'square', .025); tone(1318, .08, 'square', .02, .06); renderMarket() });
+}
+function openSmithy() { if (!shopOpen('smithy')) { say(closedMsg('smithy')); return } openShopModal("Jesse’s Forge", renderSmithy) }
+function renderSmithy() {
+  const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Tool upgrades</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me shekels, stone and wood, and I’ll make your tools stronger. Later, ore from the mountain will make them even better.”</p>`;
+  for (const id in UPG_TOOLS) {
+    const lv = toolLv(id), nx = UPGRADES[lv + 1];
+    h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money}</span> · <span class="${count('stone') >= nx.stone ? 'ok' : 'no'}">${nx.stone} stone</span> · <span class="${count('wood') >= nx.wood ? 'ok' : 'no'}">${nx.wood} wood</span></div>` : '<div class="req ok">Fully upgraded</div>'}</div>${nx ? `<div class="sb"><button class="btn" data-up="${id}" ${state.money >= nx.money && count('stone') >= nx.stone && count('wood') >= nx.wood ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
+  }
+  b.innerHTML = h;
+  b.querySelectorAll('[data-up]').forEach(el => el.onclick = () => {
+    const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx) return;
+    if (state.money < nx.money || count('stone') < nx.stone || count('wood') < nx.wood) return;
+    state.money -= nx.money; takeItem('stone', nx.stone); takeItem('wood', nx.wood);
+    (state.toolLv = state.toolLv || {})[id] = toolLv(id) + 1; if (id === 'can') state.can = canMax();
+    sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => { sfx.pick(); toast(`Your ${toolName(id)} is ready!`) }, 380); renderSmithy();
+  });
+}
+function takeItem(id, n) { for (let i = 0; i < state.inv.length && n > 0; i++) { const s = state.inv[i]; if (s && s.id === id) { const k = Math.min(n, s.n); s.n -= k; n -= k; if (s.n <= 0) state.inv[i] = null } } }
+function openInn() { if (!shopOpen('inn')) { say(closedMsg('inn')); return } openShopModal("Miriam’s Inn", renderInn) }
+function renderInn() {
+  const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Hot food</span>${money()}</div><p class="muted" style="margin:2px 0 8px">Buy food here and eat it whenever you need energy: select it on your toolbar and press the action button.</p>`;
+  for (const k in FOODS) { const f = FOODS[k]; h += `<div class="shoprow"><img src="${iconURL('ic_' + k)}"><div class="si"><b>${f.n}</b><div class="muted">+${f.e} energy</div></div><div class="sb"><span class="pr">₪ ${f.cost}</span><button class="btn" data-food="${k}" ${state.money >= f.cost ? '' : 'disabled'}>Buy</button></div></div>` }
+  b.innerHTML = h;
+  b.querySelectorAll('[data-food]').forEach(el => el.onclick = () => { const k = el.dataset.food; if (state.money < FOODS[k].cost) return; if (addItem(k, 1)) { toast('Your bag is full.'); return } state.money -= FOODS[k].cost; sfx.pick(); renderInn() });
+}
+const VERSES = [['The LORD is my shepherd; I shall not want.', 'Psalm 23:1'], ['Whatsoever a man soweth, that shall he also reap.', 'Galatians 6:7'], ['He that tilleth his land shall have plenty of bread.', 'Proverbs 12:11'], ['While the earth remaineth, seedtime and harvest… shall not cease.', 'Genesis 8:22'], ['Consider the lilies of the field, how they grow; they toil not, neither do they spin.', 'Matthew 6:28'], ['I have planted, Apollos watered; but God gave the increase.', '1 Corinthians 3:6'], ['Come unto me, all ye that labour and are heavy laden, and I will give you rest.', 'Matthew 11:28']];
+async function visitChurch() {
+  const v = VERSES[(state.totalDay - 1) % VERSES.length];
+  if (isSabbath() && state.time >= 9 * 60 && state.time < 13 * 60 && state.sabbathDay !== state.totalDay) {
+    const go = await say(`The villagers are gathering for the Sabbath service. Join them?`, [['Join', 1], ['Not now', 0]]);
+    if (!go) return; state.sabbathDay = state.totalDay; await fadeOut();
+    state.time = Math.max(state.time, 12 * 60); state.energy = state.maxE;
+    for (const x of VILLAGERS) { const f = (state.friends = state.friends || {})[x.id] || (state.friends[x.id] = { pts: 0, last: 0, met: 0 }); f.met = 1; f.pts = Math.min(200, f.pts + 10) }
+    $('#fade').classList.remove('on'); sfx.sleep();
+    await say(`You worshipped with the whole town. Elder Simeon read: “${v[0]}” (${v[1]}). You feel completely rested, and everyone is glad you came.`);
+    return;
+  }
+  await say(`The church is quiet and cool inside. A verse is written by the door today: “${v[0]}” (${v[1]})`);
+}

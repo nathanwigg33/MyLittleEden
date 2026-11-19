@@ -114,6 +114,11 @@ for mine, (pk, tn) in CROPART.items():
     E['seed_' + mine] = fr[0]; E['item_' + mine] = fr[5]; E['crop_' + mine] = fr[1:5]
 E['soil_dry'] = Image.open(CR + 'soil_00.png').convert('RGBA'); E['soil_wet'] = Image.open(CR + 'soil_01.png').convert('RGBA')
 
+# ---------- Bethlehem buildings (drawn for this game, see buildings.py) ----------
+from buildings import build_all
+E.update(build_all())
+E['anvil'] = trim(gm('spr_deco_anvil'))
+
 # ---------- item icons ----------
 for k, n in [('axe', 'axe'), ('pick', 'pickaxe'), ('hoe', 'shovel'), ('can', 'water'), ('scythe', 'sword'), ('rod', 'rod'),
              ('wood', 'wood'), ('stone', 'rock'), ('seeds', 'seeds_generic'), ('basket', 'basket')]:

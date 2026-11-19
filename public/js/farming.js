@@ -44,12 +44,12 @@ function toolCell(it) {
   if (!it) return null;
   if (it.seed) return findCell(canPlant);
   if (it.tool === 'hoe') return findCell(canTill);
-  if (it.tool === 'can') return findCell(needsWater) || (state.can < CAN_MAX ? findCell(isWater) : null);
+  if (it.tool === 'can') return findCell(needsWater) || (state.can < canMax() ? findCell(isWater) : null);
   return null;
 }
 function till(c) { World.soil[idx(c.x, c.y)] = { w: 0, c: null }; sfx.dig(); chips(c.x + .5, c.y + .6, '#9a6a3e', 6) }
 function water(c) {
-  if (isWater(c.x, c.y)) { state.can = CAN_MAX; sfx.splash(); chips(c.x + .5, c.y + .5, '#bfe6ff', 8); toast('Watering can filled.'); return }
+  if (isWater(c.x, c.y)) { state.can = canMax(); sfx.splash(); chips(c.x + .5, c.y + .5, '#bfe6ff', 8); toast('Watering can filled.'); return }
   if (state.can <= 0) { toast('Your watering can is empty. Refill it at the pond.'); sfx.no(); return }
   const s = soilAt(c.x, c.y); if (!s) return; s.w = 1; state.can--; sfx.water(); for (let k = 0; k < 6; k++) parts.push({ x: c.x + .5 + rnd(-.3, .3), y: c.y + .6, z: .6, vx: rnd(-.4, .4), vy: rnd(-.2, .2), vz: rnd(.5, 1.5), col: '#7ec8f2', life: rnd(.3, .6) });
 }
@@ -151,5 +151,15 @@ function giveStarter(existing) {
   if (state.farmStart) return; state.farmStart = 1; state.can = CAN_MAX;
   for (const id of ['hoe', 'can']) if (!state.inv.some(s => s && s.id === id)) { const i = state.inv.indexOf(null); if (i >= 0) state.inv[i] = { id, n: 1 } }
   const e = state.chest.indexOf(null); if (e >= 0) state.chest[e] = { id: 'seed_wheat', n: 15 };
-  if (existing) setTimeout(() => say('A neighbor from Bethlehem stopped by! You now have a hoe and a watering can, and there are 15 wheat seeds waiting in your storage chest. A merchant has also parked a seed cart near your tent.'), 1600);
+  if (existing) setTimeout(() => say('A neighbor from Bethlehem stopped by! You now have a hoe and a watering can, and there are 15 wheat seeds waiting in your storage chest. More seeds are sold at the market in Bethlehem: follow the road east off your farm.'), 1600);
+}
+
+// the market in town replaces the old seed cart
+function removeCart() {
+  let had = false;
+  World.objs.forEach((o, i) => { if (o && (o.t === 'cart' || (o.t === 'part' && World.objs[idx(o.ox, o.oy)] && World.objs[idx(o.ox, o.oy)].t === 'cart'))) { if (o.t === 'cart') had = true } });
+  if (!had) return false;
+  const cells = []; World.objs.forEach((o, i) => { if (o && o.t === 'cart') cells.push(i) });
+  for (const i of cells) { const x = i % W, y = Math.floor(i / W); for (let xx = x - 1; xx <= x + 1; xx++) if (inb(xx, y)) World.objs[idx(xx, y)] = null }
+  return true;
 }

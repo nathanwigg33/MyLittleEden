@@ -196,3 +196,17 @@ button{font:inherit;cursor:pointer}
 .shoprow .btn{padding:5px 9px;font-size:14px}
 .shoprow.off{opacity:.5}
 .btn:disabled{opacity:.45;filter:grayscale(.6)}
+
+/* dialog speaker */
+#dialog .dhead{display:flex;align-items:center;gap:8px;margin:-4px 0 6px}
+#dPort{width:56px;height:56px;image-rendering:pixelated;background:#cfe7a8;border-radius:8px;box-shadow:inset 0 0 0 3px #e8a35a}
+#dialog .dname{font-weight:700;font-size:18px;color:#7a3a10}
+/* shop tabs and requirements */
+.stabs{display:flex;gap:6px;margin:4px 0 8px}
+.stab{font:inherit;font-weight:700;font-size:15px;padding:6px 12px;border-radius:8px;border:3px solid #5b2e12;background:#fbe6bf;color:#5b2e12}
+.stab.on{background:#ffd27a}
+.req .ok,.req.ok{color:#2a7a1a}.req .no{color:#b02a1a}.req{font-size:13px;margin-top:2px}
+/* people */
+.person{display:flex;gap:10px;align-items:center;background:#fbe6bf;border-radius:8px;padding:6px 8px;margin-bottom:6px;box-shadow:inset 0 0 0 2px #e8c48a}
+.person canvas{width:48px;height:48px;image-rendering:pixelated;background:#cfe7a8;border-radius:6px}
+.person .pi{flex:1}.hearts{color:#e0405a;font-size:15px;letter-spacing:1px}.hearts span{color:#e3c9a0}
