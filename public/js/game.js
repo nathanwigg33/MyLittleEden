@@ -20,7 +20,7 @@ G.state = null;
 
 function freshState(lk, seed) {
   const inv = new Array(INV_SIZE).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 };
-  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
+  return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], chest: new Array(INV_SIZE).fill(null), inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
 }
 const weekday = () => WEEK[(state.totalDay - 1) % 7];
 const fmtTime = m => { m = m % 1440; let h = Math.floor(m / 60), mm = m % 60, am = h < 12; h = h % 12 || 12; return h + ':' + String(mm).padStart(2, '0') + (am ? ' am' : ' pm') };
@@ -85,7 +85,7 @@ async function action() {
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
-    if (it.o.t === 'crate') { say('An old crate left behind by the last farmer. Empty for now.'); return }
+    if (it.o.t === 'crate') { openChest(); return }
     if (it.o.t === 'campfire') { say('The campfire crackles. It will keep you warm at night.'); return }
   }
   const s = selItem(), tool = s && ITEMS[s.id].tool; if (!tool) { sfx.no(); return }
@@ -212,7 +212,7 @@ function load() {
     if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q }
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
-    if (!state.bin) state.bin = []; if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin();
+    if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin();
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
 }
@@ -259,8 +259,25 @@ function renderMenu(tab) {
 
 // ---------- shipping bin ----------
 let binSel = null;
-function openBin() { menuOpen = true; binSel = null; $('#binM').classList.add('on'); sfx.tap(); renderBin() }
-function closeBin() { menuOpen = false; $('#binM').classList.remove('on'); renderHotbar(); save() }
+function openBin() { menuOpen = true; binSel = null; boxMode = 'bin'; $('#binM .ttl').textContent = 'Shipping Bin'; $('#binM').classList.add('on'); sfx.tap(); renderBin() }
+// ---------- storage chest ----------
+let boxMode = 'bin';
+function openChest() { menuOpen = true; boxMode = 'chest'; $('#binM .ttl').textContent = 'Storage Chest'; $('#binM').classList.add('on'); sfx.tap(); renderChest() }
+// move a whole stack from one list to another, joining a matching stack if there is one
+function moveStack(from, i, to) {
+  const s = from[i]; if (!s) return false;
+  if (!ITEMS[s.id].tool) { const m = to.find(q => q && q.id === s.id); if (m) { m.n += s.n; from[i] = null; return true } }
+  const e = to.indexOf(null); if (e < 0) return false; to[e] = s; from[i] = null; return true;
+}
+function renderChest() {
+  const b = $('#binM .mbody'), slot = (s, attr, i) => `<div class="slot" ${attr}="${i}">${s ? `<img src="${iconURL(ITEMS[s.id].icon)}"><span class="n">${s.n > 1 ? s.n : ''}</span>` : ''}</div>`;
+  let h = '<p class="muted" style="margin:0 0 6px">Tap something in your bag to store it. Tap something in the chest to take it back.</p><div class="grid binrow">';
+  state.chest.forEach((s, i) => h += slot(s, 'data-c', i)); h += '</div><div class="h3">Your bag</div><div class="grid">';
+  state.inv.forEach((s, i) => h += slot(s, 'data-i', i)); h += '</div>'; b.innerHTML = h;
+  b.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { if (!state.chest[+el.dataset.c]) return; if (moveStack(state.chest, +el.dataset.c, state.inv)) sfx.pick(); else { toast('Your bag is full.'); sfx.no() } renderChest() });
+  b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { if (!state.inv[+el.dataset.i]) return; if (moveStack(state.inv, +el.dataset.i, state.chest)) sfx.pick(); else { toast('The chest is full.'); sfx.no() } renderChest() });
+}
+function closeBin() { menuOpen = false; if (state.sel !== null && !state.inv[state.sel]) state.sel = 0; $('#binM').classList.remove('on'); renderHotbar(); save() }
 function shipFromSlot(i, n) {
   const s = state.inv[i]; if (!s || !ITEMS[s.id].price) return; n = Math.min(n, s.n);
   const b = state.bin.find(q => q.id === s.id); if (b) b.n += n; else state.bin.push({ id: s.id, n });
