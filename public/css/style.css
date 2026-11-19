@@ -72,7 +72,7 @@ button{font:inherit;cursor:pointer}
 .binrow{min-height:52px;background:#e9c58d;border-radius:8px;padding:4px}
 .h3{font-weight:700;margin:12px 0 6px}
 .slot.dim{opacity:.45}
-#night .ship{background:rgba(255,240,210,.08);border:2px solid rgba(255,220,160,.4);border-radius:10px;padding:8px 14px;min-width:220px;margin-bottom:10px}
+#night .old-ship{background:rgba(255,240,210,.08);border:2px solid rgba(255,220,160,.4);border-radius:10px;padding:8px 14px;min-width:220px;margin-bottom:10px}
 .sh-t{font-weight:700;margin-bottom:4px}
 .sh-r{display:flex;align-items:center;gap:8px;font-size:15px;justify-content:space-between}.sh-r img{width:24px;height:24px;image-rendering:pixelated}.sh-r span{flex:1;text-align:left}
 .sh-r.tot{border-top:1px solid rgba(255,220,160,.4);margin-top:4px;padding-top:4px;font-weight:700;color:#ffd75a}
@@ -126,9 +126,6 @@ button{font:inherit;cursor:pointer}
 
 #fade{position:fixed;inset:0;background:#0b0820;opacity:0;pointer-events:none;transition:opacity .9s;z-index:50}
 #fade.on{opacity:1;pointer-events:auto}
-#night{position:fixed;inset:0;z-index:51;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:#f7e3b0;text-align:center;padding:30px}
-#night.on{display:flex}
-#night .n1{font-size:24px;font-weight:700}#night .n2{font-size:18px}#night .n3{font-size:14px;opacity:.7}
 
 /* landscape phones: energy sits beside the clock, buttons drop to the bottom corner, toolbar moves left */
 @media (orientation: landscape) and (max-height: 540px){
@@ -156,3 +153,34 @@ button{font:inherit;cursor:pointer}
 @media (orientation: landscape) and (max-width: 700px){
   .slot{width:36px;height:36px}.slot img{width:28px;height:28px}
 }
+
+/* end of day */
+#night{position:fixed;inset:0;z-index:51;display:none;align-items:center;justify-content:center;color:#f7e3b0;text-align:center;padding:calc(env(safe-area-inset-top) + 20px) 18px calc(env(safe-area-inset-bottom) + 20px);background:radial-gradient(ellipse at 50% 120%,#3b2a5a 0%,#151233 45%,#07061a 100%);overflow:hidden}
+#night.on{display:flex;animation:nfade .6s}
+@keyframes nfade{from{opacity:0}}
+#night .stars{position:absolute;inset:0;pointer-events:none}
+#night .stars i{position:absolute;width:3px;height:3px;background:#fff6d8;animation:tw 2.4s infinite ease-in-out;opacity:.3}
+#night .stars i.big{width:5px;height:5px;box-shadow:0 0 6px #fff3c0}
+@keyframes tw{50%{opacity:1}}
+.nwrap{position:relative;display:flex;flex-direction:column;align-items:center;gap:8px;width:min(400px,100%);max-height:100%;overflow-y:auto;padding:30px 4px 10px}
+.moon{width:54px;height:54px;border-radius:50%;background:#fff1c2;box-shadow:inset -12px -6px 0 #e8cf8a,0 0 30px rgba(255,236,170,.5);margin-bottom:6px}
+#night .n1{font-size:24px;font-weight:700;text-shadow:2px 2px 0 #000}
+#night .n2{font-size:16px;opacity:.85}
+#night .n3{width:100%;display:flex;flex-direction:column;align-items:center;gap:8px;margin-top:6px}
+.report{width:100%;padding:12px 14px 12px;color:#3a1e08;opacity:0;transform:translateY(16px) scale(.97);transition:all .4s cubic-bezier(.2,1.4,.4,1)}
+.report.show{opacity:1;transform:none}
+.rt{font-weight:700;font-size:19px;margin-bottom:6px;letter-spacing:1px}
+.rows{display:flex;flex-direction:column;gap:4px}
+.sr{display:flex;align-items:center;gap:10px;background:#fff2d6;border-radius:7px;padding:4px 10px 4px 6px;box-shadow:inset 0 0 0 2px #e8c48a;opacity:0;transform:translateX(-26px);transition:all .3s ease-out}
+.sr.show{opacity:1;transform:none}
+.sr img{width:30px;height:30px;image-rendering:pixelated}
+.sr .nm{flex:1;text-align:left;font-size:16px;font-weight:600}.sr small{font-size:13px;opacity:.7}
+.sr b{font-size:16px;color:#2a7a1a;min-width:64px;text-align:right}
+.rtot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:8px 12px;background:#3a1e08;color:#ffd75a;border-radius:8px;font-weight:700;font-size:18px;opacity:0;transform:scale(.9);transition:all .3s}
+.rtot.show{opacity:1;transform:none}.rtot b{font-size:22px}
+.rtot.shine{animation:shine .7s}
+@keyframes shine{30%{transform:scale(1.07);box-shadow:0 0 22px rgba(255,215,90,.8)}}
+.nothing{font-size:15px;opacity:0;transition:opacity .5s;max-width:300px}.nothing.show{opacity:.8}
+#night .saved{font-size:13px;opacity:.6}
+#nGo{margin-top:8px;opacity:0;pointer-events:none;transform:translateY(8px);transition:all .35s}
+#nGo.show{opacity:1;pointer-events:auto;transform:none}

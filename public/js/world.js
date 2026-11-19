@@ -150,10 +150,26 @@ function ensureBin() {
   if (World.objs.some(o => o && o.t === 'bin')) return; const T = World.TENT;
   for (const [dx, dy] of [[3, -1], [2, 1], [-2, 1], [4, 0], [-4, 1], [3, 2], [-3, 2], [0, 3]]) { const x = T.x + dx, y = T.y + dy; if (inb(x, y) && !World.objs[idx(x, y)] && World.ground[idx(x, y)] !== WATER) { World.place(x, y, { t: 'bin' }); return } }
 }
-const BIN = (() => { const c = mkc(22, 20), g = c.getContext('2d'), R = (col, x, y, w, h) => { g.fillStyle = col; g.fillRect(x, y, w, h) };
-  R('#2a1610', 0, 4, 22, 16); R('#8a5530', 1, 5, 20, 14); R('#a8703e', 1, 5, 20, 3); R('#6e4024', 1, 12, 20, 1); R('#6e4024', 1, 16, 20, 1);
-  R('#2a1610', 0, 0, 22, 6); R('#c38a4e', 1, 1, 20, 4); R('#e0a865', 1, 1, 20, 1); R('#f2c94c', 9, 2, 4, 2); R('#2a1610', 10, 5, 2, 2);
-  R('#c9a24a', 2, 6, 1, 13); R('#c9a24a', 19, 6, 1, 13); return c })();
+// shipping bin: a wide wooden crate (same wood and palette as the crate by the tent) with its lid propped open
+const BIN = (() => {
+  const c = mkc(24, 24), g = c.getContext('2d'), R = (col, x, y, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(x, y, w, h) };
+  const D = 'rgb(115,62,57)', M = 'rgb(184,111,80)', M2 = 'rgb(194,133,105)', L = 'rgb(228,166,114)', C = 'rgb(234,212,170)', IN = 'rgb(58,32,36)', SH = 'rgba(24,20,37,.53)';
+  // shadow
+  R(SH, 1, 20, 22, 3); R(SH, 2, 23, 20, 1);
+  // lid, tipped back
+  R(D, 2, 0, 20, 7); R(L, 3, 1, 18, 5); [7, 12, 16].forEach(x => R(M2, x, 1, 1, 5)); R(C, 3, 1, 2, 1); R(C, 19, 1, 2, 1); R(C, 3, 5, 2, 1); R(C, 19, 5, 2, 1); R(M, 3, 6, 18, 1);
+  // box top: rim around a dark opening with goods inside
+  R(D, 0, 7, 24, 6); R(M, 1, 8, 22, 4); R(IN, 3, 9, 18, 2);
+  R('rgb(160,96,58)', 5, 9, 3, 1); R('rgb(122,70,44)', 5, 10, 3, 1);            // a log
+  R('rgb(232,196,92)', 10, 9, 2, 1); R('rgb(200,160,64)', 10, 10, 2, 1); R('rgb(232,196,92)', 13, 9, 1, 1); // wheat
+  R('rgb(150,150,160)', 16, 9, 2, 1); R('rgb(110,110,124)', 16, 10, 2, 1);     // a stone
+  R(L, 1, 11, 22, 1); R(C, 1, 11, 2, 1); R(C, 21, 11, 2, 1);
+  // front planks
+  R(D, 0, 12, 24, 8); R(M, 1, 12, 22, 7); R(M2, 2, 13, 20, 1); R(M2, 2, 17, 20, 1); R(M2, 2, 13, 1, 5); R(M2, 21, 13, 1, 5); R(D, 1, 19, 22, 1);
+  // little brass coin plate in the middle
+  R(D, 8, 14, 8, 4); R(C, 9, 14, 6, 3); R('rgb(242,201,76)', 10, 15, 4, 1); R('rgb(196,140,40)', 11, 15, 2, 1);
+  return c;
+})();
 const SIGN = (() => { const c = mkc(16, 18), g = c.getContext('2d'); g.fillStyle = '#24141e'; g.fillRect(6, 8, 4, 10); g.fillRect(0, 0, 16, 11); g.fillStyle = '#8a5a34'; g.fillRect(7, 9, 2, 9); g.fillStyle = '#c99256'; g.fillRect(1, 1, 14, 9); g.fillStyle = '#a8703e'; g.fillRect(1, 8, 14, 2); g.fillStyle = '#6a4024'; g.fillRect(3, 3, 10, 1); g.fillRect(3, 5, 7, 1); return c })();
 function treeSprite(o, t, x, y) {
   const set = o.t === 'olive' || (o.t === 'wild' && o.k === 'olive') ? AT.olive : (o.k === 'tree2' ? AT.tree2 : o.k === 'pine' ? AT.pine : AT.oak);
@@ -178,7 +194,7 @@ function drawObject(g, o, x, y, t) {
     case 'tent': g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(cx, by - 2, 26, 6, 0, 0, 7); g.fill(); spr(AT.tent[0], 2); break;
     case 'campfire': shadow(7); spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'crate': shadow(7); spr(AT.crate[0], 0); break;
-    case 'bin': shadow(10); spr(BIN, 1); break;
+    case 'bin': spr(BIN, 4); break;
     case 'sign': shadow(6); spr(SIGN, 0); break;
   }
   if (o.shake) o.shake = Math.max(0, o.shake - 1 / 60);

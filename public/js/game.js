@@ -157,16 +157,44 @@ function newDay(passed) {
   save();
 }
 const fadeOut = () => new Promise(r => { $('#fade').classList.add('on'); setTimeout(r, 900) });
+// end-of-day screen: night sky, then each sold item counts in one at a time, then the total
 function nightScreen(passed) {
-  return new Promise(r => {
-    const el = $('#night'); el.querySelector('.n1').textContent = passed ? 'You passed out from exhaustion…' : 'Good night, ' + state.look.name + '.';
-    el.querySelector('.n2').textContent = `${weekday()}, ${SEASONS[state.season]} ${state.day}`;
-    const sh = state.lastShip || [], tot = sh.reduce((a, b) => a + b.v, 0);
-    el.querySelector('.n3').innerHTML = (sh.length ? `<div class="ship"><div class="sh-t">Shipped</div>${sh.map(b => `<div class="sh-r"><img src="${iconURL(ITEMS[b.id].icon)}"><span>${ITEMS[b.id].n} ×${b.n}</span><b>${b.v}</b></div>`).join('')}<div class="sh-r tot"><span>Total</span><b>₪ ${tot}</b></div></div>` : '') + '<div class="saved">Your farm has been saved.</div>';
+  return new Promise(async r => {
+    const el = $('#night'), st = el.querySelector('.stars');
+    if (!st.children.length) for (let k = 0; k < 60; k++) { const d = document.createElement('i'); d.style.left = (Math.random() * 100) + '%'; d.style.top = (Math.random() * 70) + '%'; d.style.animationDelay = (Math.random() * 3) + 's'; if (Math.random() < .2) d.className = 'big'; st.appendChild(d) }
+    el.querySelector('.n1').textContent = passed ? 'You passed out from exhaustion…' : 'Good night, ' + state.look.name + '.';
+    el.querySelector('.n2').textContent = `Next: ${weekday()}, ${SEASONS[state.season]} ${state.day}`;
+    const box = el.querySelector('.n3'), go = $('#nGo'); box.innerHTML = ''; go.classList.remove('show');
     el.classList.add('on');
-    setTimeout(() => { el.classList.remove('on'); $('#fade').classList.remove('on'); snapCam(); banner(`${SEASONS[state.season]} ${state.day}`); if (tot) { toast(`You earned ₪ ${tot} from the shipping bin.`); sfx.pick() } r() }, sh.length ? 4200 : 2200);
+    const sh = state.lastShip || [], tot = sh.reduce((a, b) => a + b.v, 0);
+    const countUp = (node, to, ms) => new Promise(res => { const t0 = performance.now(); const step = t => { const k = Math.min(1, (t - t0) / ms); node.textContent = '₪ ' + Math.round(to * (1 - Math.pow(1 - k, 3))); if (k < 1) requestAnimationFrame(step); else res() }; requestAnimationFrame(step) });
+    let skip = false; const tap = () => skip = true; el.addEventListener('pointerdown', tap);
+    const pause = ms => skip ? Promise.resolve() : wait(ms);
+    await pause(700);
+    if (sh.length) {
+      const card = document.createElement('div'); card.className = 'report paper'; card.innerHTML = '<div class="rt">Shipping Report</div><div class="rows"></div><div class="rtot"><span>Total earned</span><b>₪ 0</b></div>'; box.appendChild(card);
+      requestAnimationFrame(() => card.classList.add('show'));
+      await pause(450);
+      const rows = card.querySelector('.rows');
+      for (const it of sh) {
+        const row = document.createElement('div'); row.className = 'sr';
+        row.innerHTML = `<img src="${iconURL(ITEMS[it.id].icon)}"><span class="nm">${ITEMS[it.id].n} <small>×${it.n}</small></span><b>₪ 0</b>`; rows.appendChild(row);
+        requestAnimationFrame(() => row.classList.add('show')); tone(880, .07, 'square', .025); tone(1320, .08, 'square', .02, .06);
+        if (skip) row.querySelector('b').textContent = '₪ ' + it.v; else await countUp(row.querySelector('b'), it.v, 350);
+        await pause(300);
+      }
+      const tt = card.querySelector('.rtot'); tt.classList.add('show'); await pause(250);
+      if (skip) tt.querySelector('b').textContent = '₪ ' + tot; else await countUp(tt.querySelector('b'), tot, 900);
+      tt.classList.add('shine'); [523, 659, 784, 1046].forEach((f, i) => tone(f, .25, 'triangle', .04, i * .08));
+    } else {
+      const p = document.createElement('div'); p.className = 'nothing'; p.textContent = 'Nothing was shipped today. Fill the bin by your tent to earn shekels overnight.'; box.appendChild(p); requestAnimationFrame(() => p.classList.add('show'));
+    }
+    const sv = document.createElement('div'); sv.className = 'saved'; sv.textContent = 'Your farm has been saved.'; box.appendChild(sv);
+    await wait(300); go.classList.add('show'); el.removeEventListener('pointerdown', tap);
+    go.onclick = () => { sfx.tap(); el.classList.remove('on'); $('#fade').classList.remove('on'); snapCam(); banner(`${SEASONS[state.season]} ${state.day}`); r() };
   });
 }
+const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- saving ----------
 function b64e(u) { let s = ''; for (let i = 0; i < u.length; i += 8192) s += String.fromCharCode.apply(null, u.subarray(i, i + 8192)); return btoa(s) }
