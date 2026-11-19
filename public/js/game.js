@@ -425,7 +425,7 @@ function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
   return [.65, 0];
 }
 // name boards on the main buildings: [label, height above the building's base in world px]
-const SIGNS = { synagogue: ['Synagogue', 26], smithy: ['Blacksmith', 34], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
+const SIGNS = { synagogue: ['Synagogue', 26], smithy: ['Blacksmith', 47], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
 function signFor(o) { if (o.t !== 'bld') return null; if (o.shop === 'market') return o.k === 'stall_blue' ? ['Market', 41] : null; return SIGNS[o.k] || null }
 function drawSign(g, label, wx, wy, cxf, cyf) {
   const S = SC, fs = Math.round(8.5 * S); g.font = `700 ${fs}px 'Pixelify Sans', monospace`;

@@ -39,24 +39,33 @@ def components():
     for sl in ndimage.find_objects(lab):
         ys, xs = sl; out.append((xs.start, ys.start, xs.stop, ys.stop))
     return L, b, out
+# decoration tiles that are part of a building (chimneys, pillars, trim, doors); everything else near a house is a prop
+KEEP = {348, 349, 769, 797, 798, 799, 840, 861, 862, 863, 988, 1120, 1121, 1122, 1248, 1249, 1250, 1312, 1313, 1314, 1376, 1377, 1378,
+        1359, 1423, 1764, 1767, 1809, 2036, 2653, 2654, 2655, 2717, 2718, 2719, 2833, 2897, 2909, 2910, 2911}
+SWAP = {1767: 1764}            # the synagogue's blue door -> the same plank door as everywhere else
+def deco_layer(box):
+    d = lj(GM + 'rooms/Room1/Room1.yy'); l = [l for l in d['layers'] if l['name'] == 'decoration_02'][0]['tiles']
+    w, data = l['SerialiseWidth'], decode(l); cols = TS.width // 16; x0, y0, x1, y1 = box
+    out = Image.new('RGBA', (w * 16, l['SerialiseHeight'] * 16))
+    for ty in range((y0 - 20) // 16, (y1 + 15) // 16):
+        for tx in range(x0 // 16, (x1 + 15) // 16):
+            v = data[ty * w + tx]
+            if v <= 0: continue
+            i = v & 0x7FFFF
+            if i not in KEEP: continue
+            i = SWAP.get(i, i); t = TS.crop(((i % cols) * 16, (i // cols) * 16, (i % cols) * 16 + 16, (i // cols) * 16 + 16))
+            if v & (1 << 28): t = t.transpose(Image.FLIP_LEFT_RIGHT)
+            out.alpha_composite(t, (tx * 16, ty * 16))
+    return out
 def cut(L, box):
-    """building + walls, plus decoration tiles (doors, chimneys, dormers) inside the box.
-    Plants standing on the ground in the bottom row are left out."""
+    """building + walls + the decoration tiles that belong to the building (chimneys may sit just above the roof)."""
     im = Image.new('RGBA', L['building'].size)
     for n in ('building', 'walls'): im.alpha_composite(L[n])
-    deco = L['decoration_02'].copy(); x0, y0, x1, y1 = box
-    a = np.array(deco)
-    for ty in range(y0 // 16, (y1 + 15) // 16):
-        for tx in range(x0 // 16, (x1 + 15) // 16):
-            t = a[ty * 16:(ty + 1) * 16, tx * 16:(tx + 1) * 16]
-            px = t[t[..., 3] > 0]
-            if not len(px): continue
-            green = ((px[:, 1].astype(int) > px[:, 0].astype(int) + 25) & (px[:, 1].astype(int) > px[:, 2].astype(int))).mean()
-            yellow = ((px[:, 0] > 200) & (px[:, 1] > 170) & (px[:, 2] < 90)).mean()
-            if ty * 16 + 16 >= y1 - 2 and (green > .25 or yellow > .15): a[ty * 16:(ty + 1) * 16, tx * 16:(tx + 1) * 16] = 0
-    base = np.array(im)[..., 3] > 0; a[~base] = 0          # decorations only where they sit on the building itself
-    im.alpha_composite(Image.fromarray(a, 'RGBA'))
-    c = im.crop(box); bb = c.getbbox(); return c.crop(bb) if bb else c
+    a = np.array(im); x0, y0, x1, y1 = box
+    g = a[y1 - 16:y1, x0:x1]                                   # grass tiles baked into the bottom row
+    m = (g[..., 1].astype(int) > g[..., 0].astype(int) + 20) & (g[..., 1].astype(int) > g[..., 2].astype(int)); g[m] = 0
+    im = Image.fromarray(a, 'RGBA'); im.alpha_composite(deco_layer(box))
+    c = im.crop((x0, y0 - 20, x1, y1)); bb = c.getbbox(); return c.crop(bb) if bb else c
 
 PICK = {'bld_synagogue': 12, 'bld_inn': 3, 'bld_carpenter': 24, 'bld_smithy': 11, 'bld_houseA': 20, 'bld_houseB': 22, 'bld_houseC': 14,
         'bld_houseD': 5, 'bld_houseE': 10, 'bld_houseF': 29, 'bld_farmhouse': 19, 'bld_barn': 23, 'bld_coop': 6}
@@ -81,30 +90,15 @@ def lightfix(a, x0, y0, x1, y1, refx=None):
                 a[y, x] = a[y, refx] if refx is not None else 0
 def fix(out):
     A = {k: np.array(v) for k, v in out.items()}
-    fh = A['bld_farmhouse']; H = fh.shape[0]
-    DOOR = fh[H - 12:H, 8:24].copy()                       # the plain plank door (bottom 12 rows of its tile)
-    door = lambda k, x: stamp(A[k], DOOR, x, A[k].shape[0])
-    door('bld_houseA', 24); door('bld_houseE', 24); door('bld_houseB', 24)
-    erase(A['bld_houseA'], 58, 44, 64, 54); erase(A['bld_houseE'], 44, 44, 48, 54); lightfix(A['bld_houseA'], 54, 44, 64, 54); lightfix(A['bld_houseE'], 40, 44, 48, 54)
-    c = A['bld_houseC']; wallfill(c, 22, 64, 42, 80, 20); door('bld_houseC', 24); erase(c, 36, 54, 56, 68, True)
-    for k in ('bld_houseA', 'bld_houseE'):
-        a = A[k]; a[:, :][(a[..., 1].astype(int) > a[..., 0].astype(int) + 25) & (np.arange(a.shape[0])[:, None] > a.shape[0] - 12)] = 0
-    erase(A['bld_houseD'], 40, 30, 48, 50, True)
-    cp = A['bld_carpenter']; wallfill(cp, 9, 49, 38, 63, 40); door('bld_carpenter', 18)
-    sm = A['bld_smithy']; wallfill(sm, 9, 42, 54, 52, 24); wallfill(sm, 9, 42, 54, 52, 40)
-    sy = A['bld_synagogue']; Hs = sy.shape[0]; erase(sy, 0, 0, 10, 12)
-    lightfix(sy, 4, Hs - 7, 30, Hs, 23); lightfix(sy, 66, Hs - 7, 94, Hs, 71); door('bld_synagogue', 40)
-    for k in ('bld_houseA', 'bld_houseE'):            # crate corners poking out past the right-hand wall
-        a = A[k]; Hh = a.shape[0]; right = np.nonzero(a[Hh - 1, :, 3])[0].max(); a[Hh - 10:, right + 1:] = 0
-    for k in ('bld_houseD',):            # green specks from plants growing against the wall
-        a = A[k]; gm = (a[..., 1].astype(int) > a[..., 0].astype(int) + 15) & (a[..., 1].astype(int) > a[..., 2].astype(int) + 15)
-        cols = np.zeros_like(gm); cols[-30:, -6:] = 1; cols[-30:, :6] = 1; cols[:, :] &= (k == 'bld_houseD') | (np.arange(a.shape[0])[:, None] > a.shape[0] - 30); a[gm & (cols > 0)] = 0
-    for x0, x1, rx in ((4, 30, 23), (66, 94, 71)):    # planter outlines in front of the synagogue
-        for y in range(Hs - 6, Hs - 1):
-            for x in range(x0, x1):
-                if sy[y, x, 3] and sy[y, x, 0] < 160 and sy[y, x, 0] > 60: sy[y, x] = sy[y, rx]
+    cols = TS.width // 16; DOOR = TS.crop(((1764 % cols) * 16, (1764 // cols) * 16, (1764 % cols) * 16 + 16, (1764 // cols) * 16 + 16))
     out = {k: Image.fromarray(v, 'RGBA') for k, v in A.items()}
-    out['bld_houseF'] = out['bld_houseE'].transpose(Image.FLIP_LEFT_RIGHT)   # the old F had no door: use a mirrored E
+    for k, x in (('bld_houseA', 24), ('bld_houseE', 24), ('bld_houseB', 24), ('bld_houseC', 24), ('bld_smithy', 8), ('bld_carpenter', 24)):
+        a = np.array(out[k]); H = a.shape[0]
+        if k in ('bld_carpenter', 'bld_houseC'):          # clear the old window/door marks behind the new door first
+            ref = next(c for c in range(x - 1, 0, -1) if (a[H - 15:H - 1, c, :3].sum(1) > 200).all())
+            wallfill(a, x - 1, H - 15, x + 17, H - 1, ref)
+        out[k] = Image.fromarray(a, 'RGBA'); out[k].alpha_composite(DOOR, (x, H - 16))    # the art pack's own plank door, in the same spot as on the farmhouse
+    out['bld_houseF'] = out['bld_houseE'].transpose(Image.FLIP_LEFT_RIGHT)   # the pack's own F is a stilt house: use a mirrored E
     return {k: (v.crop(v.getbbox()) if v.getbbox() else v) for k, v in out.items()}
 def pack_buildings():
     L, b, comps = components(); comps = sorted([c for c in comps if (c[2] - c[0]) * (c[3] - c[1]) > 600])

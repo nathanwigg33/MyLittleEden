@@ -119,7 +119,7 @@ from buildings import build_all
 from room_buildings import pack_buildings
 E.update({k: v for k, v in build_all().items() if k.startswith('stall_') or k == 'torch'})
 E.update(pack_buildings())
-E['well_pack'] = trim(gm('spr_deco_well'))
+E['well_pack'] = trim(gm('spr_deco_well_covered'))
 E['anvil'] = trim(gm('spr_deco_anvil'))
 
 # ---------- item icons ----------
