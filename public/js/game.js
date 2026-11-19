@@ -86,7 +86,7 @@ async function action() {
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   const it = interactTarget();
   if (it) {
-    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'synagogue') visitChurch(); else if (k === 'carpenter') openCarpenter(); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say('A villager’s home. The door is closed.'); return }
+    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'synagogue') visitChurch(); else if (k === 'carpenter') openCarpenter(); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
@@ -424,6 +424,23 @@ function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
   if (m < 21 * 60) return [.2 + (m - 19 * 60) / 120 * .45, 1 - (m - 19 * 60) / 120];
   return [.65, 0];
 }
+// name boards on the main buildings: [label, height above the building's base in world px]
+const SIGNS = { synagogue: ['Synagogue', 26], smithy: ['Blacksmith', 34], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
+function signFor(o) { if (o.t !== 'bld') return null; if (o.shop === 'market') return o.k === 'stall_blue' ? ['Market', 41] : null; return SIGNS[o.k] || null }
+function drawSign(g, label, wx, wy, cxf, cyf) {
+  const S = SC, fs = Math.round(8.5 * S); g.font = `700 ${fs}px 'Pixelify Sans', monospace`;
+  const tw = Math.ceil(g.measureText(label).width), w = tw + Math.round(10 * S), h = Math.round(13 * S);
+  const x = Math.round((wx - cxf) * S - w / 2), y = Math.round((wy - cyf) * S - h / 2), u = Math.max(1, Math.round(S));
+  g.fillStyle = 'rgba(30,15,5,.35)'; g.fillRect(x + u, y + u * 2, w, h);                          // shadow
+  g.fillStyle = '#4a2a12'; g.fillRect(x, y, w, h);                                             // dark outline
+  g.fillStyle = '#c08a52'; g.fillRect(x + u, y + u, w - 2 * u, h - 2 * u);                      // plank
+  g.fillStyle = '#d9a66a'; g.fillRect(x + u, y + u, w - 2 * u, u);                             // top highlight
+  g.fillStyle = '#9a6634'; g.fillRect(x + u, y + h - 2 * u, w - 2 * u, u); g.fillRect(x + u, y + Math.round(h / 2), w - 2 * u, Math.max(1, Math.round(u / 2)));  // grain
+  g.fillStyle = '#4a2a12'; g.fillRect(x + 2 * u, y + 2 * u, u, u); g.fillRect(x + w - 3 * u, y + 2 * u, u, u);   // nails
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.fillStyle = '#4a2a12'; g.fillText(label, x + w / 2, y + h / 2 + u);
+  g.fillStyle = '#fff3d6'; g.fillText(label, x + w / 2, y + h / 2);
+}
 function render() {
   const bw = buf.width, bh = buf.height;
   const cxf = clamp(camX, -16, W * 16 - viewW + 16), cyf = clamp(camY, -16, H * 16 - viewH + 16);
@@ -447,10 +464,10 @@ function render() {
   if (World.cur === 'town' && (villagersOut() || mode !== 'play')) for (const n of npcs) D.push([n.y, 5, n]);
   for (const f of falling) D.push([f.y + .95, 2, f]);
   D.sort((a, b) => a[0] - b[0]);
-  const py = showPlayer ? player.y : -1e9;
+  const py = showPlayer ? player.y : -1e9, signsBack = [], signsFront = [];
   for (const d of D) {
     const g = d[0] <= py ? bx : bx2;
-    if (d[1] === 0) drawObject(g, d[2], d[3], d[4], GT);
+    if (d[1] === 0) { drawObject(g, d[2], d[3], d[4], GT); const L = d[2].t === 'bld' && signFor(d[2]); if (L) (g === bx ? signsBack : signsFront).push([L[0], d[3] * 16 + BLD[d[2].k][1] * 8, d[4] * 16 + 16 - L[1]]) }
     else if (d[1] === 4) drawCrop(g, d[2], d[3], d[4], GT);
     else if (d[1] === 5) drawVillager(g, d[2]);
     else if (d[1] === 1) { const q = d[2], s = AT[ITEMS[q.id].icon][0]; g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(Math.round(q.x * 16 - 3), Math.round(q.y * 16), 6, 2); g.drawImage(s, Math.round(q.x * 16 - s.width / 2), Math.round(q.y * 16 - s.height - q.z * 10 + Math.sin(GT * 4 + q.x) * (q.vz ? 0 : 1))) }
@@ -461,8 +478,10 @@ function render() {
   // compose onto the screen
   ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
   ctx.drawImage(buf, -ox, -oy, bw * SC, bh * SC);
+  for (const q of signsBack) drawSign(ctx, q[0], q[1], q[2], cxf, cyf);
   if (showPlayer) { ctx.setTransform(SC, 0, 0, SC, -cxf * SC, -cyf * SC); drawPlayer(ctx); ctx.setTransform(1, 0, 0, 1, 0, 0) }
   ctx.drawImage(buf2, -ox, -oy, bw * SC, bh * SC);
+  for (const q of signsFront) drawSign(ctx, q[0], q[1], q[2], cxf, cyf);
   // light & night
   const [dark, warm] = dayLight();
   if (warm > 0) { ctx.fillStyle = `rgba(255,150,60,${.16 * warm})`; ctx.fillRect(0, 0, cv.width, cv.height) }
@@ -515,6 +534,6 @@ async function boot() {
   await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
-  window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, addItem, newDay, save, load, findTarget, get drops() { return drops } };
+  window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };
 }
 boot();

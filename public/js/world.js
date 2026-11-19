@@ -216,7 +216,7 @@ function storeMap(name) { World.maps[name] = { ground: World.ground, objs: World
 const TOWN = { entry: { x: 1, y: 27 }, plaza: { x: 34, y: 28 } };
 const BLD = { // sprite, width in tiles, depth in tiles (solid rows)
   synagogue: ['bld_synagogue', 6, 3], smithy: ['bld_smithy', 4, 2], inn: ['bld_inn', 5, 3], carpenter: ['bld_carpenter', 5, 2],
-  houseA: ['bld_houseA', 4, 2], houseB: ['bld_houseB', 4, 2], houseC: ['bld_houseC', 4, 3], houseD: ['bld_houseD', 3, 2], houseE: ['bld_houseE', 3, 2], houseF: ['bld_houseF', 3, 3],
+  houseA: ['bld_houseA', 4, 2], houseB: ['bld_houseB', 4, 2], houseC: ['bld_houseC', 4, 3], houseD: ['bld_houseD', 3, 2], houseE: ['bld_houseE', 3, 2], houseF: ['bld_houseF', 3, 2],
   farmhouse: ['bld_farmhouse', 3, 2], barn: ['bld_barn', 5, 3], coop: ['bld_coop', 2, 2],
   stall_red: ['stall_red', 3, 1], stall_blue: ['stall_blue', 3, 1], stall_green: ['stall_green', 3, 1], well: ['well_pack', 2, 1],
 };
