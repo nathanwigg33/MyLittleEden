@@ -1,40 +1,21 @@
-# Eden: The First Garden
+# My Little Promise Land
 
-A cozy pixel-art farming game set in the Garden of Eden, made to play on an iPhone (or any browser). It plays like the classic farm-sim games: a toolbar of tools, an energy bar, crops you water daily, a shipping crate that sells overnight, and a fishing minigame. All the art is original pixel art drawn in code. God gives the tutorial using Genesis verses. You gather and craft, farm through the seasons, name every creature, build a home, and keep the one command.
+A cozy Stardew Valley–style farming game set on a farm outside Bethlehem, made to play on iPhone (Add to Home Screen) or any browser.
 
-## How it plays
-A simple, one-handed farm game in the style of Mini Mini Farm, set in the Garden of Eden.
-- Use the joystick or tap to walk. Walk into things to gather them; walk over soil to plant and through ripe crops to harvest.
-- Fill the angel Shamar's requests to earn Blessings, and spend them on seeds, tools and opening new lands.
-- 25 lands to open, 42 things to discover and 27 creatures to name add up to an Exploration percentage.
-- Build and decorate your home land with the hammer button, and upgrade your bower to a cottage and a house.
-- Energy runs down as you work; sleeping at home restores it and grows your crops.
+**Step 1 (now):** create your character, explore your overgrown farm, chop trees, break rocks, cut weeds with the scythe, collect wood, stone and fiber. Days run from 6 am to 2 am, seasons last 12 days, and you sleep in your tent to start the next day (the game saves each night).
 
-The earlier, larger version of the game is still at `/classic.html`.
+Controls: drag on the left side of the screen to walk, the big button uses your tool (or talks/uses things when a ! shows), the small button switches tools, and the toolbar picks items.
 
-## What's in here
-- `public/index.html`: the whole game, in one file.
-- `public/manifest.webmanifest`, the icons and `sw.js`: let you add it to your iPhone home screen and play offline.
-- `wrangler.jsonc`: Cloudflare settings. It's a static site, so Cloudflare just serves the `public` folder.
+## Files
+- `public/index.html` — the page
+- `public/css/style.css` — look of menus and HUD
+- `public/js/core.js` — art loading, sound
+- `public/js/character.js` — character look + creator
+- `public/js/world.js` — the farm map and terrain drawing
+- `public/js/game.js` — player, tools, time, HUD, saving
+- `public/art/` — sprite sheet built by `tools/build_atlas.py`
+- `public/old/` — earlier Eden versions
 
-## Publishing (Cloudflare + GitHub)
-Same as Pick'em Club: Cloudflare Workers is connected to this repo, so every push to `main` publishes automatically.
+Hosted on Cloudflare Workers (static assets), deployed automatically on push to `main`.
 
-First-time setup:
-1. In the Cloudflare dashboard, go to **Workers & Pages → Create → Import a repository** and choose `MyLittleEden`.
-2. Leave the build command empty and keep the deploy command `npx wrangler deploy`. Click **Deploy**.
-3. The game will be live at `https://mylittleeden.<your-subdomain>.workers.dev`.
-4. On your iPhone, open that link in Safari, then tap **Share → Add to Home Screen**.
-
-## Testing locally
-`npx wrangler dev` runs it at http://localhost:8787. Opening `public/index.html` directly in a browser works too.
-
-## Art credit
-Most of the pixel art is from **Sunnyside World** by danieldiggle (https://danieldiggle.itch.io/sunnyside), used under its license for free and commercial projects. The packed sprite sheet is in `art/`. Angels, the serpent, most wild animals and a few buildings are drawn in code for this game.
-
-## Island update (Mini Mini Farm style)
-- Drag anywhere to walk; walk into things to gather, push into trees and rocks.
-- Overgrown places with a lock sign are cleared with ✦; see-through objects are bought to develop an area.
-- Reach 80% in an area to build its house: an angel moves in, helps harvest, and a bridge opens to the next area (3 areas).
-- Request board with ⏱ rush requests (double pay), regrowing crop beds, animals with ❗ when ready, fishing levels, hidden blue-flower isles.
-- The previous version is at /garden-v1.html and the classic big game at /classic.html.
+Art: Sunnyside World by danieldiggle (danieldiggle.itch.io/sunnyside). Pixelify Sans font (SIL Open Font License).
