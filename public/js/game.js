@@ -174,14 +174,15 @@ function b64d(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i =
 function save() {
   if (!state) return; state.px = player.x; state.py = player.y;
   const o = []; World.objs.forEach((q, i) => { if (q) { const c = Object.assign({}, q); delete c.shake; o.push([i, c]) } });
-  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, st: state, g: b64e(World.ground), o, drops: drops.map(d => [d.id, d.x, d.y]) })) } catch (e) { console.warn(e) }
+  try { localStorage.setItem(SAVE_KEY, JSON.stringify({ v: 1, st: state, g: b64e(World.ground), o, w: W, h: H, drops: drops.map(d => [d.id, d.x, d.y]) })) } catch (e) { console.warn(e) }
 }
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY) } catch (e) { return false } }
 function load() {
   try {
     const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state;
-    genFarm(state.seed); const g = b64d(d.g); if (g.length === W * H) World.ground = g;
-    World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q;
+    genFarm(state.seed); const g = b64d(d.g);
+    if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q }
+    else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
     if (!state.bin) state.bin = []; if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin();
     look = buildCharacter(state.look); return true;
@@ -197,12 +198,12 @@ function renderHotbar() {
 let hudSig = '';
 function updateHUD() {
   const sig = [state.time, state.money, state.day, Math.round(state.energy), state.sel, JSON.stringify(state.inv.slice(0, HOTBAR))].join('|');
+  $('#btnA').classList.toggle('talk', !!interactTarget());
   if (sig === hudSig) return; hudSig = sig;
   $('#cDay').textContent = `${weekday()}. ${SEASONS[state.season]} ${state.day}`; $('#cTime').textContent = fmtTime(state.time);
   $('#cMoney').textContent = state.money.toLocaleString();
   const e = state.energy / state.maxE; $('#eFill').style.height = (e * 100) + '%'; $('#eFill').style.background = e > .5 ? '#6fdc4f' : e > .25 ? '#f2c94c' : '#ef5a3c';
   renderHotbar();
-  const ic = interactTarget(); $('#btnA').classList.toggle('talk', !!ic);
 }
 // ---------- menu (bag + options) ----------
 let menuOpen = false, bagSel = null;
@@ -417,14 +418,14 @@ function newGame() { $('#title').classList.remove('on'); openCreator(lk => { con
 function startPlay(fresh) {
   mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); snapCam(); hudSig = ''; updateHUD();
   if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but with an axe, a pickaxe and a scythe you can clear it. Your tent is behind you. Sleep there when the day is done.`), 900) }
-  else banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`);
+  else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }
 }
 let last = 0, hudT = 0;
 function loop(t) {
   const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
   try {
     update(dt);
-    if (mode === 'title') { camX = 20 * 16 + Math.sin(GT * .05) * 120 - viewW / 2; camY = 16 * 16 + Math.cos(GT * .04) * 60 - viewH / 2 }
+    if (mode === 'title') { camX = 27 * 16 + Math.sin(GT * .05) * 120 - viewW / 2; camY = 20 * 16 + Math.cos(GT * .04) * 60 - viewH / 2 }
     render(); hudT -= dt; if (hudT <= 0 && mode === 'play' && state) { hudT = .1; updateHUD() }
   } catch (e) { console.error(e) }
   requestAnimationFrame(loop);

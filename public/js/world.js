@@ -1,6 +1,6 @@
 // The farm map: ground, objects, terrain drawing.
 'use strict';
-const W = 48, H = 40;
+const W = 64, H = 54;
 const WATER = 0, DIRT = 1, GRASS = 2;
 const idx = (x, y) => y * W + x, inb = (x, y) => x >= 0 && y >= 0 && x < W && y < H;
 // object types: hp = hits to clear, tool = which tool clears it, solid = blocks walking
@@ -13,7 +13,7 @@ const OBJ = {
 };
 const World = {
   ground: null, objs: null, seed: 1,
-  TENT: { x: 13, y: 8 }, EXIT: { x: 47, y: 20 },
+  TENT: { x: 20, y: 12 }, EXIT: { x: 63, y: 27 },
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
   owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') return { o: this.objs[idx(o.ox, o.oy)], x: o.ox, y: o.oy }; return o ? { o, x, y } : null },
@@ -32,8 +32,8 @@ function genFarm(seed) {
     return lerp(lerp(h(x0, y0), h(x0 + 1, y0), sm(tx)), lerp(h(x0, y0 + 1), h(x0 + 1, y0 + 1), sm(tx)), sm(ty));
   };
   // pond (south-east)
-  const P = { x: 36, y: 30 };
-  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const d = Math.hypot((x - P.x) / 1.25, y - P.y) + noise(x, y, 3) * 2.2; if (d < 4.4) g[idx(x, y)] = WATER }
+  const P = { x: 47, y: 41 };
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const d = Math.hypot((x - P.x) / 1.25, y - P.y) + noise(x, y, 3) * 2.2; if (d < 5.2) g[idx(x, y)] = WATER }
   // dirt patches across the field
   for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) if (g[idx(x, y)] === GRASS && noise(x + 50, y + 20, 5) > .72) g[idx(x, y)] = DIRT;
   // yard in front of the tent and the road to town
@@ -41,8 +41,9 @@ function genFarm(seed) {
   for (let y = T.y - 3; y <= T.y + 5; y++) for (let x = T.x - 6; x <= T.x + 6; x++) if (Math.hypot((x - T.x) / 6, (y - T.y - 1) / 4) < 1) g[idx(x, y)] = DIRT;
   let px = T.x, py = T.y + 3;
   const road = [];
-  while (py < 20) { road.push([px, py]); py++ }
-  while (px < W) { road.push([px, py]); if (R() < .12 && py < 22) py++; else if (R() < .1 && py > 19) py--; px++ }
+  const ry = Math.floor(H / 2);
+  while (py < ry) { road.push([px, py]); py++ }
+  while (px < W) { road.push([px, py]); if (R() < .12 && py < ry + 2) py++; else if (R() < .1 && py > ry - 1) py--; px++ }
   for (const [x, y] of road) for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) if (inb(x + dx, y + dy)) g[idx(x + dx, y + dy)] = DIRT;
   const roadSet = new Set(road.flatMap(([x, y]) => [idx(x, y), idx(x + 1, y), idx(x, y + 1), idx(x + 1, y + 1), idx(x, y - 1), idx(x - 1, y), idx(x + 2, y), idx(x, y + 2)]));
   World.EXIT = { x: W - 1, y: road[road.length - 1][1] };
@@ -52,7 +53,7 @@ function genFarm(seed) {
   World.place(T.x - 3, T.y, { t: 'crate' });
   World.place(T.x + 3, T.y - 1, { t: 'bin' });
   World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'Bethlehem — the road to town is still being built' });
-  const keep = (x, y) => Math.hypot((x - T.x) / 6.5, (y - T.y - 1) / 4.5) < 1 || roadSet.has(idx(x, y));
+  const keep = (x, y) => Math.hypot((x - T.x) / 5.5, (y - T.y - 1) / 4) < 1 || roadSet.has(idx(x, y));
   // forest border (cannot be cleared)
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const edge = Math.min(x, y, W - 1 - x, H - 1 - y) + noise(x, y, 2) * 1.6;
@@ -64,13 +65,13 @@ function genFarm(seed) {
     const i = idx(x, y); if (o[i] || g[i] === WATER || keep(x, y)) continue;
     let nearWater = false; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (g[idx(x + dx, y + dy)] === WATER) nearWater = true;
     const woods = noise(x + 9, y + 3, 6), r = R();
-    if (woods > .62 && r < .32 && !nearWater) o[i] = { t: R() < .55 ? 'oak' : 'olive', hp: 6, v: ri(0, 3) };
-    else if (r < .05) o[i] = { t: 'rock', hp: 2, v: ri(0, 1) };
-    else if (r < .065 && !nearWater) o[i] = { t: 'boulder', hp: 5 };
-    else if (r < .1) o[i] = { t: 'twig', hp: 1 };
-    else if (r < .12) o[i] = { t: 'stump', hp: 3 };
-    else if (r < .3) o[i] = { t: 'weed', hp: 1, v: ri(0, 3) };
-    else if (r < .42 && g[i] === GRASS) o[i] = { t: 'grass', hp: 1, v: ri(0, 3) };
+    if ((woods > .56 && r < .42 || r > .975) && !nearWater) o[i] = { t: R() < .55 ? 'oak' : 'olive', hp: 6, v: ri(0, 3) };
+    else if (r < .06) o[i] = { t: 'rock', hp: 2, v: ri(0, 1) };
+    else if (r < .08 && !nearWater) o[i] = { t: 'boulder', hp: 5 };
+    else if (r < .12) o[i] = { t: 'twig', hp: 1 };
+    else if (r < .145) o[i] = { t: 'stump', hp: 3 };
+    else if (r < .38) o[i] = { t: 'weed', hp: 1, v: ri(0, 3) };
+    else if (r < .55 && g[i] === GRASS) o[i] = { t: 'grass', hp: 1, v: ri(0, 3) };
   }
   // a few trees right by the tent for shade
   World.place(T.x - 5, T.y - 2, { t: 'olive', hp: 6, v: 1 }); World.place(T.x + 5, T.y - 3, { t: 'oak', hp: 6, v: 2 });
