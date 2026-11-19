@@ -265,7 +265,7 @@ function update(dt) {
   parts = parts.filter(p => p.life > 0);
   for (const f of falling) f.t += dt; for (const f of falling) if (f.t > .9 && !f.done) { f.done = 1; drop('wood', ri(6, 9), f.x + .5 + f.side * 1.2, f.y); leaves(f.x + .5 + f.side * 1.4, f.y, 10); sfx.rock() } falling = falling.filter(f => f.t < 1.3);
   for (const n of notes) { n.t -= dt; if (n.t <= 0 && !n.gone) { n.gone = 1; n.el.classList.add('out'); setTimeout(() => n.el.remove(), 400) } } notes = notes.filter(n => !n.gone || n.t > -1);
-  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60) { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : bufW() / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
+  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60) { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
   for (const b of birds) { b.t += dt; b.x += b.dir * 3.2 * dt; b.y += Math.sin(b.t * 2) * .3 * dt } birds = birds.filter(b => b.t < 12);
   if (mode !== 'play' || !state) return;
   if (dlgOpen || menuOpen || sleeping) { player.moving = false; return }
@@ -293,16 +293,22 @@ function update(dt) {
 }
 
 // ---------- render ----------
-let cv, ctx, buf, bx, SC = 5, camX = 0, camY = 0, camTX = 0, camTY = 0, dpr = 1, light, lx;
-const bufW = () => buf.width, bufH = () => buf.height;
+// The world is drawn into small pixel buffers and scaled up. The camera keeps its exact (sub-pixel) position and the
+// buffers are shifted by the leftover fraction, so scrolling is smooth. The player is drawn straight onto the screen
+// at the same exact position, so the character never jitters against the world.
+let cv, ctx, buf, bx, buf2, bx2, SC = 5, camX = 0, camY = 0, dpr = 1, light, lx, viewW = 1, viewH = 1;
+const bufW = () => viewW, bufH = () => viewH;
 function resize() {
   dpr = Math.min(3, devicePixelRatio || 1); cv.width = Math.floor(innerWidth * dpr); cv.height = Math.floor(innerHeight * dpr);
-  SC = Math.max(2, Math.round(Math.min(cv.width, cv.height * .75) / (16 * 12.5)));
-  buf.width = Math.ceil(cv.width / SC); buf.height = Math.ceil(cv.height / SC); light.width = buf.width; light.height = buf.height;
-  bx.imageSmoothingEnabled = false; ctx.imageSmoothingEnabled = false;
+  // about 12.5 tiles across in portrait, about 11 tiles tall in landscape
+  SC = Math.max(2, Math.round(Math.min(cv.width / (16 * 12.5), cv.height / (16 * 11))));
+  viewW = cv.width / SC; viewH = cv.height / SC;
+  for (const c of [buf, buf2, light]) { c.width = Math.ceil(viewW) + 2; c.height = Math.ceil(viewH) + 2 }
+  bx.imageSmoothingEnabled = false; bx2.imageSmoothingEnabled = false; ctx.imageSmoothingEnabled = false;
+  if (player && mode === 'play') snapCam();
 }
-function camFollow(dt) { camTX = player.x * 16 - buf.width / 2; camTY = (player.y - .5) * 16 - buf.height / 2; const k = Math.min(1, dt * 7); camX += (camTX - camX) * k; camY += (camTY - camY) * k }
-function snapCam() { camX = player.x * 16 - buf.width / 2; camY = (player.y - .5) * 16 - buf.height / 2 }
+function camFollow(dt) { const tx = player.x * 16 - viewW / 2, ty = (player.y - .5) * 16 - viewH / 2, k = 1 - Math.exp(-dt * 14); camX += (tx - camX) * k; camY += (ty - camY) * k }
+function snapCam() { camX = player.x * 16 - viewW / 2; camY = (player.y - .5) * 16 - viewH / 2 }
 function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
   const m = state ? state.time : 1080; if (m < 17 * 60) return [m < 7 * 60 ? .15 * (7 * 60 - m) / 60 : 0, 0];
   if (m < 19 * 60) return [(m - 17 * 60) / 120 * .2, (m - 17 * 60) / 120];
@@ -311,55 +317,60 @@ function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
 }
 function render() {
   const bw = buf.width, bh = buf.height;
-  const cx = Math.round(clamp(camX, -16, W * 16 - bw + 16)), cy = Math.round(clamp(camY, -16, H * 16 - bh + 16));
+  const cxf = clamp(camX, -16, W * 16 - viewW + 16), cyf = clamp(camY, -16, H * 16 - viewH + 16);
+  const cx = Math.floor(cxf), cy = Math.floor(cyf), ox = (cxf - cx) * SC, oy = (cyf - cy) * SC;
   bx.setTransform(1, 0, 0, 1, 0, 0); bx.fillStyle = '#3a8fd0'; bx.fillRect(0, 0, bw, bh);
+  bx2.setTransform(1, 0, 0, 1, 0, 0); bx2.clearRect(0, 0, bw, bh);
   if (!World.ground) return;
-  bx.translate(-cx, -cy);
+  bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
   drawTerrain(bx, x0, y0, x1, y1, GT);
-  // target highlight
-  if (mode === 'play' && player && !player.act && !dlgOpen) {
+  const showPlayer = player && mode === 'play';
+  if (showPlayer && !player.act && !dlgOpen) {
     const s = selItem(), tool = s && ITEMS[s.id].tool, t = interactTarget() || (tool && findTarget(tool));
     if (t) { bx.strokeStyle = `rgba(255,255,255,${.45 + .2 * Math.sin(GT * 6)})`; bx.lineWidth = 1; bx.strokeRect(t.x * 16 + .5, t.y * 16 + .5, 15, 15) }
   }
-  // y-sorted sprites
+  // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part') D.push([y + (o.t === 'grass' ? .4 : .9), 0, o, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const f of falling) D.push([f.y + .95, 2, f]);
-  if (player && mode === 'play') D.push([player.y, 3]);
   D.sort((a, b) => a[0] - b[0]);
+  const py = showPlayer ? player.y : -1e9;
   for (const d of D) {
-    if (d[1] === 0) drawObject(bx, d[2], d[3], d[4], GT);
-    else if (d[1] === 1) { const q = d[2], s = AT[ITEMS[q.id].icon][0]; bx.fillStyle = 'rgba(0,0,0,.2)'; bx.fillRect(Math.round(q.x * 16 - 3), Math.round(q.y * 16), 6, 2); bx.drawImage(s, Math.round(q.x * 16 - s.width / 2), Math.round(q.y * 16 - s.height - q.z * 10 + Math.sin(GT * 4 + q.x) * (q.vz ? 0 : 1))) }
-    else if (d[1] === 2) { const f = d[2], s = treeSprite(f.o, 0, f.x, f.y), k = Math.min(1, f.t / .9), a = f.side * k * k * 1.45; bx.save(); bx.globalAlpha = f.t > .9 ? 1 - (f.t - .9) / .4 : 1; bx.translate(f.x * 16 + 8, f.y * 16 + 16); bx.rotate(a); bx.drawImage(s, -s.width / 2, -s.height + 3); bx.restore() }
-    else drawPlayer();
+    const g = d[0] <= py ? bx : bx2;
+    if (d[1] === 0) drawObject(g, d[2], d[3], d[4], GT);
+    else if (d[1] === 1) { const q = d[2], s = AT[ITEMS[q.id].icon][0]; g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(Math.round(q.x * 16 - 3), Math.round(q.y * 16), 6, 2); g.drawImage(s, Math.round(q.x * 16 - s.width / 2), Math.round(q.y * 16 - s.height - q.z * 10 + Math.sin(GT * 4 + q.x) * (q.vz ? 0 : 1))) }
+    else { const f = d[2], s = treeSprite(f.o, 0, f.x, f.y), k = Math.min(1, f.t / .9), a = f.side * k * k * 1.45; g.save(); g.globalAlpha = f.t > .9 ? 1 - (f.t - .9) / .4 : 1; g.translate(f.x * 16 + 8, f.y * 16 + 16); g.rotate(a); g.drawImage(s, -s.width / 2, -s.height + 3); g.restore() }
   }
-  for (const p of parts) { bx.globalAlpha = clamp(p.life * 2, 0, 1); bx.fillStyle = p.col; bx.fillRect(Math.round(p.x * 16), Math.round(p.y * 16 - p.z * 16), p.leaf ? 2 : 1, p.leaf ? 1 : 1) } bx.globalAlpha = 1;
-  for (const b of birds) { const s = AT.an_bird[Math.floor(b.t * 8) % AT.an_bird.length]; bx.save(); bx.translate(Math.round(b.x * 16), Math.round(b.y * 16)); if (b.dir > 0) bx.scale(-1, 1); bx.drawImage(s, -s.width / 2, -s.height); bx.restore() }
+  for (const p of parts) { bx2.globalAlpha = clamp(p.life * 2, 0, 1); bx2.fillStyle = p.col; bx2.fillRect(Math.round(p.x * 16), Math.round(p.y * 16 - p.z * 16), p.leaf ? 2 : 1, 1) } bx2.globalAlpha = 1;
+  for (const b of birds) { const s = AT.an_bird[Math.floor(b.t * 8) % AT.an_bird.length]; bx2.save(); bx2.translate(Math.round(b.x * 16), Math.round(b.y * 16)); if (b.dir > 0) bx2.scale(-1, 1); bx2.drawImage(s, -s.width / 2, -s.height); bx2.restore() }
+  // compose onto the screen
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(buf, -ox, -oy, bw * SC, bh * SC);
+  if (showPlayer) { ctx.setTransform(SC, 0, 0, SC, -cxf * SC, -cyf * SC); drawPlayer(ctx); ctx.setTransform(1, 0, 0, 1, 0, 0) }
+  ctx.drawImage(buf2, -ox, -oy, bw * SC, bh * SC);
   // light & night
-  bx.setTransform(1, 0, 0, 1, 0, 0);
   const [dark, warm] = dayLight();
-  if (warm > 0) { bx.fillStyle = `rgba(255,150,60,${.16 * warm})`; bx.fillRect(0, 0, bw, bh) }
+  if (warm > 0) { ctx.fillStyle = `rgba(255,150,60,${.16 * warm})`; ctx.fillRect(0, 0, cv.width, cv.height) }
   if (dark > 0) {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
     for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && o.t === 'tent') lamp(x + .5, y + .6, 26, .7) }
-    if (player && mode === 'play') lamp(player.x, player.y - .5, 34, .55);
-    bx.drawImage(light, 0, 0);
-    if (dark > .3) { bx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20) - cx, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14) - cy; if (fx < 0 || fy < 0 || fx > bw || fy > bh) continue; bx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; bx.fillRect(Math.round(fx), Math.round(fy), 1, 1) } bx.globalCompositeOperation = 'source-over' }
+    if (showPlayer) lamp(player.x, player.y - .5, 34, .55);
+    ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
+    if (dark > .3) { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
   }
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.imageSmoothingEnabled = false; ctx.drawImage(buf, 0, 0, bw * SC, bh * SC);
 }
-function drawPlayer() {
+function drawPlayer(g) {
   const p = player, fx = p.x * 16, fy = p.y * 16;
-  bx.fillStyle = 'rgba(30,20,10,.25)'; bx.beginPath(); bx.ellipse(Math.round(fx), Math.round(fy), 5, 2, 0, 0, 7); bx.fill();
+  g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill();
   let anim, fr = 0, flip = false;
   if (p.act) { anim = p.act.anim; fr = Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim]); flip = p.side < 0 }
   else if (p.moving) { anim = p.dir === 'n' ? 'walk_n' : p.dir === 's' ? 'walk_s' : 'walk'; fr = Math.floor(p.at * 12); flip = p.dir === 'l' }
   else { anim = p.dir === 'n' ? 'idle_n' : p.dir === 's' ? 'idle_s' : 'idle'; fr = Math.floor(GT * 6); flip = p.dir === 'l' }
-  drawChar(bx, look, anim, fr, fx, fy, flip);
+  drawChar(g, look, anim, fr, fx, fy, flip, true);
 }
 
 // ---------- title / start ----------
@@ -380,13 +391,13 @@ function loop(t) {
   const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
   try {
     update(dt);
-    if (mode === 'title') { camX = 20 * 16 + Math.sin(GT * .05) * 120 - buf.width / 2; camY = 16 * 16 + Math.cos(GT * .04) * 60 - buf.height / 2 }
+    if (mode === 'title') { camX = 20 * 16 + Math.sin(GT * .05) * 120 - viewW / 2; camY = 16 * 16 + Math.cos(GT * .04) * 60 - viewH / 2 }
     render(); hudT -= dt; if (hudT <= 0 && mode === 'play' && state) { hudT = .1; updateHUD() }
   } catch (e) { console.error(e) }
   requestAnimationFrame(loop);
 }
 async function boot() {
-  cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
+  cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
   await loadAtlas(); bakeTerrain(); genFarm(4242);
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);

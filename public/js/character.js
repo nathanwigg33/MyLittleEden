@@ -89,11 +89,11 @@ function buildCharacter(look) {
   return out;
 }
 // draw a frame so the feet land on (fx, fy) in the target context
-function drawChar(g, frames, anim, i, fx, fy, flip) {
+function drawChar(g, frames, anim, i, fx, fy, flip, exact) {
   const fr = frames[anim]; if (!fr) return; const c = fr[((i % fr.length) + fr.length) % fr.length];
-  const m = ATMETA.char, a = m.anims[anim], dx = m.feetX - a.ox, dy = m.feetY - a.oy;
-  if (flip) { g.save(); g.translate(Math.round(fx), 0); g.scale(-1, 1); g.drawImage(c, Math.round(-dx), Math.round(fy - dy)); g.restore() }
-  else g.drawImage(c, Math.round(fx - dx), Math.round(fy - dy));
+  const m = ATMETA.char, a = m.anims[anim], dx = m.feetX - a.ox, dy = m.feetY - a.oy, R = exact ? v => v : Math.round;
+  if (flip) { g.save(); g.translate(R(fx), 0); g.scale(-1, 1); g.drawImage(c, Math.round(-dx), R(fy - dy)); g.restore() }
+  else g.drawImage(c, R(fx - dx), R(fy - dy));
 }
 
 // ---------- character creator ----------
