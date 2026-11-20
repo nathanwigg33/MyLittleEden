@@ -239,7 +239,7 @@ function load() {
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
-    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the synagogue.' }); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
+    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the church.' }); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
@@ -429,7 +429,7 @@ function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
   return [.65, 0];
 }
 // name boards on the main buildings: [label, height above the building's base in world px]
-const SIGNS = { synagogue: ['Synagogue', 26], smithy: ['Blacksmith', 47], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
+const SIGNS = { synagogue: ['Church', 26], smithy: ['Blacksmith', 47], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
 function signFor(o) { if (o.t !== 'bld') return null; if (o.shop === 'market') return o.k === 'stall_blue' ? ['Market', 41] : null; return SIGNS[o.k] || null }
 function drawSign(g, label, wx, wy, cxf, cyf) {
   const S = SC, fs = Math.round(8.5 * S); g.font = `700 ${fs}px 'Pixelify Sans', monospace`;
@@ -519,7 +519,7 @@ function showTitle() {
 function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); World.soil = {}; storeMap('farm'); useMap('farm'); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
 function startPlay(fresh) {
   mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); snapCam(); hudSig = ''; updateHUD();
-  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a synagogue. Sleep in your tent when the day is done.`), 900) }
+  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a church. Sleep in your tent when the day is done.`), 900) }
   else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }
 }
 let last = 0, hudT = 0;

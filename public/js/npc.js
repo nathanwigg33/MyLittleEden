@@ -16,8 +16,8 @@ const VILLAGERS = [
   { id: 'boaz', name: 'Boaz', role: 'Landowner', spot: [40.5, 29.2], roam: 2, look: { hair: 'short', hairCol: 6, skin: 2, shirt: 0, pants: 2 },
     lines: ['“The LORD be with you!” That’s how we greet our workers in Bethlehem.', 'A good farmer rises early and rests well. Both matter.', 'My fields are east of here. Yours will grow just as fine with patience.', 'Never trust a man who doesn’t know when his barley is ripe.', 'Generosity is the best fertilizer, I always say.'],
     warm: ['You work your land with honor. That is rare.', 'If you ever need advice about the harvest, you know where to find me.'] },
-  { id: 'simeon', name: 'Elder Simeon', role: 'Synagogue elder', spot: [34.5, 21.2], roam: 1, look: { hair: 'mop', hairCol: 6, skin: 1, shirt: 0, pants: 0 },
-    lines: ['Welcome, child. The doors of the synagogue are always open.', '“This is the day which the LORD hath made; we will rejoice and be glad in it.” Psalm 118:24', 'Come to the synagogue on the Sabbath morning. The whole town gathers here.', '“Commit thy works unto the LORD, and thy thoughts shall be established.” Proverbs 16:3', 'I have prayed for your fields. Now go water them!'],
+  { id: 'simeon', name: 'Elder Simeon', role: 'Church elder', spot: [34.5, 21.2], roam: 1, look: { hair: 'mop', hairCol: 6, skin: 1, shirt: 0, pants: 0 },
+    lines: ['Welcome, child. The doors of the church are always open.', '“This is the day which the LORD hath made; we will rejoice and be glad in it.” Psalm 118:24', 'Come to church on the Sabbath morning. The whole town gathers here.', '“Commit thy works unto the LORD, and thy thoughts shall be established.” Proverbs 16:3', 'I have prayed for your fields. Now go water them!'],
     warm: ['You are a blessing to this town.', 'I have seen many farmers come and go. I hope you stay.'] },
   { id: 'miriam', name: 'Miriam', role: 'Innkeeper', shop: 'inn', spot: [45.5, 40.4], roam: 1.2, look: { hair: 'curly', hairCol: 0, skin: 3, shirt: 1, pants: 3 },
     lines: ['Hungry? A warm meal brings your strength right back.', 'Travelers sleep here every night. Some even sleep in the stable when we’re full.', 'My lentil stew is famous from here to Jerusalem.', 'Eat well, sleep well, work well. That’s my whole philosophy.', 'The fig cakes go fast. Come early!'],
@@ -89,7 +89,7 @@ function drawPortrait(c, frames) {
   g.save(); g.scale(3, 3); drawChar(g, frames, 'idle_s', 0, c.width / 6, c.height / 3 + 4, false); g.restore();
 }
 function peopleTab(b) {
-  let h = '<p class="muted" style="margin-top:0">Talk to villagers each day to become friends. Everyone gathers at the synagogue on Sabbath mornings.</p>';
+  let h = '<p class="muted" style="margin-top:0">Talk to villagers each day to become friends. Everyone gathers at the church on Sabbath mornings.</p>';
   for (const v of VILLAGERS) {
     const f = (state.friends || {})[v.id], hs = heartsOf(v.id);
     h += `<div class="person"><canvas width="48" height="48" data-p="${v.id}"></canvas><div class="pi"><b>${f && f.met ? v.name : '???'}</b><div class="muted">${f && f.met ? v.role : 'Not met yet'}</div><div class="hearts">${'♥'.repeat(hs)}<span>${'♥'.repeat(10 - hs)}</span></div></div></div>`;

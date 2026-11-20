@@ -4,7 +4,7 @@
 // The room is drawn by hand in pixel art (the art pack has no indoor tiles).
 const ROOMS = {
   synagogue: {
-    name: 'Synagogue', x0: 27, x1: 37, top: 22, bot: 32,   // floor cells (inclusive)
+    name: 'Church', x0: 27, x1: 37, top: 22, bot: 32,   // floor cells (inclusive)
     door: 32,                                               // the doorway cell in the bottom wall (y = bot + 1)
   },
 };
@@ -47,6 +47,8 @@ const WG = {
 };
 // pixel-perfect Star of David (9x9)
 const STAR = ['....#....', '...#.#...', '#########', '.#.....#.', '..#...#..', '.#.....#.', '#########', '...#.#...', '....#....'];
+// pixel cross (9 wide, 13 tall) with a darker edge
+function cross(g, x, y, c, edge) { px(g, edge, x + 3, y, 3, 13); px(g, edge, x, y + 3, 9, 3); px(g, c, x + 4, y + 1, 1, 11); px(g, c, x + 1, y + 4, 7, 1) }
 function star(g, x, y, c) { for (let r = 0; r < 9; r++) for (let k = 0; k < 9; k++) if (STAR[r][k] === '#') px(g, c, x + k, y + r) }
 // a stained-glass arched window, 12 x 22
 function glassWindow(g, x, y) {
@@ -125,7 +127,7 @@ function drawFurn(g, o, x, y, t) {
       px(g, WG.blueLo, X + 8, Y - 21, w - 16, 33); px(g, WG.blue, X + 9, Y - 21, w - 18, 32);  // royal-blue velvet curtain
       for (let i = 0; i < 4; i++) px(g, WG.blueHi, X + 11 + i * 8, Y - 18, 1, 28);            // folds
       px(g, WG.gold, X + 8, Y - 21, w - 16, 2); px(g, WG.gold, X + 8, Y + 8, w - 16, 1); for (let i = 0; i < w - 16; i += 2) px(g, WG.goldHi, X + 8 + i, Y + 9, 1, 2);
-      star(g, ax - 4, Y - 12, WG.goldHi);
+      cross(g, ax - 4, Y - 15, WG.goldHi, WG.goldLo);
       // the two stone tablets on top
       for (const s of [-1, 1]) { const tx = ax + (s < 0 ? -12 : 1); px(g, WG.ink, tx, Y - 41, 11, 15); px(g, '#e9e4d8', tx + 1, Y - 40, 9, 13); px(g, '#cfc8b8', tx + 1, Y - 28, 9, 1); px(g, WG.ink, tx + 1, Y - 41, 1, 1); px(g, WG.ink, tx + 9, Y - 41, 1, 1); for (let i = 0; i < 5; i++) px(g, '#8f877a', tx + 3, Y - 38 + i * 2, 5, 1) }
       // the eternal lamp
@@ -223,7 +225,7 @@ function mapTab(b, which) {
   const status = k => `<i class="kd ${shopOpen(k) ? 'open' : 'shut'}"></i>`;
   if (which === 'town') {
     const T = World.maps.town;
-    const names = { synagogue: ['🕍', 'Synagogue'], smithy: ['⚒️', 'Blacksmith', 'smithy'], inn: ['🍞', 'Inn', 'inn'], carpenter: ['🪚', 'Carpenter', 'carpenter'], stall_blue: ['🧺', 'Market', 'market'], well: ['💧', 'Well'] };
+    const names = { synagogue: ['⛪', 'Church'], smithy: ['⚒️', 'Blacksmith', 'smithy'], inn: ['🍞', 'Inn', 'inn'], carpenter: ['🪚', 'Carpenter', 'carpenter'], stall_blue: ['🧺', 'Market', 'market'], well: ['💧', 'Well'] };
     for (let i = 0; i < W * H; i++) { const o = T.objs[i]; if (o && o.t === 'bld' && names[o.k]) { const x = i % W, y = (i / W) | 0, [ic, n, shop] = names[o.k], sp = AT[BLD[o.k][0]][0]; lab(`${shop ? status(shop) : ''}${ic} ${n}`, x + BLD[o.k][1] / 2, y + 1 - sp.height / 16 - .2) } }
     lab('↑ Mount Sinai <small>(soon)</small>', 25, 2.2, 'road'); lab('↓ The Jordan <small>(soon)</small>', 36, H - 1.2, 'road'); lab('← Your farm', .4, 26.4, 'road left');
   } else {
@@ -245,7 +247,7 @@ function mapTab(b, which) {
 function furnitureAction(o) {
   switch (o.k) {
     case 'bimah': visitChurch(); break;
-    case 'ark': say('The Ark. Behind its blue curtain rest the Torah scrolls, and on top sit two stone tablets for the Ten Commandments. A small lamp burns in front of it day and night.'); break;
+    case 'ark': say('The altar, hung with a blue curtain and a golden cross. On top sit two stone tablets for the Ten Commandments, and a small lamp burns before it day and night.'); break;
     case 'menorah': say('A golden lampstand with seven branches. Its flames flicker softly.'); break;
     case 'shelf': say('Shelves of scrolls: the Law, the Prophets and the Psalms.'); break;
     case 'pew': say('A long wooden bench, worn smooth by many Sabbaths.'); break;

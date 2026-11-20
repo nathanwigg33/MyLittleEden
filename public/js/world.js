@@ -52,7 +52,7 @@ function genFarm(seed) {
   World.place(T.x + 3, T.y + 1, { t: 'campfire' });
   World.place(T.x - 3, T.y, { t: 'crate' });
   World.place(T.x + 3, T.y - 1, { t: 'bin' });
-  World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the synagogue.' });
+  World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the church.' });
   const keep = (x, y) => Math.hypot((x - T.x) / 5.5, (y - T.y - 1) / 4) < 1 || roadSet.has(idx(x, y));
   // forest border (cannot be cleared)
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -196,7 +196,7 @@ function drawObject(g, o, x, y, t) {
     case 'campfire': shadow(7); spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'crate': shadow(7); spr(AT.crate[0], 0); break;
     case 'bin': spr(BIN, 4); break;
-    case 'bld': { const b = BLD[o.k], s = AT[b[0]][0], bx0 = x * 16 + b[1] * 8; if (o.k === 'well') { g.fillStyle = '#6e6a66'; g.beginPath(); g.ellipse(bx0, by - 5, 21, 10, 0, 0, 7); g.fill(); g.fillStyle = '#a19a91'; g.beginPath(); g.ellipse(bx0, by - 6, 19, 8.5, 0, 0, 7); g.fill(); g.fillStyle = '#8a837b'; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; g.fillRect(Math.round(bx0 + Math.cos(a) * 16) - 1, Math.round(by - 6 + Math.sin(a) * 6.5), 3, 1) } if (AT.bucket) g.drawImage(AT.bucket[0], bx0 + 10, by - 12) } g.fillStyle = 'rgba(30,20,10,.22)'; g.fillRect(Math.round(bx0 - s.width / 2) + 2, by - 3, s.width - 2, 4); g.drawImage(s, Math.round(bx0 - s.width / 2), by - s.height + 1); break }
+    case 'bld': { const b = BLD[o.k], s = AT[b[0]][0], bx0 = x * 16 + b[1] * 8; if (o.k === 'well') { g.fillStyle = '#6e6a66'; g.beginPath(); g.ellipse(bx0, by - 5, 21, 10, 0, 0, 7); g.fill(); g.fillStyle = '#a19a91'; g.beginPath(); g.ellipse(bx0, by - 6, 19, 8.5, 0, 0, 7); g.fill(); g.fillStyle = '#8a837b'; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; g.fillRect(Math.round(bx0 + Math.cos(a) * 16) - 1, Math.round(by - 6 + Math.sin(a) * 6.5), 3, 1) } if (AT.bucket) g.drawImage(AT.bucket[0], bx0 + 10, by - 12) } g.fillStyle = 'rgba(30,20,10,.22)'; g.fillRect(Math.round(bx0 - s.width / 2) + 2, by - 3, s.width - 2, 4); g.drawImage(s, Math.round(bx0 - s.width / 2), by - s.height + 1); if (o.k === 'synagogue') roofCross(g, Math.round(bx0), by - s.height + 3); break }
     case 'anvil': shadow(6); spr(AT.anvil[0], 0); break;
     case 'ifurn': drawFurn(g, o, x, y, t); break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
@@ -292,4 +292,13 @@ function drawPave(g, x0, y0, x1, y1) {
     if (!p(x, y - 1)) g.fillRect(x * 16, y * 16, 16, 1); if (!p(x - 1, y)) g.fillRect(x * 16, y * 16, 1, 16); if (!p(x + 1, y)) g.fillRect(x * 16 + 15, y * 16, 1, 16);
     if (!p(x, y + 1)) { g.fillStyle = 'rgba(60,40,20,.35)'; g.fillRect(x * 16, y * 16 + 15, 16, 1) }
   }
+}
+
+// a gold cross standing on the church roof (base at x, y)
+function roofCross(g, x, y) {
+  const r = (c, a, b, w, h) => { g.fillStyle = c; g.fillRect(x + a, y + b, w, h) };
+  r('#3a2414', -3, -21, 6, 22); r('#3a2414', -7, -16, 14, 6);          // outline
+  r('#d9ad3c', -2, -20, 4, 20); r('#d9ad3c', -6, -15, 12, 4);          // gold
+  r('#f6d878', -2, -20, 1, 20); r('#f6d878', -6, -15, 12, 1);          // highlight
+  r('#9c7020', 1, -20, 1, 20); r('#9c7020', -6, -12, 12, 1);           // shade
 }

@@ -6,7 +6,7 @@ A cozy Stardew Valley–style farming game set on a farm outside Bethlehem, made
 
 **Step 2 (farming):** dig soil with the hoe, plant seeds, water every day with the watering can (refill at the pond), harvest when ripe, sell in the shipping bin. Spring crops: wheat, barley, leeks, garlic. Seeds from the merchant's cart by the tent. Storage chest beside the tent.
 
-**Step 3 (Bethlehem):** the road east off the farm leads to town: Tobiah's market (seeds, sell produce), Jesse's forge (Bronze and Iron tool upgrades), Miriam's inn (food for energy), the synagogue (daily verse; Sabbath service restores energy and builds friendship), and seven villagers to befriend. Shops close on the Sabbath, except the inn.
+**Step 3 (Bethlehem):** the road east off the farm leads to town: Tobiah's market (seeds, sell produce), Jesse's forge (Bronze and Iron tool upgrades), Miriam's inn (food for energy), the church (daily verse; Sabbath service restores energy and builds friendship), and seven villagers to befriend. Shops close on the Sabbath, except the inn.
 
 Controls: drag on the left side of the screen to walk, the big button uses your tool (or talks/uses things when a ! shows), the small button switches tools, and the toolbar picks items.
 
@@ -18,7 +18,7 @@ Controls: drag on the left side of the screen to walk, the big button uses your 
 - `public/js/world.js` — the farm map and terrain drawing
 - `public/js/farming.js` — soil, watering, crops
 - `public/js/npc.js` — villagers, friendship, dialogue
-- `public/js/town.js` — market, blacksmith, inn, synagogue
+- `public/js/town.js` — market, blacksmith, inn, church
 - `tools/buildings.py` — pixel-art Bethlehem buildings
 - `public/js/game.js` — player, tools, time, HUD, saving
 - `public/art/` — sprite sheet built by `tools/build_atlas.py`

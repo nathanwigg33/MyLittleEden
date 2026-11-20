@@ -125,5 +125,5 @@ async function visitChurch() {
     await say(`You worshipped with the whole town. Elder Simeon read: “${v[0]}” (${v[1]}). You feel completely rested, and everyone is glad you came.`);
     return;
   }
-  await say(`You stand at the bimah and read the verse for today: “${v[0]}” (${v[1]})`);
+  await say(`You stand at the pulpit and read the verse for today: “${v[0]}” (${v[1]})`);
 }
