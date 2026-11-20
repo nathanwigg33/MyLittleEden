@@ -85,12 +85,19 @@ function drawSummit(g, t, still) {
   for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2 + t * .08, rx = 64 + (k % 3) * 24, x = px_ + Math.cos(a) * rx, y = py_ - 40 + Math.sin(a) * 12 - (k % 2) * 6, r = 15 + (k % 4) * 5;
     g.fillStyle = '#2e2c36'; g.beginPath(); g.ellipse(x, y + 3, r + 2, r * .62 + 2, 0, 0, 7); g.fill(); g.fillStyle = k % 3 ? '#46444f' : '#55535e'; g.beginPath(); g.ellipse(x, y, r, r * .6, 0, 0, 7); g.fill() }
   // smoke rising "as the smoke of a furnace" (Exodus 19:18)
-  for (let k = 0; k < 9; k++) { const life = (t * .25 + k / 9) % 1, x = px_ + Math.sin(t * .7 + k * 2.1) * 10 * life + (k % 3 - 1) * 8, y = py_ - life * 46, r = 7 + life * 16;
+  for (let k = 0; k < 9; k++) { const life = (t * .25 + k / 9) % 1, x = px_ + Math.sin(t * .7 + k * 2.1) * 14 * life + (k % 3 - 1) * 12, y = py_ - 40 - life * 50, r = 10 + life * 20;
     g.fillStyle = `rgba(60,56,62,${.55 * (1 - life)})`; g.beginPath(); g.ellipse(x, y, r, r * .7, 0, 0, 7); g.fill() }
-  // fire on the summit
-  for (let k = 0; k < 14; k++) { const fx = px_ - 22 + k * 3.4, h = 6 + ((Math.sin(t * 9 + k * 1.7) + 1) * 5 | 0) + (k > 4 && k < 10 ? 6 : 0);
-    g.fillStyle = '#c8331a'; g.fillRect(Math.round(fx), Math.round(py_ - h), 4, h); g.fillStyle = '#ff8a2a'; g.fillRect(Math.round(fx) + 1, Math.round(py_ - h + 3), 2, h - 3); if (h > 9) { g.fillStyle = '#ffe07a'; g.fillRect(Math.round(fx) + 1, Math.round(py_ - h + 6), 2, 3) } }
-  for (let k = 0; k < 5; k++) { const e = (t * 1.6 + k / 5) % 1; g.fillStyle = e < .5 ? '#ffd36b' : '#ff7a2a'; g.fillRect(Math.round(px_ + Math.sin(k * 3 + t) * 16), Math.round(py_ - 14 - e * 30), 1, 1) }   // embers
+  // a great fire on the summit: a glow, then layered flames shaped like a blaze, sparks and embers
+  const fw = 46;                                                            // half-width of the blaze
+  g.save(); g.globalCompositeOperation = 'lighter';
+  for (const [r, a] of [[78, .12], [54, .16], [34, .2]]) { const gr = g.createRadialGradient(px_, py_ - 14, 4, px_, py_ - 14, r); gr.addColorStop(0, `rgba(255,150,40,${a + Math.sin(t * 7) * .03})`); gr.addColorStop(1, 'rgba(255,80,20,0)'); g.fillStyle = gr; g.fillRect(px_ - r, py_ - 14 - r, r * 2, r * 2) }
+  g.restore();
+  const layer = (w, hMax, col, inset, sp) => { for (let k = 0; k < w * 2; k += 2) { const off = k - w, env = 1 - Math.pow(Math.abs(off) / w, 1.6), fl = (Math.sin(t * sp + k * .9) + Math.sin(t * sp * 1.7 + k * 1.3)) * .5;
+      const h = Math.max(0, Math.round(hMax * env * (.72 + fl * .28))); if (h > 0) { g.fillStyle = col; g.fillRect(Math.round(px_ + off), Math.round(py_ + 2 - h - inset), 2, h) } } };
+  layer(fw, 52, '#8e1a10', 0, 7); layer(fw - 6, 46, '#d0341a', 2, 8); layer(fw - 14, 36, '#ff7a22', 4, 9); layer(fw - 22, 26, '#ffc23a', 6, 10); layer(fw - 30, 15, '#fff2b0', 8, 11);
+  // small fires licking down the slopes on either side
+  for (const sd of [-1, 1]) for (let k = 0; k < 3; k++) { const fx = px_ + sd * (fw - 8 + k * 14), fy = mtnTop(fx / 16) * 16 + 3, h = 8 + ((Math.sin(t * 9 + k + sd) + 1) * 4 | 0); g.fillStyle = '#d0341a'; g.fillRect(Math.round(fx) - 2, Math.round(fy - h), 5, h); g.fillStyle = '#ff9a2a'; g.fillRect(Math.round(fx) - 1, Math.round(fy - h + 3), 3, h - 3); g.fillStyle = '#ffe07a'; g.fillRect(Math.round(fx), Math.round(fy - h + 6), 1, Math.max(1, h - 7)) }
+  for (let k = 0; k < 16; k++) { const e = (t * 1.3 + k / 16) % 1, ex = px_ + Math.sin(k * 3.7 + t * 1.5) * (fw * .8) * (1 - e * .4), ey = py_ - 30 - e * 70; g.fillStyle = e < .4 ? '#fff2b0' : e < .7 ? '#ffb340' : '#e0501e'; g.fillRect(Math.round(ex), Math.round(ey), e < .3 ? 2 : 1, e < .3 ? 2 : 1) }   // sparks
   if (still) return;
   // lightning
   const B = SINAI.bolt; if (B && B.t > 0) { g.strokeStyle = `rgba(255,255,230,${Math.min(1, B.t * 5)})`; g.lineWidth = 2; g.beginPath(); g.moveTo(B.pts[0][0], B.pts[0][1]); for (const p of B.pts) g.lineTo(p[0], p[1]); g.stroke();
@@ -107,9 +114,9 @@ function updateSinai(dt) {
 
 // ---------- the mines ----------
 const ORES = {   // node type: hit points, what it drops, sell price of the drop
-  stone: { hp: 2, item: 'stone' }, copper: { hp: 3, item: 'ore_copper' }, coal: { hp: 3, item: 'ore_coal' }, iron: { hp: 4, item: 'ore_iron' },
-  silver: { hp: 5, item: 'ore_silver' }, gold: { hp: 6, item: 'ore_gold' }, amethyst: { hp: 5, item: 'ore_amethyst' }, emerald: { hp: 6, item: 'ore_emerald' },
-  ruby: { hp: 7, item: 'ore_ruby' }, sapphire: { hp: 7, item: 'ore_sapphire' },
+  stone: { hp: 3, item: 'stone' }, copper: { hp: 4, item: 'ore_copper' }, coal: { hp: 4, item: 'ore_coal' }, iron: { hp: 5, item: 'ore_iron' },
+  silver: { hp: 6, item: 'ore_silver' }, gold: { hp: 7, item: 'ore_gold' }, amethyst: { hp: 6, item: 'ore_amethyst' }, emerald: { hp: 7, item: 'ore_emerald' },
+  ruby: { hp: 8, item: 'ore_ruby' }, sapphire: { hp: 8, item: 'ore_sapphire' },
 };
 const MINE_ITEMS = { ore_coal: ['Coal', 15], ore_copper: ['Copper Ore', 20], ore_iron: ['Iron Ore', 35], ore_silver: ['Silver Ore', 60], ore_gold: ['Gold Ore', 110],
   ore_amethyst: ['Amethyst', 120], ore_emerald: ['Emerald', 200], ore_ruby: ['Ruby', 260], ore_sapphire: ['Sapphire', 320] };
@@ -137,7 +144,7 @@ function genMine(f) {
   o[idx(S[0], S[1] - 1)] = { t: 'ladder_up' }; MINE.spawn = [S[0] + .5, S[1] + .7];
   const mix = oreMix(f), tot = Object.values(mix).reduce((a, b) => a + b, 0), pickOre = () => { let r = R() * tot; for (const k in mix) { r -= mix[k]; if (r <= 0) return k } return 'stone' };
   const spots = [...seen].filter(i => Math.hypot(i % W - S[0], (i / W | 0) - S[1]) > 2.5);
-  const rocks = []; for (const i of spots) if (R() < .17) { const k = pickOre(); o[i] = { t: 'node', k, hp: ORES[k].hp }; rocks.push(i) }
+  const rocks = []; for (const i of spots) if (R() < .17) { const k = pickOre(); o[i] = { t: 'node', k }; rocks.push(i) }
   // one rock hides the ladder down; pick one well away from where you start
   rocks.sort((a, b) => Math.hypot(b % W - S[0], (b / W | 0) - S[1]) - Math.hypot(a % W - S[0], (a / W | 0) - S[1]));
   if (rocks.length) o[rocks[ri(0, Math.min(rocks.length - 1, Math.floor(rocks.length / 3)))]].ladder = 1;

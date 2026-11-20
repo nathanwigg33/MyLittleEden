@@ -120,6 +120,13 @@ function bakeTerrain() {
     });
   }
 }
+// how many hits something takes with a basic tool: the bigger the rock, the more hits, everywhere in the game
+function objHp(o) {
+  if (o.t === 'rock') return o.v ? 3 : 2;            // small stone / medium rock
+  if (o.t === 'boulder') return 6;
+  if (o.t === 'node') return (ORES[o.k] || ORES.stone).hp;
+  return (OBJ[o.t] && OBJ[o.t].hp) || 1;
+}
 function groundAt(x, y) { x = clamp(x, 0, W - 1); y = clamp(y, 0, H - 1); return World.ground[idx(x, y)] }
 function drawTerrain(g, x0, y0, x1, y1, t) {
   // water everywhere underneath
