@@ -84,12 +84,13 @@ function interactTarget() {
 async function action() {
   if (player.act || dlgOpen || sleeping || paused) return;
   if (fishing) { fishAction(); return }
+  if (state.inBoat) { boatAction(); return }
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
+  if (boatAction()) return;
   const it = interactTarget();
   if (it) {
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
-    if (['fboat', 'helm', 'mast'].includes(it.o.t)) { boatAction(it.o); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
@@ -165,6 +166,7 @@ async function passOut() { if (sleeping) return; sleeping = true; await fadeOut(
 async function goSleep() { if (sleeping) return; sleeping = true; sfx.sleep(); await fadeOut(); newDay(false); await nightScreen(false); sleeping = false }
 function newDay(passed) {
   if (World.cur !== 'farm') useMap('farm');
+  state.inBoat = false; state.boat = boatHome(); if (fishing) stopFishing();     // Peter rows the boat back to the dock every night
   // sell everything in the shipping bin
   state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
   state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
@@ -221,7 +223,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function travel(map, x, y, dir) {
   if (sleeping) return; sleeping = true; const f = $('#fade'); f.style.transition = 'opacity .3s'; f.classList.add('on'); await wait(320);
   useMap(map); player.x = x; player.y = y; player.dir = dir || (map === 'town' ? 'r' : 'l'); drops = []; snapCam();
-  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : map === 'sea' ? 'The Deep Sea' : state.look.farm);
+  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : map === 'sea' ? 'The Open Sea' : state.look.farm);
 }
 
 // ---------- saving ----------
@@ -235,14 +237,14 @@ function save() {
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY) } catch (e) { return false } }
 function load() {
   try {
-    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state; setRodName();
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state; setRodName(); if (state.map === 'sea' && !state.inBoat) { state.inBoat = true; state.boat = { map: 'sea', x: 32, y: 6, dir: 's' }; state.px = 32; state.py = 6 } if (state.inBoat && (!state.boat || state.boat.map !== state.map)) state.inBoat = false;
     genFarm(state.seed); const g = b64d(d.g);
     World.soil = {};
     if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q; World.soil = d.soil || {} }
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
-    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the church.' }); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
+    fillBorder(Math.random); World.objs.forEach((o, i) => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) World.objs[i] = null }); placeRoadSign(W - 6, World.EXIT.y - 1, FARM_SIGN); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
@@ -257,7 +259,7 @@ function renderHotbar() {
 let hudSig = '';
 function updateHUD() {
   const sig = [state.can, state.time, state.money, state.day, Math.round(state.energy), state.sel, JSON.stringify(state.inv.slice(0, HOTBAR))].join('|');
-  $('#btnA').classList.toggle('talk', !!(interactTarget() || villagerNear()));
+  $('#btnA').classList.toggle('talk', !!(interactTarget() || villagerNear() || (!state.inBoat && boat().map === World.cur && Math.hypot(boat().x - player.x, boat().y - player.y) < 2.6)));
   if (sig === hudSig) return; hudSig = sig;
   $('#cDay').textContent = `${weekday()}. ${SEASONS[state.season]} ${state.day}`; $('#cTime').textContent = fmtTime(state.time);
   $('#cMoney').textContent = state.money.toLocaleString();
@@ -389,6 +391,7 @@ function update(dt) {
   if (joy && Math.hypot(joy.dx, joy.dy) > .18) { mx = joy.dx; my = joy.dy }
   const act = player.act;
   if (fishing && !((mx || my) && ['cast', 'wait', 'bite'].includes(fishing.phase) && stopFishing())) { updateFishing(dt); player.moving = false }
+  else if (state.inBoat && !act) boatMove(dt, mx, my);
   else if (act) {
     act.t += dt; if (!act.hit && act.t >= act.dur * act.hitAt) { act.hit = true; hit(act.tool, act) } if (act.t >= act.dur) player.act = null;
   } else if (mx || my) {
@@ -407,7 +410,9 @@ function update(dt) {
   if (World.cur === 'farm' && player.x > W - 1.3) travel('town', TOWN.entry.x + 1.5, TOWN.entry.y + 1);
   else if (World.cur === 'town' && player.x < 1.3) travel('farm', W - 2.4, World.EXIT.y + 1);
   else if (World.cur === 'town' && player.y > H - 1.2) travel('jordan', clamp(player.x, 34.3, 35.7), 1.6, 's');
-  else if (World.cur === 'jordan' && player.y < 1.1) travel('town', clamp(player.x, 34.3, 35.7), H - 1.8, 'n');
+  else if (World.cur === 'jordan' && player.y < 1.1 && !state.inBoat) travel('town', clamp(player.x, 34.3, 35.7), H - 1.8, 'n');
+  else if (World.cur === 'jordan' && state.inBoat && player.y > H - 1.1) sailTo('sea', player.x, 1.9, 's');
+  else if (World.cur === 'sea' && state.inBoat && player.y < 1.35) sailTo('jordan', player.x, H - 1.5, 'n');
   camFollow(dt);
 }
 
@@ -473,6 +478,7 @@ function render() {
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const n of npcs) if (n.map === World.cur) D.push([n.y, 5, n]);
+  if (state && !state.inBoat && boat().map === World.cur) D.push([boat().y - .2, 6, boat()]);
   for (const f of falling) D.push([f.y + .95, 2, f]);
   D.sort((a, b) => a[0] - b[0]);
   const py = showPlayer ? player.y : -1e9, signsBack = [], signsFront = [];
@@ -481,6 +487,7 @@ function render() {
     if (d[1] === 0) { drawObject(g, d[2], d[3], d[4], GT); const L = d[2].t === 'bld' && signFor(d[2]); if (L) (g === bx ? signsBack : signsFront).push([L[0], d[3] * 16 + BLD[d[2].k][1] * 8, d[4] * 16 + 16 - L[1]]) }
     else if (d[1] === 4) drawCrop(g, d[2], d[3], d[4], GT);
     else if (d[1] === 5) drawVillager(g, d[2]);
+    else if (d[1] === 6) drawRowboat(g, d[2].x * 16, d[2].y * 16 + 2, d[2].dir, GT, false);
     else if (d[1] === 1) { const q = d[2], s = AT[ITEMS[q.id].icon][0]; g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(Math.round(q.x * 16 - 3), Math.round(q.y * 16), 6, 2); g.drawImage(s, Math.round(q.x * 16 - s.width / 2), Math.round(q.y * 16 - s.height - q.z * 10 + Math.sin(GT * 4 + q.x) * (q.vz ? 0 : 1))) }
     else { const f = d[2], s = treeSprite(f.o, 0, f.x, f.y), k = Math.min(1, f.t / .9), a = f.side * k * k * 1.45; g.save(); g.globalAlpha = f.t > .9 ? 1 - (f.t - .9) / .4 : 1; g.translate(f.x * 16 + 8, f.y * 16 + 16); g.rotate(a); g.drawImage(s, -s.width / 2, -s.height + 3); g.restore() }
   }
@@ -507,14 +514,17 @@ function render() {
   }
 }
 function drawPlayer(g) {
-  const p = player, fx = p.x * 16, fy = p.y * 16;
-  g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill();
+  const p = player, fx = p.x * 16, fy = p.y * 16, inB = state && state.inBoat;
+  if (!inB) { g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill() }
   let anim, fr = 0, flip = false;
   if (fishing) { [anim, fr] = fishAnim(); flip = p.side < 0 }
   else if (p.act) { anim = p.act.anim; fr = Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim]); flip = p.side < 0 }
-  else if (p.moving) { anim = p.dir === 'n' ? 'walk_n' : p.dir === 's' ? 'walk_s' : 'walk'; fr = Math.floor(p.at * 12); flip = p.dir === 'l' }
+  else if (p.moving && !inB) { anim = p.dir === 'n' ? 'walk_n' : p.dir === 's' ? 'walk_s' : 'walk'; fr = Math.floor(p.at * 12); flip = p.dir === 'l' }
   else { anim = p.dir === 'n' ? 'idle_n' : p.dir === 's' ? 'idle_s' : 'idle'; fr = Math.floor(GT * 6); flip = p.dir === 'l' }
-  drawChar(g, look, anim, fr, fx, fy, flip, true);
+  if (inB) {   // sitting in the rowing boat: hull, then you, then the side of the hull in front of your legs
+    const B = boat(); drawRowboat(g, fx, fy + 2, B.dir, GT, p.rowing, 'under');
+    drawChar(g, look, anim, fr, fx, fy + 5, flip, true); drawRowboat(g, fx, fy + 2, B.dir, GT, p.rowing, 'over');
+  } else drawChar(g, look, anim, fr, fx, fy, flip, true);
   drawFishing(g);
 }
 

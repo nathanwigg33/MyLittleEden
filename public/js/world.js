@@ -52,7 +52,6 @@ function genFarm(seed) {
   World.place(T.x + 3, T.y + 1, { t: 'campfire' });
   World.place(T.x - 3, T.y, { t: 'crate' });
   World.place(T.x + 3, T.y - 1, { t: 'bin' });
-  World.place(W - 3, World.EXIT.y - 2, { t: 'sign', text: 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the church.' });
   const keep = (x, y) => Math.hypot((x - T.x) / 5.5, (y - T.y - 1) / 4) < 1 || roadSet.has(idx(x, y));
   // forest border (cannot be cleared)
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
@@ -61,6 +60,7 @@ function genFarm(seed) {
     else if (edge < 3.2 && !roadSet.has(idx(x, y)) && g[idx(x, y)] !== WATER) o[idx(x, y)] = { t: R() < .5 ? 'bush' : 'wild', k: pick(['oak', 'tree2']), v: ri(0, 1) };
   }
   fillBorder(R);
+  placeRoadSign(W - 6, World.EXIT.y - 1, FARM_SIGN);
   // overgrowth
   for (let y = 3; y < H - 3; y++) for (let x = 3; x < W - 3; x++) {
     const i = idx(x, y); if (o[i] || g[i] === WATER || keep(x, y)) continue;
@@ -201,7 +201,6 @@ function drawObject(g, o, x, y, t) {
     case 'ifurn': drawFurn(g, o, x, y, t); break;
     case 'coracle': case 'duck': drawWaterObj(g, o, x, y, t); break;
     case 'dock': case 'bridge': case 'deck': break;
-    case 'fboat': case 'mast': case 'helm': drawBoatObj(g, o, x, y, t); break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
     case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
     case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;
@@ -263,7 +262,6 @@ function genTown() {
   World.place(49, 24, { t: 'anvil' }); World.place(51, 24, { t: 'forge' }); World.place(51, 22, { t: 'barrel' });
   placeBld(33, 28, 'well');
   for (const [x, y] of [[26, 24], [42, 24], [26, 32], [42, 32], [30, 20], [38, 20], [42, 39], [49, 39], [16, 25], [12, 35]]) World.place(x, y, { t: 'torch' });
-  World.place(2, 25, { t: 'sign', text: 'Bethlehem — “house of bread”. Your farm is back down the road to the west.' });
   World.place(26, 7, { t: 'sign', text: 'North: the road to Mount Sinai. (Not open yet.)' });
   World.place(36, 47, { t: 'sign', text: 'South: the Jordan River and Galilee Bay. Good fishing!' });
   for (const [x, y, k] of [[43, 22, 'crate'], [41, 37, 'barrel'], [48, 37, 'barrel'], [16, 21, 'crate'], [29, 21, 'barrel'], [19, 33, 'crate'], [12, 33, 'barrel'], [20, 33, 'crate']]) World.place(x, y, { t: k });
@@ -277,7 +275,11 @@ function genTown() {
     else if (R() < .12) o[i] = { t: 'deco', v: ri(0, 7) };
   }
   fillBorder(R);
+  placeRoadSign(4, 26, 'Bethlehem — “house of bread”. Your farm is back down the road to the west.');
 }
+const FARM_SIGN = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the church.';
+// put a sign beside a road and clear the trees around it so it can be seen
+function placeRoadSign(x, y, text) { for (let yy = y - 2; yy <= y + 1; yy++) for (let xx = x - 1; xx <= x + 1; xx++) { const o = World.get(xx, yy); if (o && ['wild', 'bush', 'deco', 'grass', 'sign'].includes(o.t)) World.place(xx, yy, null) } World.place(x, y, { t: 'sign', text }) }
 // cobbled plaza
 const PAVE = (() => {
   const out = []; for (let v = 0; v < 4; v++) {

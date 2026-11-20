@@ -40,18 +40,16 @@ function genJordan() {
   for (let y = d0; y <= 48; y++) for (const x of [30, 31]) o[idx(x, y)] = { t: 'dock', end: y >= 47 };
   for (let x = 28; x <= 33; x++) for (const y of [47, 48]) o[idx(x, y)] = { t: 'dock', end: true };
   for (let x = 32; x <= 33; x++) g[idx(x, d0)] = DIRT;
-  for (let y = 47; y <= 49; y++) for (let x = 34; x <= 38; x++) { g[idx(x, y)] = WATER; o[idx(x, y)] = { t: 'part', ox: 34, oy: 49 } }
-  o[idx(34, 49)] = { t: 'fboat' };
   // Peter's hut on the beach
   const hutY = Math.min(shoreY(38), shoreY(39), shoreY(40)) - 3;
   for (let y = hutY - 2; y <= hutY + 1; y++) for (let x = 37; x <= 41; x++) if (g[idx(x, y)] === WATER) g[idx(x, y)] = DIRT;
   placeBld(38, hutY, 'houseD'); for (let x = 38; x <= 40; x++) g[idx(x, hutY + 1)] = DIRT;
-  JORDAN.hut = [39.5, hutY + 1.6]; JORDAN.dock = [32.5, d0 - .3]; JORDAN.boat = [32.6, 47.6];
+  JORDAN.hut = [39.5, hutY + 1.6]; JORDAN.dock = [32.5, d0 - .3]; JORDAN.boat = [35.6, 48.1];
   // little boats, ducks, signs
   World.place(26, 46, { t: 'coracle', v: 2 }); World.place(45, 45, { t: 'coracle' });
   for (const [x, y] of [[14, 2], [28, 11], [39, 18], [58, 26], [19, 33]]) if (g[idx(x, y)] === WATER && !o[idx(x, y)]) World.place(x, y, { t: 'duck', v: ri(0, 3) });
   World.place(36, 2, { t: 'sign', text: 'The Jordan River. Follow the road south to the beach and Galilee Bay. North leads back to Bethlehem.' });
-  World.place(29, d0 - 1, { t: 'sign', text: 'Peter’s dock. Big fish bite at the far end, and his boat sails out to the deep sea.' });
+  World.place(29, d0 - 1, { t: 'sign', text: 'Peter’s dock. Hop in the rowing boat at the end and sail south past the bay to find the deep sea.' });
   // reeds by the water, trees and tall grass on the banks, rocks and driftwood on the sand
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = idx(x, y); if (o[i] || g[i] === WATER) continue;
@@ -63,13 +61,16 @@ function genJordan() {
   }
   fillBorder(R);
 }
-// the deep sea: open water all round, and Peter's boat to stand on
-const SEA = { x0: 27, x1: 35, y0: 24, y1: 27 };
+// the open sea south of the bay: shallow near the top, a big patch of dark deep water further out, and two little islands
+const SEA = { deep: null };
+function seaDepth(x, y) { return Math.hypot((x - 33) / 21, (y - 36) / 13) + (hash(x >> 1, y >> 1) - .5) * .18 }   // under 1 = deep sea
 function genSea() {
-  World.ground = new Uint8Array(W * H).fill(WATER); World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
-  for (let y = SEA.y0; y <= SEA.y1; y++) for (let x = SEA.x0; x <= SEA.x1; x++) World.objs[idx(x, y)] = { t: 'deck' };
-  World.objs[idx(SEA.x0, SEA.y0)].main = 1;
-  World.objs[idx(31, 25)] = { t: 'mast' }; World.objs[idx(SEA.x0, 26)] = { t: 'helm' };
+  const g = World.ground = new Uint8Array(W * H).fill(WATER), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
+  SEA.deep = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) SEA.deep[idx(x, y)] = seaDepth(x, y) < 1 ? 1 : 0;
+  const island = (cx, cy, r) => { for (let y = cy - r - 1; y <= cy + r + 1; y++) for (let x = cx - r - 1; x <= cx + r + 1; x++) if (inb(x, y) && Math.hypot(x - cx, (y - cy) * 1.2) + (hash(x, y) - .5) * .8 < r) { g[idx(x, y)] = DIRT; SEA.deep[idx(x, y)] = 0 } };
+  island(8, 14, 3.2); island(57, 46, 2.6);
+  World.place(8, 13, { t: 'wild', k: 'olive', v: 1 }); World.place(7, 15, { t: 'rock' }); World.place(9, 16, { t: 'twig' }); World.place(57, 45, { t: 'boulder' }); World.place(56, 47, { t: 'twig' });
+  for (const [x, y] of [[20, 6], [46, 9]]) World.place(x, y, { t: 'duck', v: 1 });
 }
 
 // ---------- fish ----------
@@ -133,7 +134,7 @@ function lineSpot(side) {
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
   return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
 }
-function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? 'sea' : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
+function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'shore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside()) { sfx.no(); return }
@@ -143,7 +144,7 @@ function startFishing() {
   if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
   if (state.energy < 2) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
   const where = fishWhere(c);
-  if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
+  if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here in the deep sea. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
   state.energy -= 2; player.side = side; player.dir = side < 0 ? 'l' : 'r';
   const bait = count('bait') > 0; if (bait) takeItem('bait', 1);
   fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
@@ -277,56 +278,103 @@ function drawFloorObj(g, o, x, y) {
       else { const ry = e < 0 ? Y - 2 : Y + 12; if (onWater && e > 0) { g.fillStyle = 'rgba(20,40,60,.35)'; g.fillRect(X, Y + 16, 16, 3) } rail(X, ry, 16, 4); post(X + 2, ry); post(X + 10, ry) }
     }
     if (o.end) { g.fillStyle = ink; if (v) g.fillRect(X, o.end === 'a' ? Y : Y + 15, 16, 1); else g.fillRect(o.end === 'a' ? X : X + 15, Y, 1, 16) }
-  } else if (o.t === 'deck' && o.main) drawShip(g, SEA.x0 * 16, SEA.y0 * 16, (SEA.x1 - SEA.x0 + 1) * 16, (SEA.y1 - SEA.y0 + 1) * 16, true);
+  }
 }
-// a wooden fishing boat seen from above, bow to the right
-function drawShip(g, X, Y, w, h, big) {
-  const ink = '#2e1a0e', bow = big ? 22 : 14, rows = h + 8, top = Y - 4;
-  const rowW = r => { const t = Math.abs((r + .5) / rows - .5) * 2; return w + bow * Math.sqrt(Math.max(0, 1 - t * t)) };
-  const inset = r => { const t = Math.abs((r + .5) / rows - .5) * 2; return Math.round(t * t * (big ? 6 : 4)) };
-  g.fillStyle = 'rgba(10,30,50,.35)'; for (let r = 0; r < rows; r++) g.fillRect(X - 2 + inset(r), top + r + 4, rowW(r) - inset(r), 1);   // shadow
-  for (let r = 0; r < rows; r++) { const a = X + inset(r), b = X + rowW(r); g.fillStyle = ink; g.fillRect(a - 1, top + r, b - a + 2, 1) }
-  for (let r = 1; r < rows - 1; r++) { const a = X + inset(r), b = X + rowW(r) - 1; g.fillStyle = r < 3 || r > rows - 4 ? '#7a4524' : '#9a5a30'; g.fillRect(a, top + r, b - a, 1) }   // hull sides
-  for (let r = 4; r < rows - 4; r++) { const a = X + inset(r) + 3, b = X + rowW(r) - 5; g.fillStyle = (r >> 2) % 2 ? '#c99460' : '#bb8752'; g.fillRect(a, top + r, b - a, 1); if (r % 4 === 3) { g.fillStyle = '#8e5e36'; g.fillRect(a, top + r, b - a, 1) } }   // deck planks
-  g.fillStyle = '#e8d6a8'; for (let r = 3; r < rows - 3; r += rows - 7) g.fillRect(X + inset(r) + 2, top + r, rowW(r) - inset(r) - 6, 1);   // gunwale trim
-  g.fillStyle = '#5a3418'; for (let k = 0; k < 4; k++) g.fillRect(X + 10 + k * Math.floor((w - 16) / 3), top + 3, 2, 2);                  // oar locks
-  if (!big) { g.fillStyle = ink; g.fillRect(X + w / 2 - 2, top + 5, 5, 5); g.fillStyle = '#8e5e36'; g.fillRect(X + w / 2 - 1, top + 6, 3, 3); g.fillStyle = '#efe6cc'; g.fillRect(X + w / 2 - 12, top + 9, 26, 5); g.fillStyle = '#c9bc98'; g.fillRect(X + w / 2 - 12, top + 13, 26, 1) }   // mast stub, furled sail
+// ---------- the rowing boat you can sail ----------
+// state.boat = where it is tied up (map, x, y, dir) · state.inBoat = you're sitting in it
+let boatV = [0, 0];
+function boatHome() { return { map: 'jordan', x: JORDAN.boat[0], y: JORDAN.boat[1], dir: 'r' } }
+function boat() { return state.boat || (state.boat = boatHome()) }
+// a cached top-down sprite of the hull, bow pointing right (44 x 20)
+let BOAT_SPR = null;
+function boatSprite() {
+  if (BOAT_SPR) return BOAT_SPR;
+  const c = mkc(44, 20), g = c.getContext('2d'), P = (col, x, y, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(x + 22, y + 10, w, h) };
+  const L = r => -16 + Math.round(Math.pow(Math.abs(r) / 8.5, 3) * 4), R = r => 12 + Math.round((1 - Math.pow(Math.abs(r) / 8.5, 2)) * 8);
+  for (let r = -8; r <= 8; r++) P('#2e1a0e', L(r), r, R(r) - L(r) + 1);                                     // outline
+  for (let r = -7; r <= 7; r++) P(Math.abs(r) > 5 ? '#7e3326' : '#9a3b2a', L(r) + 1, r, R(r) - L(r) - 1);       // red-painted hull
+  for (let r = -6; r <= 6; r++) P('#efe2c0', L(r) + 2, r, R(r) - L(r) - 3);                                     // cream gunwale
+  for (let r = -5; r <= 5; r++) P(Math.abs(r) % 2 ? '#c08a54' : '#b47e4a', L(r) + 3, r, R(r) - L(r) - 5);       // floorboards
+  for (let x = -11; x < 12; x += 4) for (let r = -5; r <= 5; r++) if (x > L(r) + 3 && x < R(r) - 2) P('#8e5a32', x, r);   // ribs
+  for (const sx of [-8, 4]) { P('#2e1a0e', sx - 1, -6, 5, 13); P('#6a4426', sx, -6, 3, 13); P('#8e5e36', sx, -6, 1, 13) }   // two seats
+  P('#d9a868', 13, -2, 4, 5); P('#2e1a0e', 13, -2, 4, 1);                                                       // little bow deck
+  P('#c9a06a', -13, -2, 3, 3); P('#8e6a3a', -12, -1, 1, 1);                                                    // coil of rope
+  P('#ffffff55', L(-6) + 3, -6, R(-6) - L(-6) - 6, 1);                                                          // shine
+  return BOAT_SPR = c;
 }
-function drawBoatObj(g, o, x, y, t) {
-  if (o.t === 'fboat') { const bob = Math.round(Math.sin(t * 1.6)); drawShip(g, x * 16, (y - 2) * 16 + 6 + bob, 72, 30, false); return }
-  if (o.t === 'mast') { const X = x * 16 + 7, B = y * 16 + 12, ink = '#2e1a0e', sway = Math.sin(t * 1.2) * 1.5;
-    g.fillStyle = ink; g.fillRect(X - 1, B - 62, 5, 64); g.fillStyle = '#8e5e36'; g.fillRect(X, B - 62, 3, 63); g.fillStyle = '#b07848'; g.fillRect(X, B - 62, 1, 63);
-    g.fillStyle = ink; g.fillRect(X - 22, B - 54, 48, 3); g.fillStyle = '#7a4a2a'; g.fillRect(X - 21, B - 53, 46, 1);           // yard
-    g.fillStyle = ink; g.beginPath(); g.moveTo(X - 22, B - 52); g.lineTo(X + 26, B - 52); g.lineTo(X + 24 + sway, B - 22); g.lineTo(X - 20 + sway, B - 22); g.closePath(); g.fill();
-    g.fillStyle = '#f2ead4'; g.beginPath(); g.moveTo(X - 20, B - 51); g.lineTo(X + 24, B - 51); g.lineTo(X + 22 + sway, B - 23); g.lineTo(X - 18 + sway, B - 23); g.closePath(); g.fill();
-    g.fillStyle = '#c9493a'; g.fillRect(X - 19, B - 40, 42, 3); g.fillStyle = '#d9cfb4'; g.fillRect(X - 18 + sway, B - 26, 40, 2);   // red stripe, sail shading
-    g.fillStyle = ink; g.fillRect(X - 3, B - 70, 9, 9); g.fillStyle = '#e2b04a'; g.fillRect(X - 2, B - 69, 7, 7); g.fillStyle = '#fff2a0'; g.fillRect(X, B - 67, 3, 3);   // lantern
-    return }
-  if (o.t === 'helm') { const X = x * 16 + 8, Y = y * 16 + 6, ink = '#2e1a0e', a = Math.sin(t * .8) * .3;
-    g.fillStyle = ink; g.fillRect(X - 1, Y, 3, 9); g.save(); g.translate(X, Y); g.rotate(a);
-    g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.stroke(); g.strokeStyle = '#a06a3e'; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.stroke();
-    for (let k = 0; k < 8; k++) { const r = k * Math.PI / 4; g.fillStyle = ink; g.fillRect(Math.round(Math.cos(r) * 8) - 1, Math.round(Math.sin(r) * 8) - 1, 3, 3) } g.fillStyle = '#e2b04a'; g.fillRect(-1, -1, 3, 3); g.restore() }
+function boatPose(g, cx, cy, dir) { g.translate(Math.round(cx), Math.round(cy)); if (dir === 'l') g.scale(-1, 1); else if (dir === 'n') g.rotate(-Math.PI / 2); else if (dir === 's') g.rotate(Math.PI / 2) }
+function drawOars(g, t, rowing) { const a = rowing ? Math.sin(t * 9) * 4 : 0;
+  for (const sd of [-1, 1]) { const ex = -7 + a, ey = sd * 14; g.strokeStyle = '#2e1a0e'; g.lineWidth = 3; g.beginPath(); g.moveTo(-1, sd * 5); g.lineTo(ex, ey); g.stroke(); g.strokeStyle = '#c99460'; g.lineWidth = 1; g.beginPath(); g.moveTo(-1, sd * 5); g.lineTo(ex, ey); g.stroke();
+    g.fillStyle = '#2e1a0e'; g.fillRect(Math.round(ex) - 2, ey - (sd < 0 ? 4 : 0), 5, 5); g.fillStyle = '#d9a868'; g.fillRect(Math.round(ex) - 1, ey - (sd < 0 ? 3 : -1), 3, 3) } }
+// layer 'all' = the whole boat; 'under' + 'over' sandwich you sitting in it ('over' is the part in front of your legs)
+function drawRowboat(g, cx, cy, dir, t, rowing, layer = 'all') {
+  const spr = boatSprite(), bob = Math.round(Math.sin(t * 2) * .6);
+  if (layer !== 'over') {   // ripples around the hull
+    g.fillStyle = 'rgba(255,255,255,.28)'; const v = dir === 'n' || dir === 's'; g.beginPath(); g.ellipse(cx, cy + 2, v ? 11 : 24, v ? 22 : 11, 0, 0, 7); g.fill();
+    g.fillStyle = 'rgba(10,30,50,.3)'; g.beginPath(); g.ellipse(cx + 1, cy + 4, v ? 10 : 22, v ? 21 : 10, 0, 0, 7); g.fill();
+  }
+  g.save();
+  if (layer === 'over') { g.beginPath(); g.rect(cx - 40, cy + 3 + bob, 80, 40); g.clip() }
+  boatPose(g, cx, cy + bob, dir); drawOars(g, t, rowing); g.drawImage(spr, -22, -10); g.restore();
 }
-// sailing out and back
-async function boatAction(o) {
-  if (o.t === 'fboat') {
-    const v = await say('Peter’s fishing boat, the Galilee. He lets friends borrow it. Sail out to the deep sea?' + (rodLv() < 2 ? ' (Deep-sea fish need a Sturdy Rod from Peter.)' : ''), [['Set sail!', 1], ['Not now', 0]]);
-    if (v) { sfx.splash(); await travel('sea', 31.5, 26.6, 'r') }
-  } else if (o.t === 'helm') { const v = await say('Sail back to the dock?', [['Head home', 1], ['Keep fishing', 0]]); if (v) { sfx.splash(); await travel('jordan', JORDAN.boat[0], JORDAN.boat[1], 'l') } }
-  else if (o.t === 'mast') say('The sail fills with a good sea breeze. Fish from the edges of the deck.');
+// can the boat sit here? every point under the hull has to be open water
+function boatFree(x, y, dir) {
+  const v = dir === 'n' || dir === 's', pts = v ? [[0, -1.15], [0, 1.0], [-.45, 0], [.45, 0], [0, 0]] : [[-1.0, 0], [1.15, 0], [0, -.45], [0, .45], [0, 0]];
+  for (const [dx, dy] of pts) { const cx = Math.floor(x + dx), cy = Math.floor(y + dy); if (!inb(cx, cy) || World.ground[idx(cx, cy)] !== WATER) return false; const o = World.objs[idx(cx, cy)]; if (o && o.t !== 'duck') return false }
+  return true;
 }
-// the deep sea: darker water and glints of light
+function boatMove(dt, mx, my) {
+  const B = boat(), acc = 10, max = 4.8, l = Math.hypot(mx, my);
+  if (l > .1) { boatV[0] += mx / Math.max(1, l) * acc * dt; boatV[1] += my / Math.max(1, l) * acc * dt; const nd = Math.abs(mx) > Math.abs(my) ? (mx < 0 ? 'l' : 'r') : (my < 0 ? 'n' : 's'); if (nd !== B.dir && boatFree(player.x, player.y, nd)) B.dir = nd }
+  const sp = Math.hypot(boatV[0], boatV[1]); if (sp > max) { boatV[0] *= max / sp; boatV[1] *= max / sp }
+  boatV[0] *= Math.pow(.25, dt); boatV[1] *= Math.pow(.25, dt);
+  const nx = player.x + boatV[0] * dt, ny = player.y + boatV[1] * dt;
+  if (boatFree(nx, player.y, B.dir)) player.x = nx; else boatV[0] = 0;
+  if (boatFree(player.x, ny, B.dir)) player.y = ny; else boatV[1] = 0;
+  B.x = player.x; B.y = player.y; B.map = World.cur; player.dir = B.dir; if (B.dir === 'l' || B.dir === 'r') player.side = B.dir === 'l' ? -1 : 1;
+  player.moving = false; player.rowing = Math.hypot(boatV[0], boatV[1]) > .4;
+  if (player.rowing && Math.random() < dt * 6) parts.push({ x: player.x + rnd(-.8, .8), y: player.y + .4, z: .05, vx: -boatV[0] * .2, vy: -boatV[1] * .2, vz: .6, col: '#e8f6ff', life: .4 });
+}
+// the action button near or in the boat: get in, get out, or fish
+async function sailTo(map, x, y, dir) { const B = boat(); if (B.sailing) return; B.sailing = 1; boatV = [0, 0]; await travel(map, x, y, dir); B.map = map; B.x = player.x; B.y = player.y; B.dir = dir; B.sailing = 0 }
+let boatCool = 0;
+function boatAction() {
+  const B = boat(); if (performance.now() < boatCool) return state.inBoat; boatCool = performance.now() + 600;
+  if (state.inBoat) {
+    // step off onto any dock, bridge or bank right next to the boat
+    let best = null, bd = 2.1;
+    for (let y = Math.floor(player.y) - 2; y <= Math.floor(player.y) + 2; y++) for (let x = Math.floor(player.x) - 2; x <= Math.floor(player.x) + 2; x++) {
+      if (!inb(x, y) || World.solid(x, y)) continue; const d = Math.hypot(x + .5 - player.x, y + .5 - player.y); if (d < bd) { bd = d; best = [x, y] } }
+    if (best) { state.inBoat = false; boatV = [0, 0]; B.x = player.x; B.y = player.y; player.x = best[0] + .5; player.y = best[1] + .6; sfx.splash(); return true }
+    const it = selItem(); if (it && it.id === 'rod') { boatV = [0, 0]; startFishing(); return true }
+    toast('Row up to the dock or a beach to step out. Select your rod to fish from the boat.'); return true;
+  }
+  if (B.map === World.cur && Math.hypot(B.x - player.x, B.y - player.y) < 2.6) {
+    state.inBoat = true; boatV = [0, 0]; player.x = B.x; player.y = B.y; player.dir = B.dir; sfx.splash();
+    if (!state.boatTip) { state.boatTip = 1; toast('Use the joystick to row. Head south past the bay to find the deep sea!') }
+    return true;
+  }
+  return false;
+}
+// deep water: darker the further out you go, with glints of light
 function drawSeaWater(g, x0, y0, x1, y1, t) {
-  g.fillStyle = 'rgba(8,30,80,.32)'; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const h = hash(x, y); if (h > .82) { const k = (t * .5 + h * 10) % 3; if (k < 1) { g.fillStyle = `rgba(255,255,255,${.5 * (1 - Math.abs(k - .5) * 2)})`; g.fillRect(x * 16 + (h * 97 % 12 | 0), y * 16 + (h * 53 % 12 | 0), 4, 1) } } }
-
+  // a soft shading layer, worked out once at 4 points per tile and smoothed when drawn
+  if (!SEA.shade) { const c = mkc(W * 4, H * 4), q = c.getContext('2d'), im = q.createImageData(W * 4, H * 4);
+    for (let y = 0; y < H * 4; y++) for (let x = 0; x < W * 4; x++) { const tx = x / 4, ty = y / 4, d = Math.hypot((tx - 33) / 21, (ty - 36) / 13) + (hash(tx >> 1, ty >> 1) - .5) * .18, a = clamp((1.12 - d) * 1.7, 0, .58), i = (y * W * 4 + x) * 4;
+      im.data[i] = 6; im.data[i + 1] = 26; im.data[i + 2] = 74; im.data[i + 3] = World.ground[idx(tx | 0, ty | 0)] === WATER ? a * 255 : 0 }
+    q.putImageData(im, 0, 0); SEA.shade = c }
+  const sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = true; g.drawImage(SEA.shade, 0, 0, W * 16, H * 16); g.imageSmoothingEnabled = sm;
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+    if (World.ground[idx(x, y)] !== WATER) continue;
+    const h = hash(x, y); if (h > .85) { const k = (t * .5 + h * 10) % 3; if (k < 1) { g.fillStyle = `rgba(255,255,255,${.5 * (1 - Math.abs(k - .5) * 2)})`; g.fillRect(x * 16 + (h * 97 % 12 | 0), y * 16 + (h * 53 % 12 | 0), 4, 1) } }
+  }
 }
+
 function drawWaterObj(g, o, x, y, t) {
   const X = x * 16 + 8, B = y * 16 + 14;
   if (o.t === 'coracle') { const fr = AT.coracle, f = fr[Math.floor(t * 3 + (o.v || 0)) % fr.length]; g.drawImage(f, Math.round(X - f.width / 2), Math.round(B - f.height + 4)) }
   else if (o.t === 'duck') { const fr = AT.duck, f = fr[Math.floor(t * 4 + (o.v || 0)) % fr.length], dx = Math.sin(t * .4 + o.v) * 5; g.drawImage(f, Math.round(X - f.width / 2 + dx), Math.round(B - f.height)) }
 }
-
 // ---------- Peter the fisherman ----------
 async function peterGift() {
   if (state.gotRod) return; state.gotRod = 1;
