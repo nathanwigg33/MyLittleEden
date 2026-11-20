@@ -252,9 +252,10 @@ function drawDecor(g, k, cx, by, t) {
       P(ink, -2, -17, 4, 9); P(stone[1], -1, -16, 2, 8); P(ink, -5, -19, 10, 3); P(stone[2], -4, -18, 8, 1); P('#3aa0e8', -1, -14, 2, 2);
       for (let i = 0; i < 4; i++) { const k2 = (t * 1.6 + i / 4) % 1, x = (i % 2 ? 1 : -1) * (1 + k2 * 5), y = -20 - Math.sin(k2 * Math.PI) * 6 + k2 * 13; P(`rgba(200,236,255,${.9 - k2 * .4})`, x, y, 1, 2) }
       if (Math.sin(t * 5) > .6) P('#ffffff', 3, -6, 1, 1); break;
+    default: drawCraftDecor(g, k, cx, by, t);
   }
 }
-function makeDecorIcons() { for (const k in DECOR) { const c = mkc(20, 44), g = c.getContext('2d'); drawDecor(g, k, 10, 43, 0); const s = trimCanvas(c); AT['decor_' + k] = [s] } }
+function makeDecorIcons() { for (const k in DECOR) { if (DECOR[k].craft) continue; const c = mkc(20, 44), g = c.getContext('2d'); drawDecor(g, k, 10, 43, 0); const s = trimCanvas(c); AT['decor_' + k] = [s] } }
 function trimCanvas(c) { const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
   for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 0) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y) }
   const o = mkc(x1 - x0 + 1, y1 - y0 + 1); o.getContext('2d').drawImage(c, -x0, -y0); return o }
@@ -262,6 +263,7 @@ function openWorkshop() { if (!shopOpen('workshop')) { say(closedMsg('workshop')
 function renderWorkshop() {
   const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Craft decorations</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me gems, bars and stone and I’ll craft something beautiful for your farm.”</p>`;
   for (const k in DECOR) {
+    if (DECOR[k].craft) continue;
     const D = DECOR[k], ok = state.money >= D.fee && Object.entries(D.need).every(([id, n]) => count(id) >= n);
     const req = Object.entries(D.need).map(([id, n]) => `<span class="${count(id) >= n ? 'ok' : 'no'}">${n} ${ITEMS[id].n.toLowerCase()}</span>`).join(' · ');
     h += `<div class="shoprow"><img class="bimg" src="${iconURL('decor_' + k)}"><div class="si"><b>${D.n}</b><div class="muted">${D.d}</div><div class="req">${req} · <span class="${state.money >= D.fee ? 'ok' : 'no'}">₪ ${D.fee}</span></div></div><div class="sb"><button class="btn" data-craft="${k}" ${ok ? '' : 'disabled'}>Craft</button></div></div>`;
@@ -280,11 +282,14 @@ function placeDecor(slot) {
   if (World.cur !== 'farm') { toast('Decorations can be placed on your farm.'); sfx.no(); return }
   const [x, y] = facingCell(); const i = idx(x, y);
   if (!inb(x, y) || World.ground[i] === WATER || World.objs[i] || World.soil[i] || (Math.floor(player.x) === x && Math.floor(player.y) === y)) { toast('Face an empty spot to place it.'); sfx.no(); return }
-  World.place(x, y, { t: 'decor', k }); it.n--; if (it.n <= 0) state.inv[slot] = null; sfx.plant(); chips(x + .5, y + .5, '#d4ccbe', 6); updateHUD(); save();
+  const o = { t: 'decor', k }; if (k === 'sign') o.text = signText('');
+  World.place(x, y, o); it.n--; if (it.n <= 0) state.inv[slot] = null; sfx.plant(); chips(x + .5, y + .5, '#d4ccbe', 6); updateHUD(); save();
 }
 async function decorAction(r) {
-  const v = await say(`Your ${DECOR[r.o.k].n}. Pick it up?`, [['Pick up', 1], ['Leave it', 0]]); if (!v) return;
+  if (r.o.k === 'sign') { const v = await say(r.o.text || 'The sign is blank.', [['Write on it', 2], ['Pick up', 1], ['OK', 0]]); if (v === 2) { r.o.text = signText(r.o.text || ''); save() } if (v !== 1) return }
+  else { const v = await say(`Your ${DECOR[r.o.k].n}. Pick it up?`, [['Pick up', 1], ['Leave it', 0]]); if (!v) return }
   if (addItem('decor_' + r.o.k, 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(r.x, r.y, null); sfx.pick(); updateHUD(); save();
 }
+function signText(cur) { let t = null; try { t = prompt('What should your sign say?', cur) } catch (e) {} return (t === null ? cur : String(t)).slice(0, 120) }
 BEZALEL.shop = 'workshop';
 BEZALEL.lines.push('Bring me gems and bars and I’ll craft you something fine for your farm: lampstands, lanterns, fountains…');

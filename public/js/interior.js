@@ -510,7 +510,7 @@ const ROOF = { synagogue: '#2f6fd0', smithy: '#d9473c', inn: '#9c4fa8', carpente
 function paintMinimap(g, m, ox, oy, s) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = idx(x, y), o = m.objs[i], gr = m.ground[i]; let c = gr === WATER ? MAP_COL.water : gr === DIRT ? MAP_COL.dirt : MAP_COL.grass;
-    if (m.pave && m.pave[i]) c = MAP_COL.pave; if (m.soil && m.soil[i]) c = m.soil[i].c ? MAP_COL.crop : MAP_COL.soil;
+    if (m.pave && m.pave[i]) c = MAP_COL.pave; if (m === World.maps.farm && state && state.paths && state.paths[i]) c = MAP_COL.pave; if (m.soil && m.soil[i]) c = m.soil[i].c ? MAP_COL.crop : MAP_COL.soil;
     if (o) { if (o.t === 'wild' || OBJ[o.t] && OBJ[o.t].tree) c = MAP_COL.tree; else if (o.t === 'bush') c = MAP_COL.bush; else if (o.t === 'rock' || o.t === 'boulder') c = MAP_COL.rock; else if (o.t === 'tent' || o.t === 'bin' || o.t === 'crate') c = '#c9873e'; else if (o.t === 'part' && o.ox >= 0) { const ow = m.objs[idx(o.ox, o.oy)]; c = ow && ow.t === 'bld' ? ROOF[ow.k] || MAP_COL.bld : '#c9873e' } else if (o.t === 'bld') c = ROOF[o.k] || MAP_COL.bld }
     g.fillStyle = c; g.fillRect(ox + x * s, oy + y * s, s, s);
   }
@@ -520,7 +520,7 @@ let mapView = null, mapZoom = false;
 function renderMapArt(which) {
   const prev = World.cur; useMap(which);
   const c = mkc(W * 16, H * 16), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
-  drawTerrain(g, -1, -1, W, H, 0); drawPave(g, -1, -1, W, H); drawSoil(g, -1, -1, W, H);
+  drawTerrain(g, -1, -1, W, H, 0); drawPave(g, -1, -1, W, H); drawPaths(g, -1, -1, W, H); drawSoil(g, -1, -1, W, H); drawFert(g, -1, -1, W, H);
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')) drawFloorObj(g, o, x, y) }
   if (which === 'sea') drawSeaWater(g, 0, 0, W - 1, H - 1, 0);
   if (which === 'sinai') drawMountain(g, 0, 0, W - 1, H - 1, 0, true);

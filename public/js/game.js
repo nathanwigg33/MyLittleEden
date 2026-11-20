@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems());
+Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems());
 const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -89,6 +89,7 @@ async function action() {
   if (boatAction()) return;
   const it = interactTarget();
   if (it) {
+    if (await craftInteract(it)) return;
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
     if (it.o.t === 'shell') { if (addItem('shell', 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(it.x, it.y, null); sfx.pick(); toast('You found a seashell!'); return }
@@ -108,6 +109,7 @@ async function action() {
   const s = selItem(), item = s && ITEMS[s.id];
   if (item && item.food) { eat(state.sel); return }
   if (item && item.place) { placeDecor(state.sel); return }
+  if (item && (item.put || item.fert || item.rope)) { useCraftItem(state.sel); return }
   if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
   if (tool === 'rod') { startFishing(); return }
@@ -130,7 +132,7 @@ function hit(tool, act) {
     for (const [x, y] of cells) { const r = World.owner(x, y); if (r && OBJ[r.o.t] && OBJ[r.o.t].tool === 'scythe') damage(r, 1) }
     return;
   }
-  const r = findTarget(tool); if (!r) { sfx.miss(); return } damage(r, toolLv(tool));
+  const r = findTarget(tool); if (!r) { if (!(tool === 'pick' && removePath())) sfx.miss(); return } damage(r, toolLv(tool));
 }
 function damage(r, dmg) {
   const { o, x, y } = r; if (!o.hit) { o.hp = objHp(o); o.hit = 1 } o.hp -= dmg; o.shake = .25;   // the same toughness everywhere in the game
@@ -148,6 +150,9 @@ function damage(r, dmg) {
     case 'node': nodeDrop(o, cx, cy); state.stats.rocks++; break;
     case 'weed': if (Math.random() < .6) drop('fiber', 1, cx, cy); state.stats.weeds++; break;
     case 'grass': if (Math.random() < .15) drop('fiber', 1, cx, cy); break;
+    case 'fence': drop('fence_wood', 1, cx, cy); break;
+    case 'sfence': drop('fence_stone', 1, cx, cy); break;
+    case 'gate': drop('gate', 1, cx, cy); break;
   }
 }
 // ---------- particles & drops ----------
@@ -179,11 +184,11 @@ function newDay(passed) {
   state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
   state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
   const late = state.time; state.totalDay++; state.day++; let newSeason = false; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; newSeason = true; if (state.season === 0) state.year++ }
-  state.withered = growNight(newSeason);
+  state.withered = growNight(newSeason); craftNight();
   state.time = 360; minuteAcc = 0; state.energy = passed ? Math.round(state.maxE / 2) : (late > 24 * 60 ? Math.round(state.maxE * .8) : state.maxE); state.stats.days++;
   // a little regrowth overnight: weeds and grass creep back in
   const R = Math.random; let n = ri(3, 6);
-  for (let k = 0; k < 200 && n > 0; k++) { const x = ri(3, W - 4), y = ri(3, H - 4), i = idx(x, y); if (World.objs[i] || World.ground[i] === WATER || World.soil[i]) continue; if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4) continue; World.objs[i] = R() < .5 ? { t: 'weed', hp: 1, v: ri(0, 3) } : { t: 'grass', hp: 1, v: ri(0, 7) }; n-- }
+  for (let k = 0; k < 200 && n > 0; k++) { const x = ri(3, W - 4), y = ri(3, H - 4), i = idx(x, y); if (World.objs[i] || World.ground[i] === WATER || World.soil[i] || (state.paths && state.paths[i])) continue; if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4) continue; World.objs[i] = R() < .5 ? { t: 'weed', hp: 1, v: ri(0, 3) } : { t: 'grass', hp: 1, v: ri(0, 7) }; n-- }
   player.x = World.TENT.x + .5; player.y = World.TENT.y + 1.7; player.dir = 's'; drops.forEach(d => { d.x = player.x; d.y = player.y });
   save();
 }
@@ -476,7 +481,7 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else if (World.cur === 'mine') drawMine(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); if (World.cur === 'sea') drawSeaWater(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1); if (World.cur === 'sinai') drawMountain(bx, x0, y0, x1, y1, GT);
+  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else if (World.cur === 'mine') drawMine(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); if (World.cur === 'sea') drawSeaWater(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawPaths(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1); drawFert(bx, x0, y0, x1, y1); if (World.cur === 'sinai') drawMountain(bx, x0, y0, x1, y1, GT);
     for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')) drawFloorObj(bx, o, x, y) } }
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
@@ -518,7 +523,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = World.cur === 'mine' ? `rgba(10,6,4,${dark})` : `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
     if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 120 : 34, World.cur === 'mine' ? .97 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
@@ -550,8 +555,9 @@ function showTitle() {
 }
 function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); World.soil = {}; storeMap('farm'); useMap('farm'); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
 function startPlay(fresh) {
-  mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); snapCam(); hudSig = ''; updateHUD();
-  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a church. Sleep in your tent when the day is done.`), 900) }
+  mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); const newBench = ensureBench(); checkRecipes(!state.known); snapCam(); hudSig = ''; updateHUD();
+  if (newBench && !fresh) benchWelcome();
+  if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a church. Joseph the carpenter left you a workbench beside your tent for crafting. Sleep in your tent when the day is done.`), 900) }
   else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }
 }
 let last = 0, hudT = 0;
@@ -567,7 +573,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); makeDecorIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); makeDecorIcons(); craftIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

@@ -34,7 +34,7 @@ function farmItems() {
 // ---------- soil ----------
 World.soil = {};
 const soilAt = (x, y) => inb(x, y) ? World.soil[idx(x, y)] : null;
-const canTill = (x, y) => World.cur === 'farm' && inb(x, y) && World.ground[idx(x, y)] !== WATER && !World.objs[idx(x, y)] && !World.soil[idx(x, y)];
+const canTill = (x, y) => World.cur === 'farm' && inb(x, y) && World.ground[idx(x, y)] !== WATER && !World.objs[idx(x, y)] && !World.soil[idx(x, y)] && !(state.paths && state.paths[idx(x, y)]);
 const canPlant = (x, y) => { const s = soilAt(x, y); return s && !s.c };
 const needsWater = (x, y) => { const s = soilAt(x, y); return s && !s.w };
 const isWater = (x, y) => inb(x, y) && World.ground[idx(x, y)] === WATER;
@@ -54,6 +54,7 @@ const harvestTarget = () => findCell(isReady);
 function toolCell(it) {
   if (!it) return null;
   if (it.seed) return findCell(canPlant);
+  if (it.fert) return findCell((x, y) => { const s = soilAt(x, y); return s && (s.f || 0) < it.fert });
   if (it.tool === 'hoe') return findCell(canTill);
   if (it.tool === 'can') return findCell(needsWater) || (state.can < canMax() ? findCell(isWater) : null);
   return null;
@@ -70,7 +71,7 @@ function plant(c, slot) {
   World.soil[idx(c.x, c.y)].c = { id: k, g: 0 }; it.n--; if (it.n <= 0) state.inv[slot] = null; sfx.plant(); state.stats.planted = (state.stats.planted || 0) + 1;
 }
 function harvest(c) {
-  const s = soilAt(c.x, c.y), cr = s.c; s.c = null;
+  const s = soilAt(c.x, c.y), cr = s.c; s.c = null; delete s.f; delete s.fp;
   if (cr.dead) { chips(c.x + .5, c.y + .6, '#8a6a3a', 6); sfx.swish(); return }
   drop(cr.id, Math.random() < .12 ? 2 : 1, c.x + .5, c.y + .6); sfx.pop(); leaves(c.x + .5, c.y + .3, 4);
   state.stats.harvested = (state.stats.harvested || 0) + 1;
@@ -80,7 +81,7 @@ function growNight(seasonChanged) {
   let died = 0;
   for (const i in World.soil) {
     const s = World.soil[i];
-    if (s.c && !s.c.dead) { if (seasonChanged && !CROPS[s.c.id].seasons.includes(state.season)) { s.c.dead = 1; died++ } else if (s.w) s.c.g++ }
+    if (s.c && !s.c.dead) { if (seasonChanged && !CROPS[s.c.id].seasons.includes(state.season)) { s.c.dead = 1; died++ } else if (s.w) { s.c.g++; if (s.f) { s.fp = (s.fp || 0) + (s.f === 2 ? .5 : .34); if (s.fp >= 1) { s.fp -= 1; if (s.c.g < CROPS[s.c.id].days) s.c.g++ } } } }
     s.w = 0;
   }
   return died;

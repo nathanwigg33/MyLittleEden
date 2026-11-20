@@ -257,3 +257,28 @@ button{font:inherit;cursor:pointer}
 @keyframes cpwig{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
 
 *{font-variant-ligatures:none!important;font-feature-settings:"liga" 0,"clig" 0!important}
+/* workbench */
+.ctabs{position:sticky;top:-10px;z-index:2;background:#fff2d6;margin:0 -2px 6px;padding:4px 2px;overflow-x:auto;flex-wrap:nowrap;scrollbar-width:none}
+.ctabs::-webkit-scrollbar{display:none}
+.ctabs{gap:4px}.ctabs .stab{position:relative;flex:1 1 0;min-width:0;padding:5px 2px;font-size:13px;display:flex;flex-direction:column;align-items:center;line-height:1.05}
+.ctabs .stab small{font-size:11px;opacity:.7;font-weight:600}
+.ctabs .dot{position:absolute;top:-3px;right:-3px;width:10px;height:10px;border-radius:50%;background:#e8452c;border:2px solid #fff3dc}
+.conly{display:flex;align-items:center;gap:6px;font-size:13px;color:#5b2e12;margin:0 2px 6px}
+.conly input{width:18px;height:18px;accent-color:#c8743a}
+.csub{margin:8px 2px 5px;font-size:14px;color:#7a4a1a;text-transform:uppercase;letter-spacing:.04em}
+.crow{align-items:flex-start}
+.crow .bimg{margin-top:2px}
+.crow.cant{background:#f4e2c4}
+.crow.lock{opacity:.75;background:#ecdcc0}
+.crow img.sil{filter:brightness(0);opacity:.28}
+.crow .lk{display:block;width:16px;height:20px;position:relative}
+.crow .lk:before{content:'';position:absolute;left:3px;top:0;width:6px;height:7px;border:3px solid #7a5a3a;border-bottom:0;border-radius:6px 6px 0 0}
+.crow .lk:after{content:'';position:absolute;left:0;top:8px;width:16px;height:11px;background:#7a5a3a;border-radius:2px}
+.ings{display:flex;flex-wrap:wrap;gap:3px 4px;margin-top:4px}
+.ing{display:inline-flex;align-items:center;gap:2px;font-size:12px;font-weight:700;padding:1px 5px 1px 2px;border-radius:6px;background:#fff3dc;box-shadow:inset 0 0 0 1px #e8c48a}
+.ing img{width:16px;height:16px;image-rendering:pixelated}
+.ing small{font-weight:600;font-size:11px}.ing.ok{color:#2a7a1a}.ing.no{color:#b02a1a;background:#fbe0d6}
+.newb{font-size:10px;background:#e8452c;color:#fff;border-radius:4px;padding:1px 4px;vertical-align:2px}
+.xn{font-size:12px;color:#7a4a00}
+.cbtns{flex-direction:column;align-self:center}
+.cbtns .btn{min-width:62px}
