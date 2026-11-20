@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, deco: { solid: 0 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -198,6 +198,7 @@ function drawObject(g, o, x, y, t) {
     case 'bin': spr(BIN, 4); break;
     case 'bld': { const b = BLD[o.k], s = AT[b[0]][0], bx0 = x * 16 + b[1] * 8; if (o.k === 'well') { g.fillStyle = '#6e6a66'; g.beginPath(); g.ellipse(bx0, by - 5, 21, 10, 0, 0, 7); g.fill(); g.fillStyle = '#a19a91'; g.beginPath(); g.ellipse(bx0, by - 6, 19, 8.5, 0, 0, 7); g.fill(); g.fillStyle = '#8a837b'; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; g.fillRect(Math.round(bx0 + Math.cos(a) * 16) - 1, Math.round(by - 6 + Math.sin(a) * 6.5), 3, 1) } if (AT.bucket) g.drawImage(AT.bucket[0], bx0 + 10, by - 12) } g.fillStyle = 'rgba(30,20,10,.22)'; g.fillRect(Math.round(bx0 - s.width / 2) + 2, by - 3, s.width - 2, 4); g.drawImage(s, Math.round(bx0 - s.width / 2), by - s.height + 1); break }
     case 'anvil': shadow(6); spr(AT.anvil[0], 0); break;
+    case 'ifurn': drawFurn(g, o, x, y, t); break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
     case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
     case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;

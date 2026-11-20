@@ -212,3 +212,11 @@ button{font:inherit;cursor:pointer}
 .person .pi{flex:1}.hearts{color:#e0405a;font-size:15px;letter-spacing:1px}.hearts span{color:#e3c9a0}
 
 .shoprow img.bimg{width:44px;height:44px}
+
+#btnMap{position:fixed;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 70px);width:44px;height:44px;font-size:22px;z-index:6}
+@media (orientation:landscape) and (max-height:500px){#btnMap{left:calc(env(safe-area-inset-left) * .35 + 10px);top:66px}}
+.mapwrap{position:relative;border:3px solid #5b2e12;border-radius:6px;overflow:hidden;background:#2b5a2a}
+.mapwrap canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
+.mapwrap .pin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #ff4a32;animation:pinp 1.2s ease-out infinite;pointer-events:none}
+@keyframes pinp{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.4);opacity:0}}
+.mapbtns{display:flex;gap:6px;margin-bottom:6px}.mapbtns .btn{flex:1;padding:6px 4px;font-size:14px}

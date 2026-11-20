@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -86,7 +86,8 @@ async function action() {
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   const it = interactTarget();
   if (it) {
-    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'synagogue') visitChurch(); else if (k === 'carpenter') openCarpenter(); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
+    if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.t === 'anvil' ? 'smithy' : it.o.k; if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') openSmithy(); else if (k === 'inn') openInn(); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') openCarpenter(); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
+    if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
@@ -214,10 +215,10 @@ function nightScreen(passed) {
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 // ---------- travel between the farm and town ----------
-async function travel(map, x, y) {
+async function travel(map, x, y, dir) {
   if (sleeping) return; sleeping = true; const f = $('#fade'); f.style.transition = 'opacity .3s'; f.classList.add('on'); await wait(320);
-  useMap(map); player.x = x; player.y = y; player.dir = map === 'town' ? 'r' : 'l'; drops = []; snapCam();
-  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(map === 'town' ? 'Bethlehem' : state.look.farm);
+  useMap(map); player.x = x; player.y = y; player.dir = dir || (map === 'town' ? 'r' : 'l'); drops = []; snapCam();
+  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : state.look.farm);
 }
 
 // ---------- saving ----------
@@ -238,7 +239,7 @@ function load() {
     else { state.px = World.TENT.x + .5; state.py = World.TENT.y + 1.7; state.newMap = 1 }   // farm map got bigger: keep your things, give you the new land
     player = mkPlayer(state.px, state.py); drops = []; (d.drops || []).forEach(([id, x, y]) => drops.push({ id, x, y, z: 0, vx: 0, vy: 0, vz: 0, t: 1 }));
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
-    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the synagogue.' }); storeMap('farm'); useMap(state.map === 'town' ? 'town' : 'farm');
+    fillBorder(Math.random); World.objs.forEach(o => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) o.text = 'East: the road to Bethlehem. Follow it to the market, the blacksmith, the inn, the carpenter and the synagogue.' }); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
@@ -262,7 +263,7 @@ function updateHUD() {
 }
 // ---------- menu (bag + options) ----------
 let menuOpen = false, bagSel = null;
-function openMenu(tab = 'bag') {
+function openMenu(tab = 'bag') { if (tab === 'map') mapView = null;
   menuOpen = true; $('#menu').classList.add('on'); $$('#menu .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === tab)); renderMenu(tab);
 }
 function closeMenu() { menuOpen = false; $('#menu').classList.remove('on'); renderHotbar() }
@@ -274,6 +275,7 @@ function renderMenu(tab) {
     b.innerHTML = h;
     b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i; sfx.tap(); if (bagSel === null || bagSel === i) { bagSel = bagSel === i ? null : i } else { const t = state.inv[i]; state.inv[i] = state.inv[bagSel]; state.inv[bagSel] = t; bagSel = null } renderMenu('bag') });
   } else if (tab === 'people') { peopleTab(b);
+  } else if (tab === 'map') { mapTab(b);
   } else if (tab === 'farm') {
     b.innerHTML = `<div class="farmcard"><canvas id="mPort" width="128" height="128"></canvas><div><div class="big">${esc(state.look.name)}</div><div class="muted">${esc(state.look.farm)}</div><div class="kv"><span>Day</span><b>${weekday()}, ${SEASONS[state.season]} ${state.day}, Year ${state.year}</b></div><div class="kv"><span>Shekels</span><b>${state.money.toLocaleString()}</b></div><div class="kv"><span>Trees felled</span><b>${state.stats.chopped}</b></div><div class="kv"><span>Rocks broken</span><b>${state.stats.rocks}</b></div><div class="kv"><span>Weeds cleared</span><b>${state.stats.weeds}</b></div><div class="kv"><span>Shekels earned</span><b>${state.stats.earned || 0}</b></div></div></div>`;
     const c = $('#mPort').getContext('2d'); c.imageSmoothingEnabled = false; c.scale(4, 4); drawChar(c, look, 'idle_s', 0, 16, 29, false);
@@ -346,6 +348,7 @@ function setupInput() {
   $('#btnA').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); $('#btnA').classList.add('dn'); action(); clearInterval(holdA); holdA = setInterval(() => { if (!interactTarget() && !villagerNear()) action() }, 120) });
   const upA = () => { $('#btnA').classList.remove('dn'); clearInterval(holdA) }; $('#btnA').addEventListener('pointerup', upA); $('#btnA').addEventListener('pointercancel', upA); $('#btnA').addEventListener('pointerleave', upA);
   $('#btnB').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); let i = state.sel; for (let k = 0; k < HOTBAR; k++) { i = (i + 1) % HOTBAR; if (state.inv[i] && ITEMS[state.inv[i].id].tool) break } state.sel = i; sfx.tap(); renderHotbar() });
+  $('#btnMap').addEventListener('pointerdown', e => { e.stopPropagation(); ensureAudio(); sfx.tap(); openMenu('map') });
   $('#btnMenu').onclick = () => { ensureAudio(); sfx.tap(); openMenu('bag') };
   $('#binM .x').onclick = closeBin; $('#binM').addEventListener('pointerdown', e => { if (e.target.id === 'binM') closeBin() });
   $('#menu .x').onclick = closeMenu; $('#menu').addEventListener('pointerdown', e => { if (e.target.id === 'menu') closeMenu() });
@@ -372,7 +375,7 @@ function update(dt) {
   parts = parts.filter(p => p.life > 0);
   for (const f of falling) f.t += dt; for (const f of falling) if (f.t > .9 && !f.done) { f.done = 1; drop('wood', ri(6, 9), f.x + .5 + f.side * 1.2, f.y); leaves(f.x + .5 + f.side * 1.4, f.y, 10); sfx.rock() } falling = falling.filter(f => f.t < 1.3);
   for (const n of notes) { n.t -= dt; if (n.t <= 0 && !n.gone) { n.gone = 1; n.el.classList.add('out'); setTimeout(() => n.el.remove(), 400) } } notes = notes.filter(n => !n.gone || n.t > -1);
-  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60) { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
+  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60 && !isInside()) { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
   for (const b of birds) { b.t += dt; b.x += b.dir * 3.2 * dt; b.y += Math.sin(b.t * 2) * .3 * dt } birds = birds.filter(b => b.t < 12);
   if (mode !== 'play' || !state) return;
   if (dlgOpen || menuOpen || sleeping) { player.moving = false; return }
@@ -396,6 +399,7 @@ function update(dt) {
     const o = World.get(Math.floor(player.x), Math.floor(player.y)); if (o && o.t === 'grass') o.shake = .15;
   } else { player.moving = false }
   updateDrops(dt); updateVillagers(dt);
+  checkDoors();
   if (World.cur === 'farm' && player.x > W - 1.3) travel('town', TOWN.entry.x + 1.5, TOWN.entry.y + 1);
   else if (World.cur === 'town' && player.x < 1.3) travel('farm', W - 2.4, World.EXIT.y + 1);
   camFollow(dt);
@@ -450,18 +454,18 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  drawTerrain(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1);
+  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1) }
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
     const s = selItem(), it = s && ITEMS[s.id], tool = it && it.tool, t = interactTarget() || harvestTarget() || toolCell(it) || (tool && tool !== 'hoe' && tool !== 'can' && findTarget(tool));
-    if (t && !(t.o && (t.o.t === 'bld' || t.o.t === 'anvil'))) { bx.strokeStyle = `rgba(255,255,255,${.45 + .2 * Math.sin(GT * 6)})`; bx.lineWidth = 1; bx.strokeRect(t.x * 16 + .5, t.y * 16 + .5, 15, 15) }
+    if (t && !(t.o && (t.o.t === 'bld' || t.o.t === 'anvil' || t.o.t === 'ifurn'))) { bx.strokeStyle = `rgba(255,255,255,${.45 + .2 * Math.sin(GT * 6)})`; bx.lineWidth = 1; bx.strokeRect(t.x * 16 + .5, t.y * 16 + .5, 15, 15) }
   }
   // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part') D.push([y + (o.t === 'grass' ? .4 : .9), 0, o, x, y]) }
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
-  if (World.cur === 'town' && (villagersOut() || mode !== 'play')) for (const n of npcs) D.push([n.y, 5, n]);
+  if (villagersOut() || mode !== 'play') for (const n of npcs) if (n.map === World.cur) D.push([n.y, 5, n]);
   for (const f of falling) D.push([f.y + .95, 2, f]);
   D.sort((a, b) => a[0] - b[0]);
   const py = showPlayer ? player.y : -1e9, signsBack = [], signsFront = [];
@@ -483,13 +487,13 @@ function render() {
   ctx.drawImage(buf2, -ox, -oy, bw * SC, bh * SC);
   for (const q of signsFront) drawSign(ctx, q[0], q[1], q[2], cxf, cyf);
   // light & night
-  const [dark, warm] = dayLight();
+  let [dark, warm] = dayLight(); if (isInside()) { dark *= .55; warm = Math.max(warm, .35) }
   if (warm > 0) { ctx.fillStyle = `rgba(255,150,60,${.16 * warm})`; ctx.fillRect(0, 0, cv.width, cv.height) }
   if (dark > 0) {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (showPlayer) lamp(player.x, player.y - .5, 34, .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3) { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
@@ -531,7 +535,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genSynagogue(); storeMap('synagogue'); genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

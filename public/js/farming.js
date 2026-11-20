@@ -23,7 +23,7 @@ function farmItems() {
 // ---------- soil ----------
 World.soil = {};
 const soilAt = (x, y) => inb(x, y) ? World.soil[idx(x, y)] : null;
-const canTill = (x, y) => inb(x, y) && World.ground[idx(x, y)] !== WATER && !World.objs[idx(x, y)] && !World.soil[idx(x, y)];
+const canTill = (x, y) => World.cur === 'farm' && inb(x, y) && World.ground[idx(x, y)] !== WATER && !World.objs[idx(x, y)] && !World.soil[idx(x, y)];
 const canPlant = (x, y) => { const s = soilAt(x, y); return s && !s.c };
 const needsWater = (x, y) => { const s = soilAt(x, y); return s && !s.w };
 const isWater = (x, y) => inb(x, y) && World.ground[idx(x, y)] === WATER;

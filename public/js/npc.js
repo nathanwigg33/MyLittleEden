@@ -33,15 +33,21 @@ function initVillagers() {
 const isSabbath = () => weekday() === 'Sabbath';
 const heartsOf = id => Math.min(10, Math.floor(((state.friends || {})[id] || { pts: 0 }).pts / 20));
 // where each villager wants to be right now
+// seats in front of the benches inside the synagogue
+const SEATS = [[28.2, 30.2], [29.6, 30.2], [35.4, 30.2], [36.8, 30.2], [28.2, 32.2], [29.6, 32.2], [35.4, 32.2], [36.8, 32.2], [28.2, 25.2], [36.8, 25.2]];
+const inService = () => isSabbath() && state.time >= 9 * 60 && state.time < 13 * 60;
+// which map each villager is on right now, and where they want to be there: [map, x, y, roam]
 function villagerHome(n, k) {
-  if (isSabbath() && state.time >= 9 * 60 && state.time < 13 * 60) return [29.5 + k * 1.3, 21.6 + (k % 2) * .8, .3];     // gathered at the synagogue
-  return [n.v.spot[0], n.v.spot[1], n.v.roam];
+  if (inService()) return n.v.id === 'simeon' ? ['synagogue', 32.5, 25.35, 0] : ['synagogue', ...SEATS[k % SEATS.length], 0];
+  if (n.v.id === 'simeon' && state.time >= 8 * 60 && state.time < 18 * 60) return ['synagogue', 30.5, 27.6, 1.2];
+  return ['town', n.v.spot[0], n.v.spot[1], n.v.roam];
 }
 const villagersOut = () => state.time >= 7 * 60 && state.time < 19 * 60;
 function updateVillagers(dt) {
-  if (World.cur !== 'town') return;
   npcs.forEach((n, k) => {
-    const [hx, hy, roam] = villagerHome(n, k);
+    const [m, hx, hy, roam] = villagerHome(n, k);
+    if (n.map !== m) { n.map = m; n.x = n.tx = hx; n.y = n.ty = hy; n.wait = rnd(1, 3); n.dir = m === 'synagogue' && n.v.id !== 'simeon' ? 'n' : 's' }   // they walked over while you weren't looking
+    if (m !== World.cur) return;
     if (n.talking) { n.moving = false; return }
     if (Math.hypot(n.x - hx, n.y - hy) > roam + 2) { n.tx = hx; n.ty = hy; n.wait = 0 }
     if (n.wait > 0) { n.wait -= dt; n.moving = false; return }
@@ -54,8 +60,8 @@ function updateVillagers(dt) {
   });
 }
 function villagerNear() {
-  if (World.cur !== 'town' || !villagersOut()) return null; let best = null, bd = 1.5; const [dx, dy] = faceVec();
-  for (const n of npcs) { const vx = n.x - player.x, vy = n.y - player.y, d = Math.hypot(vx, vy), s = d - (vx * dx + vy * dy) / (d || 1) * .4; if (d < 1.7 && s < bd) { bd = s; best = n } }
+  if (!villagersOut()) return null; let best = null, bd = 1.5; const [dx, dy] = faceVec();
+  for (const n of npcs) { if (n.map !== World.cur) continue; const vx = n.x - player.x, vy = n.y - player.y, d = Math.hypot(vx, vy), s = d - (vx * dx + vy * dy) / (d || 1) * .4; if (d < 1.7 && s < bd) { bd = s; best = n } }
   return best;
 }
 async function talkTo(n) {
