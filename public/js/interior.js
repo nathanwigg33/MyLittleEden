@@ -534,7 +534,7 @@ function mapTab(b, which) {
   b.innerHTML = `<div class="mapbtns"><button class="btn ${which === 'farm' ? '' : 'alt'}" data-mv="farm">${esc(state.look.farm || 'Your farm')}</button><button class="btn ${which === 'town' ? '' : 'alt'}" data-mv="town">Bethlehem</button><button class="btn ${which === 'jordan' ? '' : 'alt'}" data-mv="jordan">Jordan</button><button class="btn ${which === 'sea' ? '' : 'alt'}" data-mv="sea">Sea</button><button class="btn alt mz" id="mZoom">${mapZoom ? '－' : '＋'}</button></div>
     <div class="mapwrap"><div class="mapinner ${mapZoom ? 'zoom' : ''}"></div></div>
     <div class="mapkey"><span><i class="kd you"></i>You</span><span><i class="kd open"></i>Open now</span><span><i class="kd shut"></i>Closed</span></div>
-    <p class="muted" style="margin:4px 2px 0">${which === here ? '' : 'You aren’t in this area right now. '}${which === 'farm' ? 'The road on the right leads to Bethlehem.' : which === 'jordan' ? 'River fish in the Jordan, shore fish from the beach and dock. Row the boat south to reach the open sea.' : which === 'sea' ? 'The dark water is the deep sea, where the big fish live. You need a Sturdy Rod out there.' : 'The road on the left leads home to your farm, and the road south goes to the Jordan. Mount Sinai isn’t open yet.'}</p>`;
+    <p class="muted" style="margin:4px 2px 0">${which === here ? '' : 'You aren’t in this area right now. '}${which === 'farm' ? 'The road on the right leads to Bethlehem.' : which === 'jordan' ? 'River fish in the Jordan, shore fish from the beach and dock. Row the boat south to reach the open sea.' : which === 'sea' ? 'Light water is offshore fishing. The dark water is the deep sea, where the biggest fish live (you need a Sturdy Rod there).' : 'The road on the left leads home to your farm, and the road south goes to the Jordan. Mount Sinai isn’t open yet.'}</p>`;
   b.querySelectorAll('[data-mv]').forEach(el => el.onclick = () => { sfx.tap(); mapTab(b, el.dataset.mv) });
   $('#mZoom').onclick = () => { sfx.tap(); mapZoom = !mapZoom; mapTab(b, which) };
   const inner = b.querySelector('.mapinner'), art = renderMapArt(which); art.className = 'mapart'; inner.appendChild(art);
@@ -550,7 +550,7 @@ function mapTab(b, which) {
     lab('↑ Bethlehem', 34.5, 2.6, 'road'); lab('🌊 Jordan River', 26, 9.6); lab('Creek', 57, 9.8, 'sm'); lab('🐟 Galilee Bay', 50, 48);
     lab('⚓ Dock', 30.5, 46.6); lab('↓ Open sea', 34, H - .4, 'road'); lab('🏠 Peter’s hut', JORDAN.hut[0], JORDAN.hut[1] - 3.4, 'sm');
   } else if (which === 'sea') {
-    lab('↑ Galilee Bay', 34, 2.4, 'road'); lab('🌊 The Deep Sea', 33, 33); lab('Island', 8, 10.6, 'sm'); lab('Island', 57, 43.2, 'sm');
+    lab('↑ Galilee Bay', 34, 2.4, 'road'); lab('🐟 Offshore', 40, 12, 'sm'); lab('🌊 The Deep Sea', 33, 33); lab('🏝️ Gull Island', 14, 8.6); lab('Lighthouse', 51, 38.4, 'sm');
   } else {
     const F = World.maps.farm, Tn = World.TENT; let home = ['⛺', 'Tent'], wx = 0, wy = 0, wn = 0;
     for (let i = 0; i < W * H; i++) { const o = F.objs[i], x = i % W, y = (i / W) | 0;

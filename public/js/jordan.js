@@ -66,17 +66,55 @@ const SEA = { deep: null };
 function seaDepth(x, y) { return Math.hypot((x - 33) / 21, (y - 36) / 13) + (hash(x >> 1, y >> 1) - .5) * .18 }   // under 1 = deep sea
 function genSea() {
   const g = World.ground = new Uint8Array(W * H).fill(WATER), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
-  SEA.deep = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) SEA.deep[idx(x, y)] = seaDepth(x, y) < 1 ? 1 : 0;
-  const island = (cx, cy, r) => { for (let y = cy - r - 1; y <= cy + r + 1; y++) for (let x = cx - r - 1; x <= cx + r + 1; x++) if (inb(x, y) && Math.hypot(x - cx, (y - cy) * 1.2) + (hash(x, y) - .5) * .8 < r) { g[idx(x, y)] = DIRT; SEA.deep[idx(x, y)] = 0 } };
-  island(8, 14, 3.2); island(57, 46, 2.6);
-  World.place(8, 13, { t: 'wild', k: 'olive', v: 1 }); World.place(7, 15, { t: 'rock' }); World.place(9, 16, { t: 'twig' }); World.place(57, 45, { t: 'boulder' }); World.place(56, 47, { t: 'twig' });
-  for (const [x, y] of [[20, 6], [46, 9]]) World.place(x, y, { t: 'duck', v: 1 });
+  // an island: sandy beach all round, grass in the middle (whole cells only)
+  const island = (cx, cy, rx, ry, grassy) => {
+    for (let y = Math.floor(cy - ry - 2); y <= Math.ceil(cy + ry + 2); y++) for (let x = Math.floor(cx - rx - 2); x <= Math.ceil(cx + rx + 2); x++) {
+      if (!inb(x, y)) continue; const d = Math.hypot((x + .5 - cx) / rx, (y + .5 - cy) / ry) + (hash(x * 3, y * 5) - .5) * .22;
+      if (d < 1) g[idx(x, y)] = grassy && d < .68 ? GRASS : DIRT;
+    }
+  };
+  island(14, 15, 8, 5.6, true);      // Gull Island
+  island(51, 44, 3, 2.4, false);     // the lighthouse islet
+  SEA.deep = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) SEA.deep[idx(x, y)] = g[idx(x, y)] === WATER && seaDepth(x, y) < 1 ? 1 : 0;
+  // Gull Island: trees and bushes inland, a pier on the south side, an old boat and a campsite on the sand
+  for (const [x, y, k] of [[11, 12, 'olive'], [15, 11, 'tree2'], [18, 13, 'olive'], [9, 15, 'oak'], [17, 16, 'tree2'], [13, 13, 'oak']]) if (g[idx(x, y)] === GRASS) o[idx(x, y)] = { t: 'wild', k, v: (x + y) % 4 };
+  for (const [x, y] of [[12, 16], [16, 14], [10, 13], [19, 15]]) if (g[idx(x, y)] === GRASS && !o[idx(x, y)]) o[idx(x, y)] = { t: 'bush', v: 0 };
+  for (const [x, y] of [[14, 14], [11, 17], [18, 11], [15, 17]]) if (g[idx(x, y)] === GRASS && !o[idx(x, y)]) o[idx(x, y)] = { t: 'grass', v: (x * y) % 4 };
+  let py = 15; while (g[idx(14, py + 1)] !== WATER) py++;                       // pier from the south beach out into the water
+  for (let y = py; y <= py + 3; y++) o[idx(14, y)] = { t: 'dock', end: y === py + 3 };
+  SEA.pier = [15.6, py + 2.6];
+  o[idx(8, 17)] = { t: 'wreck' }; o[idx(20, 17)] = { t: 'campfire' }; o[idx(21, 16)] = { t: 'crate', camp: 1 };
+  o[idx(7, 14)] = { t: 'rock' }; o[idx(21, 13)] = { t: 'rock' }; o[idx(19, 18)] = { t: 'twig' };
+  o[idx(15, 9)] = { t: 'sign', text: 'Gull Island. Fishermen camp here on long trips. Look for seashells on the beach.' };
+  // the lighthouse
+  o[idx(51, 43)] = { t: 'lighthouse' }; o[idx(49, 44)] = { t: 'boulder' }; o[idx(53, 45)] = { t: 'rock' };
+  for (const [x, y] of [[26, 5], [46, 9], [6, 30]]) o[idx(x, y)] = { t: 'duck', v: 1 };
+  spawnShells();
+}
+// seashells wash up on the island beaches each day
+function spawnShells() {
+  const m = World.maps.sea || World; if (!m.objs) return; const R = mulberry(state ? state.totalDay * 7 + 3 : 3);
+  for (let i = 0; i < W * H; i++) if (m.objs[i] && m.objs[i].t === 'shell') m.objs[i] = null;
+  for (let n = 0, tries = 0; n < 5 && tries < 400; tries++) { const x = Math.floor(R() * W), y = Math.floor(R() * H), i = idx(x, y); if (m.ground[i] === DIRT && !m.objs[i]) { m.objs[i] = { t: 'shell', v: Math.floor(R() * 3) }; n++ } }
+}
+function drawSeaObj(g, o, x, y, t) {
+  const X = x * 16, Y = y * 16, ink = '#2e1a0e';
+  if (o.t === 'shell') { const s = AT.ic_shell[0]; g.fillStyle = 'rgba(0,0,0,.18)'; g.fillRect(X + 4, Y + 12, 8, 2); g.save(); g.translate(X + 8, Y + 10); if (o.v === 1) g.rotate(.5); if (o.v === 2) g.scale(-1, 1); g.drawImage(s, -6, -6); g.restore(); if (Math.sin(t * 3 + x * 7) > .93) { g.fillStyle = '#fff'; g.fillRect(X + 10, Y + 5, 1, 3); g.fillRect(X + 9, Y + 6, 3, 1) } }
+  else if (o.t === 'wreck') { const s = AT.coracle_land[0]; g.drawImage(s, Math.round(X + 8 - s.width / 2), Y + 16 - s.height) }
+  else if (o.t === 'lighthouse') {
+    const cx = X + 8, B = Y + 15; g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(cx + 2, B, 11, 4, 0, 0, 7); g.fill();
+    g.fillStyle = ink; g.fillRect(cx - 8, B - 6, 17, 7); g.fillStyle = '#9a958c'; g.fillRect(cx - 7, B - 5, 15, 5);                       // stone base
+    for (let k = 0; k < 6; k++) { const yy = B - 6 - (k + 1) * 7, w = 12 - Math.floor(k / 2); g.fillStyle = ink; g.fillRect(cx - w / 2 - 1, yy, w + 2, 8); g.fillStyle = k % 2 ? '#c9392a' : '#f2ead8'; g.fillRect(cx - w / 2, yy, w, 7); g.fillStyle = 'rgba(0,0,0,.15)'; g.fillRect(cx + w / 2 - 3, yy, 3, 7) }   // striped tower
+    const ty = B - 6 - 6 * 7; g.fillStyle = ink; g.fillRect(cx - 7, ty - 2, 15, 3); g.fillRect(cx - 5, ty - 11, 11, 10); g.fillStyle = '#ffe58a'; g.fillRect(cx - 4, ty - 10, 9, 8);
+    g.fillStyle = ink; g.fillRect(cx - 6, ty - 15, 13, 5); g.fillStyle = '#c9392a'; g.fillRect(cx - 5, ty - 14, 11, 3); g.fillStyle = ink; g.fillRect(cx, ty - 18, 1, 4);
+    const [dark] = dayLight(); if (dark > .2) { const a = t * 1.2, k = Math.min(1, (dark - .2) * 2); g.save(); g.globalAlpha = .28 * k; g.fillStyle = '#fff4b0'; g.beginPath(); g.moveTo(cx, ty - 6); g.arc(cx, ty - 6, 140, a - .12, a + .12); g.closePath(); g.fill(); g.beginPath(); g.moveTo(cx, ty - 6); g.arc(cx, ty - 6, 140, a + Math.PI - .12, a + Math.PI + .12); g.closePath(); g.fill(); g.restore() }
+  }
 }
 
 // ---------- fish ----------
 // where: pond (your farm), river (the Jordan and its creek), shore (the bay, from the beach or dock), sea (from Peter's boat)
 // diff 0 = junk (no reeling) · lb = weight range in pounds
-const WHERE = { pond: 'your farm pond', river: 'the Jordan River', shore: 'the shore of Galilee Bay', sea: 'the deep sea' };
+const WHERE = { pond: 'your farm pond', river: 'the Jordan River', shore: 'the shore of Galilee Bay', offshore: 'the open sea', sea: 'the deep sea' };
 const FISH = {
   carp: { n: 'Carp', price: 30, diff: 1, where: ['pond'], w: 10, lb: [2, 14] },
   perch: { n: 'Perch', price: 36, diff: 2, where: ['pond'], w: 7, lb: [.3, 1.6] },
@@ -89,12 +127,16 @@ const FISH = {
   tilapia: { n: 'St. Peter’s Fish', price: 55, diff: 2, where: ['shore'], w: 7, lb: [.5, 3] },
   mullet: { n: 'Mullet', price: 62, diff: 3, where: ['shore'], w: 5, lb: [1, 6] },
   bream: { n: 'Sea Bream', price: 95, diff: 3, where: ['shore'], w: 3, seasons: [1, 2], lb: [1, 5] },
+  mackerel: { n: 'Mackerel', price: 65, diff: 2, where: ['offshore'], w: 10, lb: [.5, 3] },
+  flounder: { n: 'Flounder', price: 78, diff: 2, where: ['offshore'], w: 7, lb: [1, 8] },
+  seabass: { n: 'Sea Bass', price: 92, diff: 3, where: ['offshore'], w: 6, lb: [2, 12] },
+  squid: { n: 'Squid', price: 110, diff: 3, where: ['offshore'], w: 4, night: true, lb: [.5, 4] },
   snapper: { n: 'Red Snapper', price: 120, diff: 3, where: ['sea'], w: 9, lb: [2, 18] },
   tuna: { n: 'Tuna', price: 150, diff: 3, where: ['sea'], w: 8, lb: [40, 250] },
   grouper: { n: 'Grouper', price: 190, diff: 4, where: ['sea'], w: 5, lb: [10, 60] },
   swordfish: { n: 'Swordfish', price: 320, diff: 5, where: ['sea'], w: 2.5, lb: [60, 400] },
   bigfish: { n: 'Great Fish', price: 800, diff: 5, where: ['sea'], w: .35, lb: [900, 2000] },
-  sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'shore', 'sea'], w: 1, junk: 1 },
+  sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'shore', 'offshore', 'sea'], w: 1, junk: 1 },
 };
 // rods: Peter sells the better ones · zone = extra width of the green catch zone · bite = how fast fish bite
 const RODS = [null, { n: 'Fishing Rod', zone: 0, bite: 1 }, { n: 'Sturdy Rod', zone: .05, bite: .85, price: 800, fiber: 30, d: 'Strong enough for the deep sea. A wider catch zone, too.' },
@@ -102,6 +144,7 @@ const RODS = [null, { n: 'Fishing Rod', zone: 0, bite: 1 }, { n: 'Sturdy Rod', z
 const rodLv = () => state.rodLv || 1;
 function fishItems() {
   const o = { rod: { n: 'Fishing Rod', icon: 'ic_rod', tool: 'rod', d: 'Face the water and use it to cast. Wait for a bite, then reel the fish in.' },
+    shell: { n: 'Seashell', icon: 'ic_shell', price: 15, d: 'A pretty shell from the island beaches. New ones wash up every day.' },
     bait: { n: 'Bait Minnows', icon: 'fish_garra', price: 1, d: 'Little minnows. One is used each time you cast, and fish bite twice as fast.' } };
   for (const k in FISH) { const f = FISH[k]; o['fish_' + k] = { n: f.n, icon: 'fish_' + k, price: f.price, d: f.junk ? 'Someone lost this a long time ago.' : `Caught in ${f.where.map(w => WHERE[w]).join(' and ')}${f.night ? ' at night' : ''}${f.seasons ? ' in ' + f.seasons.map(i => SEASONS[i]).join(' and ') : ''}. Sells for ₪${f.price}.` } }
   return o;
@@ -134,7 +177,7 @@ function lineSpot(side) {
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
   return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
 }
-function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'shore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
+function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside()) { sfx.no(); return }

@@ -226,6 +226,22 @@ def crab():
     d.line([(3, 4), (2, 3)], fill=ink); d.line([(12, 4), (13, 3)], fill=ink); d.point((6, 4), fill=ink); d.point((9, 4), fill=ink)
     return trim(im)
 E['fish_eel'] = eel(); E['fish_swordfish'] = swordfish(); E['fish_crab'] = crab()
+E['fish_mackerel'] = trim(fish_icon((80, 140, 120), (220, 230, 225), (30, 70, 70), (70, 110, 100), 'stripes', (13, 6), 4))
+E['fish_seabass'] = trim(fish_icon((120, 130, 140), (225, 228, 232), (60, 70, 85), (100, 110, 125), None, (13, 7), 4))
+E['fish_flounder'] = trim(fish_icon((170, 140, 100), (200, 175, 135), (120, 95, 65), (150, 120, 85), 'spots', (12, 10), 3))
+def squid():
+    im = Image.new('RGBA', (18, 12)); d = ImageDraw.Draw(im); ink = (40, 26, 30, 255); b = (230, 150, 160, 255); hi = (250, 200, 205, 255)
+    d.polygon([(1, 6), (6, 2), (11, 3), (11, 9), (6, 10)], fill=ink); d.polygon([(2, 6), (6, 3), (10, 4), (10, 8), (6, 9)], fill=b); d.line([(4, 5), (8, 4)], fill=hi)
+    for k, y in enumerate((3, 5, 7, 9)): d.line([(11, y), (16, y + (k - 1.5))], fill=ink); d.line([(12, y), (15, y + (k - 1.5) * .8)], fill=b)
+    d.point((8, 5), fill=(255, 255, 255, 255)); d.point((8, 7), fill=ink); return trim(im)
+E['fish_squid'] = squid()
+def shell():
+    im = Image.new('RGBA', (12, 11)); d = ImageDraw.Draw(im); ink = (70, 40, 40, 255)
+    d.pieslice([0, 1, 11, 16], 180, 360, fill=ink); d.pieslice([1, 2, 10, 15], 180, 360, fill=(245, 205, 190, 255))
+    for x in (3, 5, 7): d.line([(5.5, 8), (x - 1 if x < 5 else x + 1, 3)], fill=(220, 150, 140, 255))
+    d.rectangle([3, 8, 8, 10], fill=ink); d.rectangle([4, 8, 7, 9], fill=(235, 180, 165, 255)); return trim(im)
+E['ic_shell'] = shell()
+E['coracle_land'] = trim(Image.open(EL + 'Other/spr_deco_coracle_land.png').convert('RGBA'))
 
 # ---------- character layers ----------
 TAG = {}

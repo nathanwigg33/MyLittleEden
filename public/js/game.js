@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'fboat', 'helm', 'mast'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -91,9 +91,13 @@ async function action() {
   if (it) {
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
+    if (it.o.t === 'shell') { if (addItem('shell', 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(it.x, it.y, null); sfx.pick(); toast('You found a seashell!'); return }
+    if (it.o.t === 'wreck') { say('An old fishing boat, washed up and turned over long ago.'); return }
+    if (it.o.t === 'lighthouse') { say('The lighthouse keeps boats safe at night. Its light sweeps across the sea after dark.'); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
+    if (it.o.t === 'crate' && it.o.camp) { say('An old supply crate. It’s empty except for a few fish bones.'); return }
     if (it.o.t === 'crate') { openChest(); return }
     if (it.o.t === 'cart') { openShop(); return }
     if (it.o.t === 'campfire') { say('The campfire crackles. It will keep you warm at night.'); return }
@@ -166,7 +170,7 @@ async function passOut() { if (sleeping) return; sleeping = true; await fadeOut(
 async function goSleep() { if (sleeping) return; sleeping = true; sfx.sleep(); await fadeOut(); newDay(false); await nightScreen(false); sleeping = false }
 function newDay(passed) {
   if (World.cur !== 'farm') useMap('farm');
-  state.inBoat = false; state.boat = boatHome(); if (fishing) stopFishing();     // Peter rows the boat back to the dock every night
+  state.inBoat = false; state.boat = boatHome(); if (fishing) stopFishing(); spawnShells();     // Peter rows the boat back to the dock every night
   // sell everything in the shipping bin
   state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
   state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
@@ -507,7 +511,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'mast') lamp(x + .5, y - 3.8, 50, .9); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (showPlayer) lamp(player.x, player.y - .5, 34, .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3) { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
