@@ -9,6 +9,7 @@ const ROOMS = {
     gen: () => genSynagogue(), draw: (...a) => drawChurchRoom(...a),
   },
   inn: { name: 'The Inn', x0: 26, x1: 38, top: 22, bot: 31, door: 32, shop: 'inn', gen: () => genInn(), draw: (...a) => drawInnRoom(...a) },
+  carpenter: { name: 'Carpenter', x0: 28, x1: 36, top: 23, bot: 30, door: 32, shop: 'carpenter', gen: () => genCarp(), draw: (...a) => drawCarpRoom(...a) },
   smithy: { name: 'Blacksmith', x0: 28, x1: 36, top: 23, bot: 30, door: 32, shop: 'smithy', gen: () => genSmithy(), draw: (...a) => drawSmithyRoom(...a) },
 };
 // door of a building in town, in world tiles: [centre x, the y just in front of it]
@@ -16,7 +17,7 @@ function bldDoor(k) {
   for (let i = 0; i < W * H; i++) { const o = World.maps.town.objs[i]; if (o && o.t === 'bld' && o.k === k) { const x = i % W, y = (i / W) | 0, b = BLD[k], s = AT[b[0]][0]; return [(x * 16 + b[1] * 8 - s.width / 2 + DOOR_PX[k]) / 16, y + 1] } }
   return null;
 }
-const DOOR_PX = { synagogue: 48, smithy: 16, inn: 48 };   // door centre, in pixels from the left of the building sprite
+const DOOR_PX = { synagogue: 48, smithy: 16, inn: 48, carpenter: 30 };   // door centre, in pixels from the left of the building sprite
 
 // ---------- the synagogue's room ----------
 // a blank room: solid everywhere outside the floor, with a gap for the door. Returns a furniture placer.
@@ -32,6 +33,12 @@ function genInn() {
   put(29, 25, 'bar', 6);                                    // Miriam serves food across this
   for (const [x, y] of [[26, 27], [36, 27], [26, 30], [36, 30]]) put(x, y, 'table', 3);
   put(38, 25, 'ibarrel'); put(26, 25, 'iplant');
+}
+function genCarp() {
+  const put = roomBase(ROOMS.carpenter);
+  put(28, 23, 'lumber', 2); put(30, 23, 'pegboard', 2); put(33, 23, 'models', 2);
+  put(29, 26, 'plans', 7);                                  // order buildings from Joseph across this
+  put(35, 24, 'sawhorse'); put(28, 28, 'chair'); put(36, 28, 'planks'); put(28, 30, 'sbarrel'); put(36, 30, 'iplant');
 }
 function genSmithy() {
   const put = roomBase(ROOMS.smithy);
@@ -120,7 +127,7 @@ function drawChurchRoom(g, x0, y0, x1, y1, t) {
 
 function drawFurn(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, B = Y + 16, w = (o.w || 1) * 16;
-  if (drawSmithFurn(g, o, X, Y, B, w, t) || drawInnFurn(g, o, X, Y, B, w, t)) return;
+  if (drawSmithFurn(g, o, X, Y, B, w, t) || drawInnFurn(g, o, X, Y, B, w, t) || drawCarpFurn(g, o, X, Y, B, w, t)) return;
   const shadow = (sx, sw) => px(g, 'rgba(60,35,15,.22)', sx, B - 2, sw, 2);
   switch (o.k) {
     case 'pew': {   // walnut benches, gold caps, crimson cushions
@@ -384,6 +391,91 @@ function drawInnFurn(g, o, X, Y, B, w, t) {
   return true;
 }
 
+// ---------- the carpenter's workshop ----------
+const CP = { ink: '#2e1a0e', wallA: '#b8875a', wallB: '#a77a50', wallLine: '#7e5634', post: '#6a4426', postHi: '#8e5e36', postLo: '#432916',
+  floorA: '#d0a46e', floorB: '#c4986a', floorLine: '#9a7048', dust: '#ead2a0', dustLo: '#d6b880', plank: '#d9a868', plankHi: '#f0c890', plankLo: '#a8784a',
+  paper: '#f2e8cc', blue: '#3a6ab0', iron: '#6c7884', ironHi: '#a7b3bf' };
+function drawCarpRoom(g, x0, y0, x1, y1, t) {
+  const R = ROOMS[World.cur]; g.fillStyle = WG.dark; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
+  const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16;
+  // wide pale floorboards running front to back, sprinkled with sawdust
+  for (let x = L, c = 0; x < Rr; x += 9, c++) { px(g, c % 2 ? CP.floorA : CP.floorB, x, T, 9, B - T); px(g, CP.floorLine, x + 8, T, 1, B - T); for (let y = T + ((c * 37) % 50); y < B; y += 50) px(g, CP.floorLine, x, y, 8, 1) }
+  for (let i = 0; i < 70; i++) { const sx = L + (hash(i, 3) * (Rr - L) | 0), sy = T + (hash(3, i) * (B - T) | 0); px(g, i % 3 ? CP.dust : CP.dustLo, sx, sy, i % 4 ? 1 : 2, 1) }
+  for (const [cx, cy, r] of [[L + 120, T + 30, 9], [L + 30, T + 74, 7], [Rr - 22, T + 60, 6]]) for (let i = 0; i < 26; i++) { const a = hash(i, cx) * 6.28, d = hash(cx, i) * r; px(g, i % 2 ? CP.dust : CP.dustLo, cx + Math.cos(a) * d | 0, cy + Math.sin(a) * d * .5 | 0, 2, 1) }
+  // back wall: horizontal timber boards with posts and a window
+  const WT = T - 40;
+  for (let y = WT, r = 0; y < T; y += 5, r++) { px(g, r % 2 ? CP.wallA : CP.wallB, L, y, Rr - L, 5); px(g, CP.wallLine, L, y + 4, Rr - L, 1) }
+  for (let x = L; x <= Rr - 4; x += 48) { px(g, CP.postLo, x, WT, 5, 40); px(g, CP.post, x + 1, WT, 3, 40); px(g, CP.postHi, x + 1, WT, 1, 40) }
+  px(g, CP.postLo, L, WT, Rr - L, 5); px(g, CP.post, L, WT, Rr - L, 4); px(g, CP.postHi, L, WT, Rr - L, 1); px(g, CP.ink, L, T - 1, Rr - L, 1);
+  const wx = 35 * 16 + 2; px(g, CP.ink, wx, WT + 9, 16, 16); px(g, '#9fd2ef', wx + 1, WT + 10, 14, 14); px(g, '#d5eefa', wx + 2, WT + 11, 4, 6); px(g, CP.post, wx + 7, WT + 10, 2, 14); px(g, CP.post, wx + 1, WT + 16, 14, 2); px(g, CP.postHi, wx - 1, WT + 25, 18, 2);
+  // a saw and a coil of rope hanging on the wall
+  px(g, CP.ink, L + 104, WT + 8, 1, 3); px(g, CP.iron, L + 98, WT + 11, 14, 4); px(g, CP.ironHi, L + 98, WT + 11, 14, 1); for (let i = 0; i < 7; i++) px(g, CP.ink, L + 98 + i * 2, WT + 15, 1, 1); px(g, CP.post, L + 110, WT + 10, 5, 6);
+  // side and front walls
+  for (const x of [L - 6, Rr]) { px(g, CP.ink, x, WT, 6, B - WT + 6); px(g, CP.postHi, x + 1, WT, 4, B - WT + 5); px(g, CP.post, x + 2, WT, 2, B - WT + 5) }
+  px(g, CP.ink, L - 6, B, Rr - L + 12, 6); px(g, CP.postHi, L - 5, B + 1, Rr - L + 10, 4); px(g, CP.post, L - 5, B + 2, Rr - L + 10, 2);
+  const dx = R.door * 16; px(g, WG.dark, dx, B, 16, 6); px(g, CP.postHi, dx - 1, B, 1, 6); px(g, CP.postHi, dx + 16, B, 1, 6);
+  px(g, CP.ink, dx + 1, B - 7, 14, 6); px(g, '#6a8a3a', dx + 2, B - 6, 12, 4); px(g, '#8aaa52', dx + 3, B - 5, 10, 1);
+}
+function drawCarpFurn(g, o, X, Y, B, w, t) {
+  const sh = (sx, sw) => px(g, 'rgba(60,35,15,.25)', sx, B - 2, sw, 2);
+  const plank = (x, y, len, vert) => { if (vert) { px(g, CP.ink, x, y, 5, len); px(g, CP.plank, x + 1, y + 1, 3, len - 2); px(g, CP.plankHi, x + 1, y + 1, 1, len - 2) } else { px(g, CP.ink, x, y, len, 5); px(g, CP.plank, x + 1, y + 1, len - 2, 3); px(g, CP.plankHi, x + 1, y + 1, len - 2, 1) } };
+  switch (o.k) {
+    case 'lumber': {   // upright boards leaning in a rack
+      sh(X, w); px(g, CP.ink, X + 1, Y - 30, w - 2, 46); px(g, CP.postLo, X + 2, Y - 29, w - 4, 44);
+      for (let i = 0; i < 5; i++) plank(X + 3 + i * 5, Y - 28 + (i % 2) * 3, 42 - (i % 2) * 3, true);
+      px(g, CP.post, X + 1, Y - 8, w - 2, 3); px(g, CP.postHi, X + 1, Y - 8, w - 2, 1);
+      break;
+    }
+    case 'pegboard': {
+      px(g, CP.ink, X + 1, Y - 32, w - 2, 22); px(g, CP.plankLo, X + 2, Y - 31, w - 4, 20);
+      for (let yy = Y - 29; yy < Y - 12; yy += 4) for (let xx = X + 4; xx < X + w - 3; xx += 4) px(g, CP.postLo, xx, yy, 1, 1);
+      px(g, CP.post, X + 5, Y - 27, 2, 12); px(g, CP.postLo, X + 3, Y - 28, 6, 4);                                  // mallet
+      px(g, CP.iron, X + 12, Y - 28, 2, 10); px(g, CP.post, X + 12, Y - 18, 2, 4);                                  // chisel
+      px(g, CP.iron, X + 16, Y - 28, 2, 8); px(g, CP.post, X + 16, Y - 20, 2, 5);                                   // chisel
+      px(g, CP.ink, X + 21, Y - 28, 8, 7); px(g, CP.iron, X + 22, Y - 27, 6, 5); px(g, CP.post, X + 22, Y - 21, 2, 6);   // hand plane / square
+      // workbench under it
+      sh(X, w); px(g, CP.ink, X, Y - 2, w, 18); px(g, CP.plankHi, X + 1, Y - 1, w - 2, 3); px(g, CP.plank, X + 1, Y + 2, w - 2, 2); px(g, CP.post, X + 2, Y + 4, 3, 11); px(g, CP.post, X + w - 5, Y + 4, 3, 11); px(g, CP.postLo, X + 5, Y + 9, w - 10, 2);
+      px(g, CP.ink, X + 8, Y - 5, 8, 4); px(g, CP.iron, X + 9, Y - 4, 6, 2); px(g, CP.dust, X + 18, Y - 3, 6, 1); px(g, CP.dustLo, X + 20, Y - 4, 3, 1);
+      break;
+    }
+    case 'models': {   // shelf of little model buildings
+      sh(X + 1, w - 2); px(g, CP.ink, X + 1, Y - 22, w - 2, 38); px(g, CP.post, X + 2, Y - 21, w - 4, 36); px(g, CP.postHi, X + 2, Y - 21, w - 4, 1);
+      for (let r = 0; r < 2; r++) px(g, CP.postLo, X + 3, Y - 19 + r * 14, w - 6, 12);
+      const house = (hx, hy, roof, wd) => { px(g, CP.ink, hx, hy - 9, wd, 10); px(g, '#e8d2a8', hx + 1, hy - 5, wd - 2, 5); px(g, roof, hx + 1, hy - 8, wd - 2, 3); px(g, CP.ink, hx + (wd >> 1) - 1, hy - 3, 2, 3) };
+      house(X + 4, Y - 8, '#6aa04a', 10); house(X + 17, Y - 8, '#c0503a', 12);                                     // farmhouse, barn
+      house(X + 6, Y + 6, '#d9a04a', 8); px(g, CP.ink, X + 18, Y + 1, 9, 5); px(g, CP.paper, X + 19, Y + 2, 7, 3); px(g, CP.blue, X + 20, Y + 3, 5, 1);   // coop, rolled plan
+      px(g, CP.ink, X + 2, Y + 11, w - 4, 5); px(g, CP.post, X + 3, Y + 12, w - 6, 3);
+      break;
+    }
+    case 'plans': {    // the big planning table you order buildings across
+      sh(X, w); px(g, CP.ink, X, Y - 4, w, 20); px(g, CP.plankHi, X + 1, Y - 3, w - 2, 4); px(g, CP.plank, X + 1, Y + 1, w - 2, 14);
+      for (let i = 0; i < w - 2; i += 14) { px(g, CP.plankLo, X + 2 + i, Y + 3, 12, 10); px(g, CP.plank, X + 3 + i, Y + 4, 10, 8) }
+      // a big blueprint, a pencil, a ruler and a small hand bell
+      const px0 = X + 22; px(g, CP.ink, px0, Y - 11, 40, 9); px(g, CP.blue, px0 + 1, Y - 10, 38, 7);
+      for (const [a, b, c, d] of [[4, 2, 14, 1], [4, 2, 1, 4], [17, 2, 1, 4], [4, 5, 14, 1], [10, 0, 1, 2], [8, 0, 5, 1], [22, 2, 12, 1], [22, 2, 1, 4], [33, 2, 1, 4], [22, 5, 12, 1], [26, 4, 3, 2]]) px(g, '#d6e4f6', px0 + 1 + a, Y - 10 + b, c, d);
+      px(g, CP.ink, X + 70, Y - 7, 14, 3); px(g, '#e0c050', X + 71, Y - 6, 12, 1);
+      px(g, CP.ink, X + 8, Y - 8, 3, 5); px(g, '#f2c94c', X + 9, Y - 7, 1, 3);
+      px(g, CP.ink, X + 92, Y - 9, 7, 6); px(g, '#e2b04a', X + 93, Y - 8, 5, 4); px(g, CP.ink, X + 95, Y - 10, 1, 1);
+      break;
+    }
+    case 'sawhorse': {
+      sh(X - 2, 20); px(g, CP.ink, X + 1, Y + 2, 2, 14); px(g, CP.ink, X + 13, Y + 2, 2, 14); px(g, CP.post, X + 2, Y + 3, 1, 12); px(g, CP.post, X + 13, Y + 3, 1, 12);
+      px(g, CP.ink, X - 3, Y - 3, 22, 7); px(g, '#8a5a32', X - 2, Y - 2, 20, 5); px(g, '#a8784a', X - 2, Y - 2, 20, 1); px(g, CP.ink, X + 17, Y - 2, 2, 5); px(g, '#e0b880', X + 17, Y - 1, 1, 3);   // a log
+      px(g, CP.iron, X + 6, Y - 9, 2, 7); px(g, CP.ironHi, X + 6, Y - 9, 1, 7); px(g, CP.post, X + 5, Y - 12, 4, 4);   // saw stuck in it
+      px(g, CP.dust, X + 5, B - 3, 6, 1); px(g, CP.dustLo, X + 7, B - 4, 3, 1);
+      break;
+    }
+    case 'chair': {    // a half-built chair
+      sh(X + 2, 12); px(g, CP.ink, X + 3, Y - 6, 10, 22); px(g, CP.plank, X + 4, Y - 5, 2, 20); px(g, CP.plank, X + 10, Y - 5, 2, 20); px(g, CP.plankHi, X + 4, Y - 5, 8, 2); px(g, CP.plankHi, X + 4, Y, 8, 1);
+      px(g, CP.ink, X + 2, Y + 4, 12, 4); px(g, CP.plank, X + 3, Y + 5, 10, 2); px(g, 'rgba(46,26,14,0)', 0, 0, 0, 0);
+      break;
+    }
+    case 'planks': { sh(X, 16); for (let i = 0; i < 4; i++) plank(X + 1 - (i % 2), Y + 10 - i * 4, 15, false); break }
+    default: return false;
+  }
+  return true;
+}
+
 // ---------- going in and out ----------
 async function enterBuilding(k) {
   const R = ROOMS[k]; if (!R) return;
@@ -480,6 +572,13 @@ function furnitureAction(o) {
     case 'table': say(pick(['A sturdy table, scrubbed clean. Someone left a few crumbs of bread.', 'A wooden table with a little oil lamp on it.', 'The table wobbles a little. Cozy anyway.'])); break;
     case 'ibarrel': say('A barrel of water for the kitchen.'); break;
     case 'iplant': say('A potted olive sapling.'); break;
+    case 'plans': { const j = npcs.find(n => n.v.id === 'joseph' && n.map === World.cur); if (j && shopOpen('carpenter')) talkTo(j); else say(closedMsg('carpenter')); break }
+    case 'lumber': say('Cedar, cypress and olive wood, stacked to dry. Joseph says cedar smells the best.'); break;
+    case 'pegboard': say('Joseph’s workbench. Mallets, chisels and a hand plane hang neatly above it.'); break;
+    case 'models': say('Little wooden models: a farmhouse, a barn and a chicken coop. Joseph builds these before the real thing.'); break;
+    case 'sawhorse': say('A log half sawn through. The sawdust smells sweet.'); break;
+    case 'chair': say('A chair Joseph is making. It still needs a seat.'); break;
+    case 'planks': say('A stack of smooth, sanded planks.'); break;
     case 'counter': { const j = npcs.find(n => n.v.id === 'jesse' && n.map === World.cur); if (j && shopOpen('smithy')) talkTo(j); else say(closedMsg('smithy')); break }
     case 'forge': say('The forge roars. The coals glow white-hot in the middle.'); break;
     case 'bellows': say('A big leather bellows for blowing air into the forge.'); break;

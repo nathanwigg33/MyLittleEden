@@ -108,9 +108,9 @@ CR = A + 'Elements/Crops/'
 CROPART = {'wheat': ('wheat', None), 'barley': ('wheat', ((.78, .82, .5), (40, 40, 10))), 'leek': ('parsnip', None), 'garlic': ('cauliflower', None),
            'onion': ('radish', ((.95, .9, .35), (60, 45, 0))), 'radish': ('radish', None), 'cabbage': ('cabbage', None), 'carrot': ('carrot', None),
            'beet': ('beetroot', None), 'coriander': ('kale', None), 'flax': ('sunflower', ((.5, .75, 1.45), (0, 0, 40))),
-           'melon': ('pumpkin', ((.62, 1.05, .55), (0, 12, 0))), 'gourd': ('pumpkin', None)}
+           'turnip': ('beetroot', ((1.0, .78, 1.05), (70, 60, 70))), 'mustard': ('kale', ((1.15, 1.05, .45), (30, 30, 0))), 'melon': ('pumpkin', ((.62, 1.05, .55), (0, 12, 0))), 'gourd': ('pumpkin', None)}
 PACKET = {'wheat': (232, 184, 48), 'barley': (170, 160, 96), 'radish': (204, 58, 72), 'onion': (210, 140, 60), 'leek': (96, 168, 84), 'garlic': (180, 170, 200),
-          'cabbage': (150, 80, 160), 'carrot': (236, 128, 40), 'coriander': (60, 140, 110), 'flax': (80, 120, 210), 'melon': (110, 170, 60), 'beet': (150, 40, 80), 'gourd': (200, 110, 40)}
+          'cabbage': (150, 80, 160), 'carrot': (236, 128, 40), 'coriander': (60, 140, 110), 'flax': (80, 120, 210), 'melon': (110, 170, 60), 'beet': (150, 40, 80), 'gourd': (200, 110, 40), 'turnip': (176, 120, 200), 'mustard': (206, 186, 52)}
 def seed_packet(icon, c):
     """a 20x22 paper seed packet with the crop pictured full size on the front, in the crop's own colour"""
     dk = tuple(int(v * .62) for v in c); lt = tuple(min(255, int(v * 1.18 + 20)) for v in c)

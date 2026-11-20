@@ -1,18 +1,20 @@
 // Farming: tilled soil, watering, seeds, crops that grow day by day, and the merchant's seed cart.
 'use strict';
-const CROPS = {   // seasons: 0 spring, 1 summer, 2 autumn (winter is for resting the land)
+const CROPS = {   // seasons: 0 spring, 1 summer, 2 autumn, 3 winter (Bethlehem's mild, rainy winter)
   radish: { n: 'Radishes', sn: 'Radish', days: 3, seed: 12, sell: 28, seasons: [0] },
   wheat: { n: 'Wheat', days: 4, seed: 10, sell: 25, seasons: [0, 1] },
   barley: { n: 'Barley', days: 5, seed: 15, sell: 35, seasons: [0, 2] },
   onion: { n: 'Onions', sn: 'Onion', days: 5, seed: 20, sell: 45, seasons: [0] },
-  leek: { n: 'Leeks', sn: 'Leek', days: 6, seed: 20, sell: 50, seasons: [0] },
-  garlic: { n: 'Garlic', days: 7, seed: 30, sell: 75, seasons: [0] },
-  cabbage: { n: 'Cabbage', days: 9, seed: 45, sell: 125, seasons: [0] },
+  leek: { n: 'Leeks', sn: 'Leek', days: 6, seed: 20, sell: 50, seasons: [0, 3] },
+  garlic: { n: 'Garlic', days: 7, seed: 30, sell: 75, seasons: [0, 3] },
+  cabbage: { n: 'Cabbage', days: 9, seed: 45, sell: 125, seasons: [0, 3] },
   carrot: { n: 'Carrots', sn: 'Carrot', days: 4, seed: 15, sell: 38, seasons: [1, 2] },
   coriander: { n: 'Coriander', days: 5, seed: 25, sell: 62, seasons: [1, 2] },
   flax: { n: 'Flax', days: 6, seed: 30, sell: 82, seasons: [1] },
   melon: { n: 'Melons', sn: 'Melon', days: 10, seed: 70, sell: 210, seasons: [1] },
   beet: { n: 'Beets', sn: 'Beet', days: 6, seed: 25, sell: 66, seasons: [2] },
+  turnip: { n: 'Turnips', sn: 'Turnip', days: 5, seed: 20, sell: 52, seasons: [3] },
+  mustard: { n: 'Mustard Greens', sn: 'Mustard', days: 4, seed: 15, sell: 40, seasons: [3] },
   gourd: { n: 'Gourds', sn: 'Gourd', days: 11, seed: 75, sell: 240, seasons: [2] },
 };
 const CAN_MAX = 40;
