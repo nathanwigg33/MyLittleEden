@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -17,7 +17,7 @@ const World = {
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
   owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') return { o: this.objs[idx(o.ox, o.oy)], x: o.ox, y: o.oy }; return o ? { o, x, y } : null },
-  solid(x, y) { if (!inb(x, y)) return true; if (this.ground[idx(x, y)] === WATER) return true; const o = this.objs[idx(x, y)]; return !!(o && OBJ[o.t] && OBJ[o.t].solid) },
+  solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge')); return !!(o && OBJ[o.t] && OBJ[o.t].solid) },
   place(x, y, o) { this.objs[idx(x, y)] = o },
   footprint(x, y, w, h, o) { for (let yy = y - h + 1; yy <= y; yy++) for (let xx = x - Math.floor(w / 2); xx <= x + Math.floor(w / 2); xx++) this.objs[idx(xx, yy)] = (xx === x && yy === y) ? o : { t: 'part', ox: x, oy: y } },
 };
@@ -199,6 +199,8 @@ function drawObject(g, o, x, y, t) {
     case 'bld': { const b = BLD[o.k], s = AT[b[0]][0], bx0 = x * 16 + b[1] * 8; if (o.k === 'well') { g.fillStyle = '#6e6a66'; g.beginPath(); g.ellipse(bx0, by - 5, 21, 10, 0, 0, 7); g.fill(); g.fillStyle = '#a19a91'; g.beginPath(); g.ellipse(bx0, by - 6, 19, 8.5, 0, 0, 7); g.fill(); g.fillStyle = '#8a837b'; for (let k = 0; k < 14; k++) { const a = k / 14 * Math.PI * 2; g.fillRect(Math.round(bx0 + Math.cos(a) * 16) - 1, Math.round(by - 6 + Math.sin(a) * 6.5), 3, 1) } if (AT.bucket) g.drawImage(AT.bucket[0], bx0 + 10, by - 12) } g.fillStyle = 'rgba(30,20,10,.22)'; g.fillRect(Math.round(bx0 - s.width / 2) + 2, by - 3, s.width - 2, 4); g.drawImage(s, Math.round(bx0 - s.width / 2), by - s.height + 1); if (o.k === 'synagogue') roofCross(g, Math.round(bx0), by - s.height + 3); break }
     case 'anvil': shadow(6); spr(AT.anvil[0], 0); break;
     case 'ifurn': drawFurn(g, o, x, y, t); break;
+    case 'coracle': case 'duck': drawWaterObj(g, o, x, y, t); break;
+    case 'dock': case 'bridge': break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
     case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
     case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;
@@ -243,7 +245,7 @@ function genTown() {
   const P = TOWN.plaza;
   // streets
   dirt(0, 27, P.x, 28);                        // road in from the farm
-  dirt(P.x, 12, P.x + 1, 46);                  // north-south
+  dirt(P.x, 12, P.x + 1, H - 1);               // north-south, out to the Jordan
   dirt(P.x, 27, 58, 28);                       // east street
   dirt(16, 17, 30, 25);                        // market square
   dirt(24, 6, 25, 17);                         // path north toward Mount Sinai
@@ -262,7 +264,7 @@ function genTown() {
   for (const [x, y] of [[26, 24], [42, 24], [26, 32], [42, 32], [30, 20], [38, 20], [42, 39], [49, 39], [16, 25], [12, 35]]) World.place(x, y, { t: 'torch' });
   World.place(2, 25, { t: 'sign', text: 'Bethlehem — “house of bread”. Your farm is back down the road to the west.' });
   World.place(26, 7, { t: 'sign', text: 'North: the road to Mount Sinai. (Not open yet.)' });
-  World.place(36, 47, { t: 'sign', text: 'South: the way to the Jordan River. (Not open yet.)' });
+  World.place(36, 47, { t: 'sign', text: 'South: the Jordan River and Galilee Bay. Good fishing!' });
   for (const [x, y, k] of [[43, 22, 'crate'], [41, 37, 'barrel'], [48, 37, 'barrel'], [16, 21, 'crate'], [29, 21, 'barrel'], [19, 33, 'crate'], [12, 33, 'barrel'], [20, 33, 'crate']]) World.place(x, y, { t: k });
   for (const [x, y] of [[14, 25], [20, 30], [29, 35], [39, 34], [47, 30], [55, 25], [39, 15], [20, 14], [31, 47], [58, 37], [10, 30], [45, 46], [28, 10], [40, 10], [10, 15], [57, 20]]) if (!o[idx(x, y)]) World.place(x, y, { t: 'wild', k: 'olive', v: ri(0, 3) });
   // forest edge and a few bushes

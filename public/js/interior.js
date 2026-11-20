@@ -521,6 +521,7 @@ function renderMapArt(which) {
   const prev = World.cur; useMap(which);
   const c = mkc(W * 16, H * 16), g = c.getContext('2d'); g.imageSmoothingEnabled = false;
   drawTerrain(g, -1, -1, W, H, 0); drawPave(g, -1, -1, W, H); drawSoil(g, -1, -1, W, H);
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge')) drawFloorObj(g, o, x, y) }
   const D = [];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part') D.push([y + (o.t === 'grass' ? .4 : .9), 0, o, x, y]); const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 1, so, x, y]) }
   D.sort((p, q) => p[0] - q[0]);
@@ -529,10 +530,10 @@ function renderMapArt(which) {
 }
 function mapTab(b, which) {
   const here = isInside() ? 'town' : World.cur; which = which || mapView || here; mapView = which;
-  b.innerHTML = `<div class="mapbtns"><button class="btn ${which === 'farm' ? '' : 'alt'}" data-mv="farm">${esc(state.look.farm || 'Your farm')}</button><button class="btn ${which === 'town' ? '' : 'alt'}" data-mv="town">Bethlehem</button><button class="btn alt mz" id="mZoom">${mapZoom ? '－' : '＋'}</button></div>
+  b.innerHTML = `<div class="mapbtns"><button class="btn ${which === 'farm' ? '' : 'alt'}" data-mv="farm">${esc(state.look.farm || 'Your farm')}</button><button class="btn ${which === 'town' ? '' : 'alt'}" data-mv="town">Bethlehem</button><button class="btn ${which === 'jordan' ? '' : 'alt'}" data-mv="jordan">Jordan</button><button class="btn alt mz" id="mZoom">${mapZoom ? '－' : '＋'}</button></div>
     <div class="mapwrap"><div class="mapinner ${mapZoom ? 'zoom' : ''}"></div></div>
     <div class="mapkey"><span><i class="kd you"></i>You</span><span><i class="kd open"></i>Open now</span><span><i class="kd shut"></i>Closed</span></div>
-    <p class="muted" style="margin:4px 2px 0">${which === here ? '' : 'You aren’t in this area right now. '}${which === 'farm' ? 'The road on the right leads to Bethlehem.' : 'The road on the left leads home to your farm. Mount Sinai and the Jordan aren’t open yet.'}</p>`;
+    <p class="muted" style="margin:4px 2px 0">${which === here ? '' : 'You aren’t in this area right now. '}${which === 'farm' ? 'The road on the right leads to Bethlehem.' : which === 'jordan' ? 'Fish in the river or out in the bay. The biggest fish bite at the end of the dock.' : 'The road on the left leads home to your farm, and the road south goes to the Jordan. Mount Sinai isn’t open yet.'}</p>`;
   b.querySelectorAll('[data-mv]').forEach(el => el.onclick = () => { sfx.tap(); mapTab(b, el.dataset.mv) });
   $('#mZoom').onclick = () => { sfx.tap(); mapZoom = !mapZoom; mapTab(b, which) };
   const inner = b.querySelector('.mapinner'), art = renderMapArt(which); art.className = 'mapart'; inner.appendChild(art);
@@ -543,7 +544,10 @@ function mapTab(b, which) {
     const T = World.maps.town;
     const names = { synagogue: ['⛪', 'Church'], smithy: ['⚒️', 'Blacksmith', 'smithy'], inn: ['🍞', 'Inn', 'inn'], carpenter: ['🪚', 'Carpenter', 'carpenter'], stall_blue: ['🧺', 'Market', 'market'], well: ['💧', 'Well'] };
     for (let i = 0; i < W * H; i++) { const o = T.objs[i]; if (o && o.t === 'bld' && names[o.k]) { const x = i % W, y = (i / W) | 0, [ic, n, shop] = names[o.k], sp = AT[BLD[o.k][0]][0]; lab(`${shop ? status(shop) : ''}${ic} ${n}`, x + BLD[o.k][1] / 2, y + 1 - sp.height / 16 - .2) } }
-    lab('↑ Mount Sinai <small>(soon)</small>', 25, 2.2, 'road'); lab('↓ The Jordan <small>(soon)</small>', 36, H - 1.2, 'road'); lab('← Your farm', .4, 26.4, 'road left');
+    lab('↑ Mount Sinai <small>(soon)</small>', 25, 2.2, 'road'); lab('↓ The Jordan', 34.5, H - .4, 'road'); lab('← Your farm', .4, 26.4, 'road left');
+  } else if (which === 'jordan') {
+    lab('↑ Bethlehem', 34.5, 2.6, 'road'); lab('🌊 Jordan River', 47, 9); lab('Stream', 9, 9, 'sm'); lab('🐟 Galilee Bay', 46, 47);
+    lab('⚓ Dock', 30.5, 46.6); lab('🏠 Peter’s hut', JORDAN.hut[0], JORDAN.hut[1] - 3.4, 'sm'); lab('🌉 Bridge', 37.8, 24.4, 'sm');
   } else {
     const F = World.maps.farm, Tn = World.TENT; let home = ['⛺', 'Tent'], wx = 0, wy = 0, wn = 0;
     for (let i = 0; i < W * H; i++) { const o = F.objs[i], x = i % W, y = (i / W) | 0;

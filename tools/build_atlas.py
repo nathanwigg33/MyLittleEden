@@ -147,13 +147,68 @@ E['ic_fiber'] = trim(tile(27, 1))
 E['ic_sap'] = None
 E['coin'] = trim(gm('spr_deco_coin')) if glob.glob(GM+'spr_deco_coin/*.png') else None
 
+# ---------- fishing: boat, ducks, rod and fish ----------
+EL = A + 'Elements/'
+E['coracle'] = trimset(strip(EL + 'Other/spr_deco_coracle_strip4.png', 4))
+E['duck'] = trimset(strip(EL + 'Animals/spr_deco_duck_01_strip4.png', 4))
+E['ic_rod'] = trim(Image.open(A + 'UI/rod.png').convert('RGBA'))
+def fish_icon(body, belly, back, fin, pattern=None, size=(14, 7), tail=4):
+    """a little side-on pixel fish, 16 x 12, facing left, with an ink outline"""
+    W, H = 20, 13; im = Image.new('RGBA', (W, H)); P = im.load(); bw, bh = size; x0, y0 = 1, (H - bh) // 2
+    ink = (40, 28, 30, 255); inside = set()
+    for y in range(bh):
+        for x in range(bw):
+            nx, ny = (x + .5 - bw / 2) / (bw / 2), (y + .5 - bh / 2) / (bh / 2)
+            if nx * nx + ny * ny * (1 + .35 * max(0, nx)) <= 1: inside.add((x0 + x, y0 + y))
+    cy = y0 + bh // 2
+    for k in range(tail):                                         # tail fan
+        for y in range(cy - 1 - k, cy + 1 + k): inside.add((x0 + bw - 1 + k, y))
+    for k in range(3): inside.add((x0 + bw // 2 - 1 + k, y0 - 1))      # dorsal fin
+    for (x, y) in inside:
+        rel = (y - y0) / max(1, bh - 1)
+        c = back if rel < .3 else belly if rel > .7 else body
+        if x >= x0 + bw - 1 or y == y0 - 1: c = fin
+        P[x, y] = c + (255,)
+    if pattern == 'stripes':
+        for x in range(x0 + 4, x0 + bw - 2, 3):
+            for y in range(y0, y0 + bh):
+                if (x, y) in inside: P[x, y] = back + (255,)
+    if pattern == 'spots':
+        for (x, y) in [(x0 + 5, y0 + 2), (x0 + 8, y0 + 1), (x0 + 10, y0 + 3), (x0 + 7, y0 + 4)]:
+            if (x, y) in inside: P[x, y] = back + (255,)
+    if pattern == 'whiskers': P[x0, cy + 1] = ink; P[x0 - 1 if x0 else 0, cy + 2] = ink
+    out = Image.new('RGBA', (W, H))
+    for (x, y) in inside:
+        for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+            q = (x + dx, y + dy)
+            if q not in inside and 0 <= q[0] < W and 0 <= q[1] < H: out.putpixel(q, ink)
+    out.alpha_composite(im); o = out.load()
+    o[x0 + 2, cy - 1] = (255, 255, 255, 255); o[x0 + 2, cy] = ink        # eye
+    return out
+FISH_ART = {
+    'sardine': ((150, 180, 200), (225, 235, 240), (70, 110, 150), (110, 140, 170), None, (11, 5), 3),
+    'carp': ((190, 150, 70), (235, 210, 140), (120, 90, 40), (200, 120, 60), None, (13, 7), 4),
+    'tilapia': ((140, 150, 130), (210, 210, 190), (80, 90, 80), (170, 90, 80), 'stripes', (12, 8), 4),
+    'perch': ((150, 170, 70), (230, 220, 150), (70, 90, 40), (220, 110, 50), 'stripes', (12, 7), 4),
+    'barbel': ((170, 140, 100), (230, 210, 170), (110, 85, 55), (190, 130, 90), 'spots', (13, 6), 4),
+    'catfish': ((100, 95, 90), (170, 160, 150), (55, 52, 50), (80, 75, 70), 'whiskers', (13, 7), 3),
+    'mullet': ((160, 170, 180), (230, 232, 236), (90, 100, 115), (130, 140, 150), 'stripes', (13, 6), 4),
+    'bream': ((210, 170, 90), (245, 230, 190), (160, 110, 60), (230, 150, 60), None, (11, 9), 4),
+    'bigfish': ((70, 110, 170), (190, 210, 230), (40, 60, 110), (240, 190, 70), 'spots', (14, 9), 2),
+}
+for k, a in FISH_ART.items(): E["fish_" + k] = trim(fish_icon(*a))
+sd = Image.new('RGBA', (14, 12)); d = ImageDraw.Draw(sd)            # an old sandal
+d.rounded_rectangle([1, 3, 12, 9], 3, fill=(58, 34, 20, 255)); d.rounded_rectangle([2, 4, 11, 8], 2, fill=(160, 110, 60, 255)); d.line([(4, 3), (6, 8)], fill=(90, 55, 30, 255)); d.line([(8, 3), (6, 8)], fill=(90, 55, 30, 255))
+E['fish_sandal'] = sd
+
 # ---------- character layers ----------
 TAG = {}
 for t in ASE['tags']: TAG[t[0]] = t
 def fr(f, names): return render(ASE, f, only=lambda L: L['name'] in names)
 HAIRS = ['short hair', 'long hair', 'curly hair', 'bowl hair', 'mop hair', 'spikey hair']
 ANIMS = [('idle_s', 'idle-s'), ('idle_n', 'idle-n'), ('idle', 'idle'), ('walk_s', 'walk-s'), ('walk_n', 'walk-n'), ('walk', 'walk'),
-         ('axe', 'axe'), ('mining', 'mining'), ('attack', 'attack'), ('doing', 'doing'), ('watering', 'watering'), ('dig', 'dig')]
+         ('axe', 'axe'), ('mining', 'mining'), ('attack', 'attack'), ('doing', 'doing'), ('watering', 'watering'), ('dig', 'dig'),
+         ('casting', 'casting'), ('waiting', 'waiting'), ('reeling', 'reeling'), ('caught', 'caught')]
 CH = {}
 for key, tag in ANIMS:
     t = TAG[tag]; frames = list(range(t[1], t[2]+1))

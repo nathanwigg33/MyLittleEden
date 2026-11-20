@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-Object.assign(ITEMS, farmItems(), townItems());
+Object.assign(ITEMS, farmItems(), townItems(), fishItems());
 const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
@@ -83,6 +83,7 @@ function interactTarget() {
 }
 async function action() {
   if (player.act || dlgOpen || sleeping || paused) return;
+  if (fishing) { fishAction(); return }
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   const it = interactTarget();
   if (it) {
@@ -100,6 +101,7 @@ async function action() {
   if (item && item.food) { eat(state.sel); return }
   if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
+  if (tool === 'rod') { startFishing(); return }
   let cell = null, cost = TOOL_COST[tool];
   if (tool === 'hoe' || tool === 'can') { cell = toolCell(item); if (cell) faceToward(cell.x, cell.y); if (tool === 'can' && cell && isWater(cell.x, cell.y)) cost = 0 }
   if (state.energy < cost) { toast('Too tired… go to your tent and sleep.'); sfx.no(); return }
@@ -218,7 +220,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function travel(map, x, y, dir) {
   if (sleeping) return; sleeping = true; const f = $('#fade'); f.style.transition = 'opacity .3s'; f.classList.add('on'); await wait(320);
   useMap(map); player.x = x; player.y = y; player.dir = dir || (map === 'town' ? 'r' : 'l'); drops = []; snapCam();
-  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : state.look.farm);
+  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : state.look.farm);
 }
 
 // ---------- saving ----------
@@ -385,7 +387,8 @@ function update(dt) {
   if (keys.a || keys.arrowleft) mx--; if (keys.d || keys.arrowright) mx++; if (keys.w || keys.arrowup) my--; if (keys.s || keys.arrowdown) my++;
   if (joy && Math.hypot(joy.dx, joy.dy) > .18) { mx = joy.dx; my = joy.dy }
   const act = player.act;
-  if (act) {
+  if (fishing && !((mx || my) && ['cast', 'wait', 'bite'].includes(fishing.phase) && stopFishing())) { updateFishing(dt); player.moving = false }
+  else if (act) {
     act.t += dt; if (!act.hit && act.t >= act.dur * act.hitAt) { act.hit = true; hit(act.tool, act) } if (act.t >= act.dur) player.act = null;
   } else if (mx || my) {
     const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l }
@@ -402,6 +405,8 @@ function update(dt) {
   checkDoors();
   if (World.cur === 'farm' && player.x > W - 1.3) travel('town', TOWN.entry.x + 1.5, TOWN.entry.y + 1);
   else if (World.cur === 'town' && player.x < 1.3) travel('farm', W - 2.4, World.EXIT.y + 1);
+  else if (World.cur === 'town' && player.y > H - 1.2) travel('jordan', clamp(player.x, 34.3, 35.7), 1.6, 's');
+  else if (World.cur === 'jordan' && player.y < 1.1) travel('town', clamp(player.x, 34.3, 35.7), H - 1.8, 'n');
   camFollow(dt);
 }
 
@@ -454,7 +459,8 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1) }
+  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1);
+    for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge')) drawFloorObj(bx, o, x, y) } }
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
     const s = selItem(), it = s && ITEMS[s.id], tool = it && it.tool, t = interactTarget() || harvestTarget() || toolCell(it) || (tool && tool !== 'hoe' && tool !== 'can' && findTarget(tool));
@@ -462,7 +468,7 @@ function render() {
   }
   // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
-  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part') D.push([y + (o.t === 'grass' ? .4 : .9), 0, o, x, y]) }
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part' && o.t !== 'dock' && o.t !== 'bridge') D.push([y + (o.t === 'grass' ? .4 : o.t === 'duck' || o.t === 'coracle' ? .1 : .9), 0, o, x, y]) }
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const n of npcs) if (n.map === World.cur) D.push([n.y, 5, n]);
@@ -503,10 +509,12 @@ function drawPlayer(g) {
   const p = player, fx = p.x * 16, fy = p.y * 16;
   g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill();
   let anim, fr = 0, flip = false;
-  if (p.act) { anim = p.act.anim; fr = Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim]); flip = p.side < 0 }
+  if (fishing) { [anim, fr] = fishAnim(); flip = p.side < 0 }
+  else if (p.act) { anim = p.act.anim; fr = Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim]); flip = p.side < 0 }
   else if (p.moving) { anim = p.dir === 'n' ? 'walk_n' : p.dir === 's' ? 'walk_s' : 'walk'; fr = Math.floor(p.at * 12); flip = p.dir === 'l' }
   else { anim = p.dir === 'n' ? 'idle_n' : p.dir === 's' ? 'idle_s' : 'idle'; fr = Math.floor(GT * 6); flip = p.dir === 'l' }
   drawChar(g, look, anim, fr, fx, fy, flip, true);
+  drawFishing(g);
 }
 
 // ---------- title / start ----------
@@ -535,7 +543,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

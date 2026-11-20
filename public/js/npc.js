@@ -25,6 +25,9 @@ const VILLAGERS = [
   { id: 'joseph', name: 'Joseph', role: 'Carpenter', shop: 'carpenter', spot: [15.5, 36.2], roam: 1, look: { hair: 'short', hairCol: 2, skin: 2, shirt: 6, pants: 2 },
     lines: ['A good house starts with good timber. Bring me wood and stone and I’ll build you anything.', '“Except the LORD build the house, they labour in vain that build it.” Psalm 127:1', 'Measure twice, cut once. My father taught me that.', 'My family comes from the line of David, like many here in Bethlehem.', 'A barn full of animals is a happy barn. A coop too!'],
     warm: ['Your farm is coming along nicely. I’d like to see it someday.', 'Every beam I set, I set to last a lifetime. Yours too.'] },
+  { id: 'peter', name: 'Peter', role: 'Fisherman', spot: [32.5, 36], roam: 1.2, look: { hair: 'curly', hairCol: 1, skin: 3, shirt: 3, pants: 1 },
+    lines: ['I’ve fished these waters since I was a boy. Some nights we caught nothing at all. Other mornings the nets nearly broke!', 'Catfish only come out after dark. Try the river at night.', 'The bay has bigger fish. The river has tastier ones. My opinion, anyway.', 'Old fishermen say a Great Fish lives out past the end of my dock.', 'Throw your line on the other side of the boat sometimes. You never know.', 'Sardines are easy. Sea bream are tricky, and only come in summer and autumn.'],
+    warm: ['You’ve got patience. That’s the whole secret of fishing.', 'You’re becoming a real fisher, friend. I’m proud of you.'] },
 ];
 const npcs = [];   // live villagers on the town map
 function initVillagers() {
@@ -44,6 +47,7 @@ function villagerHome(n, k) {
   if (n.v.id === 'jesse' && shopOpen('smithy')) return ['smithy', 32.5, 25.2, .9];          // behind his counter
   if (n.v.id === 'joseph' && shopOpen('carpenter')) return ['carpenter', 32.5, 25.2, .9];    // behind his planning table
   if (n.v.id === 'miriam' && shopOpen('inn')) return ['inn', 32, 24.2, 1];                    // behind her bar
+  if (n.v.id === 'peter') return villagersOut() ? ['jordan', JORDAN.dock[0], JORDAN.dock[1], 1.2] : ['away', 0, 0, 0];
   const P = INN_GUESTS[n.v.id]; if (P && state.time >= 19 * 60 && state.time < 22 * 60) return ['inn', P[0], P[1], 0];   // supper at the inn
   if (!villagersOut()) return ['away', 0, 0, 0];
   return ['town', n.v.spot[0], n.v.spot[1], n.v.roam];
@@ -82,6 +86,7 @@ async function talkTo(n) {
   await say(text, null, { name: v.name, frames: n.frames });
   if (first && heartsOf(v.id) > Math.floor((f.pts - (isSabbath() ? 8 : 5)) / 20)) { toast(`${v.name} likes you more! ♥ ${heartsOf(v.id)}`); sfx.pick() }
   n.talking = false; n.wait = 1.5;
+  if (v.id === 'peter') await peterGift();
   if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter })[v.shop]();
 }
 function drawVillager(g, n) {
