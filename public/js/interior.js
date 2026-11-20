@@ -550,7 +550,7 @@ function mapTab(b, which) {
     lab('↑ Bethlehem', 34.5, 2.6, 'road'); lab('🌊 Jordan River', 26, 9.6); lab('Creek', 57, 9.8, 'sm'); lab('🐟 Galilee Bay', 50, 48);
     lab('⚓ Dock', 30.5, 46.6); lab('↓ Open sea', 34, H - .4, 'road'); lab('🏠 Peter’s hut', JORDAN.hut[0], JORDAN.hut[1] - 3.4, 'sm');
   } else if (which === 'sea') {
-    lab('↑ Galilee Bay', 34, 2.4, 'road'); lab('🐟 Offshore', 40, 12, 'sm'); lab('🌊 The Deep Sea', 33, 33); lab('🏝️ Gull Island', 14, 8.6); lab('Lighthouse', 51, 38.4, 'sm');
+    lab('↑ Galilee Bay', 34, 2.4, 'road'); lab('🐟 Offshore', 31, 14, 'sm'); lab('🌊 The Deep Sea', 33, 33); lab('🏝️ Gull Island', 14, 7.8); lab('🏝️ Cove Island', 49, 2.8); lab('Lagoon', 50, 13.4, 'sm'); lab('Lighthouse', 51, 38.4, 'sm');
   } else {
     const F = World.maps.farm, Tn = World.TENT; let home = ['⛺', 'Tent'], wx = 0, wy = 0, wn = 0;
     for (let i = 0; i < W * H; i++) { const o = F.objs[i], x = i % W, y = (i / W) | 0;

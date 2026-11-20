@@ -66,29 +66,59 @@ const SEA = { deep: null };
 function seaDepth(x, y) { return Math.hypot((x - 33) / 21, (y - 36) / 13) + (hash(x >> 1, y >> 1) - .5) * .18 }   // under 1 = deep sea
 function genSea() {
   const g = World.ground = new Uint8Array(W * H).fill(WATER), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
-  // an island: sandy beach all round, grass in the middle (whole cells only)
-  const island = (cx, cy, rx, ry, grassy) => {
-    for (let y = Math.floor(cy - ry - 2); y <= Math.ceil(cy + ry + 2); y++) for (let x = Math.floor(cx - rx - 2); x <= Math.ceil(cx + rx + 2); x++) {
-      if (!inb(x, y)) continue; const d = Math.hypot((x + .5 - cx) / rx, (y + .5 - cy) / ry) + (hash(x * 3, y * 5) - .5) * .22;
-      if (d < 1) g[idx(x, y)] = grassy && d < .68 ? GRASS : DIRT;
-    }
-  };
-  island(14, 15, 8, 5.6, true);      // Gull Island
-  island(51, 44, 3, 2.4, false);     // the lighthouse islet
+  // islands are drawn tile by tile:  ~ water  . sand  , grass   on grass: O oak  T olive  P cypress  B bush  g tall grass  H hut
+  //                                  on sand: R rock  b boulder  W old boat  C campfire  X crate  S sign  d driftwood   D dock over water
+  const stamp = (x0, y0, rows) => rows.forEach((row, r) => [...row].forEach((ch, c) => {
+    const x = x0 + c, y = y0 + r; if (!inb(x, y)) return; const i = idx(x, y);
+    g[i] = ch === '~' || ch === 'D' ? WATER : '.RbWCXSd'.includes(ch) ? DIRT : GRASS;
+    const put = { O: { t: 'wild', k: 'oak' }, T: { t: 'wild', k: 'olive' }, P: { t: 'wild', k: 'tree2' }, B: { t: 'bush', v: 0 }, g: { t: 'grass', v: (x * y) % 4 }, R: { t: 'rock' }, b: { t: 'boulder' },
+      W: { t: 'wreck' }, C: { t: 'campfire' }, X: { t: 'crate', camp: 1 }, d: { t: 'twig' }, D: { t: 'dock' }, S: { t: 'sign', text: '' } }[ch];
+    if (put) o[i] = Object.assign({ v: (x + y) % 4 }, put);
+  }));
+  // Gull Island: a round island with a grassy middle, a fishing camp on the south beach and a pier for your boat
+  stamp(5, 8, [
+    '~~~~~~~.....~~~~~~~',
+    '~~~~.....S.....~~~~',
+    '~~~...,,,,,,,....~~',
+    '~~..,,O,,,,P,,,...~',
+    '~..,,,,,,B,,,,T,,.~',
+    '~.,,T,,g,,,,,,,,,.~',
+    '..,,,,,,,,,O,,g,,..',
+    '.W.,,B,,,,,,,,,,..~',
+    '~..,,,,,P,,,,B,,.R~',
+    '~~..,,g,,,,,,,,..~~',
+    '~~~...,,,,,,,....~~',
+    '~~~~.C.X....d...~~~',
+    '~~~~~~~.....~~~~~~~',
+    '~~~~~~~~~D~~~~~~~~~',
+    '~~~~~~~~~D~~~~~~~~~',
+    '~~~~~~~~~D~~~~~~~~~']);
+  o[idx(14, 9)].text = 'Gull Island. Fishermen camp here on long trips. Look for seashells on the beach.';
+  o[idx(14, 23)].end = true; SEA.pier = [15.6, 22.6];
+  // Cove Island: a horseshoe of land around a calm lagoon you can row into, with a little hut
+  stamp(39, 3, [
+    '~~~~~~~......~~~~~~~~',
+    '~~~~..S..,,,,....~~~~',
+    '~~~..,,,P,,,,,O,,..~~',
+    '~~..,,,,,,,,B,,,,,..~',
+    '~..,,O,,,,,,,,,P,,..~',
+    '~.,,,,,,,,,,,,,,,,b.~',
+    '..,,P,,,,~~D~~,,,,,.~',
+    '.,,g,,,.~~~D~~~.,,,..',
+    '..,,,,..~~~~~~~~.,P..',
+    '~.,B,,.~~~~~~~~~.,,.~',
+    '~..,,..~~~~~~~~~..g.~',
+    '~~.R..~~~~~~~~~~~...~',
+    '~~~..~~~~~~~~~~~~~.d~',
+    '~~~~~~~~~~~~~~~~~~~~~']);
+  o[idx(45, 4)].text = 'Cove Island. The lagoon is calm, even on windy days.';
+  o[idx(50, 10)].end = true;
+  placeBld(46, 7, 'houseD');                         // the hut, standing on the grass north of the lagoon
+  // the lighthouse on its rocky islet
+  for (let y = 41; y <= 47; y++) for (let x = 47; x <= 55; x++) if (Math.hypot((x + .5 - 51) / 3.4, (y + .5 - 44.2) / 2.6) + (hash(x * 3, y * 5) - .5) * .2 < 1) g[idx(x, y)] = DIRT;
   SEA.deep = new Uint8Array(W * H); for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) SEA.deep[idx(x, y)] = g[idx(x, y)] === WATER && seaDepth(x, y) < 1 ? 1 : 0;
-  // Gull Island: trees and bushes inland, a pier on the south side, an old boat and a campsite on the sand
-  for (const [x, y, k] of [[11, 12, 'olive'], [15, 11, 'tree2'], [18, 13, 'olive'], [9, 15, 'oak'], [17, 16, 'tree2'], [13, 13, 'oak']]) if (g[idx(x, y)] === GRASS) o[idx(x, y)] = { t: 'wild', k, v: (x + y) % 4 };
-  for (const [x, y] of [[12, 16], [16, 14], [10, 13], [19, 15]]) if (g[idx(x, y)] === GRASS && !o[idx(x, y)]) o[idx(x, y)] = { t: 'bush', v: 0 };
-  for (const [x, y] of [[14, 14], [11, 17], [18, 11], [15, 17]]) if (g[idx(x, y)] === GRASS && !o[idx(x, y)]) o[idx(x, y)] = { t: 'grass', v: (x * y) % 4 };
-  let py = 15; while (g[idx(14, py + 1)] !== WATER) py++;                       // pier from the south beach out into the water
-  for (let y = py; y <= py + 3; y++) o[idx(14, y)] = { t: 'dock', end: y === py + 3 };
-  SEA.pier = [15.6, py + 2.6];
-  o[idx(8, 17)] = { t: 'wreck' }; o[idx(20, 17)] = { t: 'campfire' }; o[idx(21, 16)] = { t: 'crate', camp: 1 };
-  o[idx(7, 14)] = { t: 'rock' }; o[idx(21, 13)] = { t: 'rock' }; o[idx(19, 18)] = { t: 'twig' };
-  o[idx(15, 9)] = { t: 'sign', text: 'Gull Island. Fishermen camp here on long trips. Look for seashells on the beach.' };
-  // the lighthouse
   o[idx(51, 43)] = { t: 'lighthouse' }; o[idx(49, 44)] = { t: 'boulder' }; o[idx(53, 45)] = { t: 'rock' };
-  for (const [x, y] of [[26, 5], [46, 9], [6, 30]]) o[idx(x, y)] = { t: 'duck', v: 1 };
+  for (const [x, y] of [[28, 6], [52, 12], [6, 30]]) o[idx(x, y)] = { t: 'duck', v: 1 };
   spawnShells();
 }
 // seashells wash up on the island beaches each day
