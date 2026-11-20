@@ -242,3 +242,18 @@ button{font:inherit;cursor:pointer}
 @keyframes fgg{0%{box-shadow:0 0 0 4px #6fdc4f}100%{box-shadow:none}}@keyframes fgb{0%,100%{transform:none}25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 #fishgame .fg-pips{display:flex;gap:6px;justify-content:center;margin:8px 0 2px}#fishgame .fg-pips i{width:14px;height:14px;border-radius:50%;border:2px solid #5b2e12;background:#fff}#fishgame .fg-pips i.on{background:#e8a33a}
 #fishgame .fg-hint{font-size:13px;color:#7a4a28;min-height:16px}
+#catchpop{position:fixed;inset:0;z-index:31;display:flex;align-items:center;justify-content:center;background:rgba(10,20,30,.35);animation:cpfade .2s}
+#catchpop .cp-card{position:relative;width:min(280px,80vw);background:#f6ead0;border:3px solid #5b2e12;border-radius:12px;box-shadow:0 6px 0 #3a1c0a,0 12px 30px rgba(0,0,0,.45);padding:18px 16px 14px;text-align:center;animation:cppop .35s cubic-bezier(.2,1.6,.4,1)}
+#catchpop .cp-badge{position:absolute;top:-14px;left:50%;transform:translateX(-50%) rotate(-3deg);background:#e8392a;color:#fff;font:700 14px 'Pixelify Sans',monospace;padding:3px 12px;border-radius:6px;border:2px solid #7a1a10;white-space:nowrap}
+#catchpop .cp-pic{width:150px;height:110px;margin:4px auto 8px;border-radius:10px;background:radial-gradient(circle,#bfe3f5 0,#7fbfe0 70%);border:3px solid #5b2e12;display:flex;align-items:center;justify-content:center}
+#catchpop .cp-pic img{width:112px;height:auto;image-rendering:pixelated;animation:cpwig 1.4s ease-in-out infinite}
+#catchpop .cp-name{font:700 22px 'Pixelify Sans',monospace;color:#5b2e12}
+#catchpop .cp-sub{color:#7a4a28;margin:6px 0 10px}
+#catchpop .cp-stats{display:flex;justify-content:center;gap:10px;margin:8px 0 12px}
+#catchpop .cp-stats div{background:#fff7e2;border:2px solid #c9a46a;border-radius:8px;padding:5px 14px;display:flex;flex-direction:column;align-items:center;min-width:76px}
+#catchpop .cp-stats b{font:700 18px 'Pixelify Sans',monospace;color:#3a2414}#catchpop .cp-stats span{font-size:11px;color:#8a6a48}
+#catchpop .btn{min-width:120px}
+@keyframes cppop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}@keyframes cpfade{0%{opacity:0}}
+@keyframes cpwig{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
+
+*{font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0}

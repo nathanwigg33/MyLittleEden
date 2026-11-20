@@ -22,7 +22,9 @@ function genJordan() {
   // Galilee Bay along the bottom, with a sandy beach above it
   for (let x = 0; x < W; x++) { const s = shoreY(x); for (let y = s; y < H; y++) g[idx(x, y)] = WATER; for (let y = s - 3 - (hash(x, 9) > .5 ? 1 : 0); y < s; y++) if (g[idx(x, y)] === GRASS) g[idx(x, y)] = DIRT }
   // the road down from Bethlehem, with a bridge where it crosses the river
-  for (let y = 0; y < shoreY(34) - 1; y++) for (const x of [34, 35]) { if (g[idx(x, y)] === WATER) o[idx(x, y)] = { t: 'bridge' }; else g[idx(x, y)] = DIRT }
+  const wet = []; for (let y = 0; y < shoreY(34) - 1; y++) for (const x of [34, 35]) { if (g[idx(x, y)] === WATER) wet.push(y); else g[idx(x, y)] = DIRT }
+  const by0 = Math.min(...wet) - 1, by1 = Math.max(...wet) + 1;
+  for (let y = by0; y <= by1; y++) for (const x of [34, 35]) o[idx(x, y)] = { t: 'bridge', side: x === 34 ? -1 : 1, end: y === by0 ? 'top' : y === by1 ? 'bot' : '' };
   for (const x of [33, 36]) for (let y = 0; y < 3; y++) g[idx(x, y)] = DIRT;
   // the dock: out from the beach into the bay, with a wider end
   const d0 = shoreY(30) - 2;
@@ -54,15 +56,15 @@ function genJordan() {
 // ---------- fish ----------
 // where: pond (your farm), river, bay · diff 0 = junk (no reeling)
 const FISH = {
-  sardine: { n: 'Sardine', price: 18, diff: 1, where: ['bay'], w: 10, cm: [12, 20] },
-  carp: { n: 'Carp', price: 30, diff: 1, where: ['pond', 'river'], w: 10, cm: [25, 60] },
-  perch: { n: 'Perch', price: 36, diff: 2, where: ['pond'], w: 6, cm: [15, 35] },
-  tilapia: { n: 'St. Peter’s Fish', price: 55, diff: 2, where: ['bay', 'river'], w: 6, cm: [20, 40] },
-  barbel: { n: 'Jordan Barbel', price: 48, diff: 2, where: ['river'], w: 7, cm: [25, 55] },
-  catfish: { n: 'Catfish', price: 80, diff: 3, where: ['river', 'pond'], w: 5, night: true, cm: [40, 110] },
-  mullet: { n: 'Mullet', price: 62, diff: 3, where: ['bay'], w: 5, cm: [25, 50] },
-  bream: { n: 'Sea Bream', price: 95, diff: 4, where: ['bay'], w: 3, seasons: [1, 2], cm: [25, 45] },
-  bigfish: { n: 'Great Fish', price: 600, diff: 5, where: ['bay'], w: 0, cm: [180, 320] },
+  sardine: { n: 'Sardine', price: 18, diff: 1, where: ['bay'], w: 10, lb: [.1, .3], cm: [12, 20] },
+  carp: { n: 'Carp', price: 30, diff: 1, where: ['pond', 'river'], w: 10, lb: [2, 14], cm: [25, 60] },
+  perch: { n: 'Perch', price: 36, diff: 2, where: ['pond'], w: 6, lb: [.3, 1.6], cm: [15, 35] },
+  tilapia: { n: 'St. Peter’s Fish', price: 55, diff: 2, where: ['bay', 'river'], w: 6, lb: [.5, 3], cm: [20, 40] },
+  barbel: { n: 'Jordan Barbel', price: 48, diff: 2, where: ['river'], w: 7, lb: [1, 8], cm: [25, 55] },
+  catfish: { n: 'Catfish', price: 80, diff: 3, where: ['river', 'pond'], w: 5, night: true, lb: [3, 25], cm: [40, 110] },
+  mullet: { n: 'Mullet', price: 62, diff: 3, where: ['bay'], w: 5, lb: [1, 6], cm: [25, 50] },
+  bream: { n: 'Sea Bream', price: 95, diff: 4, where: ['bay'], w: 3, seasons: [1, 2], lb: [1, 5], cm: [25, 45] },
+  bigfish: { n: 'Great Fish', price: 600, diff: 5, where: ['bay'], w: 0, lb: [150, 400], cm: [180, 320] },
   sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'bay'], w: 1.2, junk: 1 },
 };
 function fishItems() {
@@ -74,33 +76,32 @@ function fishItems() {
 // ---------- fishing ----------
 let fishing = null;
 const isNight = () => state.time >= 18 * 60 || state.time < 5 * 60;
-function waterAhead() {
-  const [dx, dy] = faceVec();
-  for (let d = 1; d <= 4; d++) {
-    const x = Math.floor(player.x + dx * d), y = Math.floor(player.y - .2 + dy * d * .9);
-    if (!inb(x, y)) return null;
-    const o = World.objs[idx(x, y)], wet = World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge'));
-    if (wet) { const x2 = x + dx, y2 = y + dy; return inb(x2, y2) && World.ground[idx(x2, y2)] === WATER && d < 3 ? { x: x2, y: y2 } : { x, y } }
-    if (World.solid(x, y) && !(o && (o.t === 'dock' || o.t === 'bridge'))) return null;
-  }
-  return null;
+// the fishing animations draw the line themselves; it always lands this far from your feet (pixels), to the side you face
+const LINE_END = [29.5, 21];
+function lineSpot(side) {
+  const wx = player.x + side * LINE_END[0] / 16, wy = player.y + LINE_END[1] / 16, x = Math.floor(wx), y = Math.floor(wy);
+  if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
+  return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
 }
 function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'bay' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside()) { sfx.no(); return }
-  const c = waterAhead(); if (!c) { toast('Face the water to cast your line.'); sfx.no(); return }
+  // cast to the side you face; facing up or down, try the side you last faced, then the other
+  const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)];
+  let side = 0, c = null; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } }
+  if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
   if (state.energy < 2) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
-  state.energy -= 2; if (player.dir === 'l' || player.dir === 'r') player.side = player.dir === 'l' ? -1 : 1;
-  fishing = { phase: 'cast', t: 0, tx: c.x + .5, ty: c.y + .55, where: fishWhere(c) }; sfx.swish();
+  state.energy -= 2; player.side = side; player.dir = side < 0 ? 'l' : 'r';
+  fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, where: fishWhere(c) }; sfx.swish();
 }
-function stopFishing() { fishing = null; const fg = $('#fishgame'); if (fg) fg.remove(); return true }
+function stopFishing() { fishing = null; for (const id of ['#fishgame', '#catchpop']) { const el = $(id); if (el) el.remove() } return true }
 function chooseFish() {
   const f = fishing, pool = [];
   for (const k in FISH) {
     const d = FISH[k]; if (!d.where.includes(f.where)) continue;
     let w = d.w; if (d.night && !isNight()) w = 0; if (d.seasons && !d.seasons.includes(state.season)) w = 0;
-    if (k === 'bigfish') w = onDockEnd() ? .6 : .03;
+    if (k === 'bigfish') w = f.where === 'bay' ? (onDockEnd() ? .6 : .03) : 0;
     if (w > 0) pool.push([k, w]);
   }
   let r = Math.random() * pool.reduce((a, p) => a + p[1], 0); for (const [k, w] of pool) { r -= w; if (r <= 0) return k } return pool[0][0];
@@ -110,16 +111,17 @@ function fishAction() {
   if (f.phase === 'wait') { stopFishing(); sfx.swish(); return }                      // reel in early
   if (f.phase === 'bite') { f.fish = chooseFish(); if (FISH[f.fish].junk) catchIt(); else startReel(); return }
   if (f.phase === 'game') reelTap();
+  if (f.phase === 'show') closeCatch();
 }
 function updateFishing(dt) {
   const f = fishing; f.t += dt;
-  if (f.phase === 'cast' && f.t >= 1) { f.phase = 'wait'; f.t = 0; f.biteAt = rnd(1.6, 5.5); sfx.splash(); ripple(f.tx, f.ty) }
+  if (f.phase === 'cast') { if (f.t >= .72 && !f.splashed) { f.splashed = 1; sfx.splash(); ripple(f.tx, f.ty) } if (f.t >= 1) { f.phase = 'wait'; f.t = 0; f.biteAt = rnd(1.6, 5.5) } }
   else if (f.phase === 'wait' && f.t >= f.biteAt) { f.phase = 'bite'; f.t = 0; sfx.pop(); ripple(f.tx, f.ty) }
   else if (f.phase === 'bite' && f.t >= .95) { toast('It got away…'); stopFishing() }
-  else if (f.phase === 'game') reelUpdate(dt);
-  else if (f.phase === 'caught' && f.t >= 1.4) stopFishing();
+  else if (f.phase === 'game') { reelUpdate(dt); if (Math.random() < dt * 4) ripple(f.tx + rnd(-.2, .2), f.ty) }
+  else if (f.phase === 'caught') { if (f.t >= .4 && !f.yanked) { f.yanked = 1; sfx.splash(); ripple(f.tx, f.ty); ripple(f.tx, f.ty) } if (f.t >= 1.55) showCatch() }
 }
-function ripple(x, y) { for (let k = 0; k < 6; k++) parts.push({ x: x + rnd(-.2, .2), y, z: .1, vx: rnd(-.8, .8), vy: rnd(-.3, .3), vz: rnd(1, 2), col: '#d8f0ff', life: rnd(.3, .6) }) }
+function ripple(x, y) { for (let k = 0; k < 7; k++) parts.push({ x: x + rnd(-.2, .2), y, z: .1, vx: rnd(-.8, .8), vy: rnd(-.3, .3), vz: rnd(1, 2), col: '#d8f0ff', life: rnd(.3, .6) }) }
 
 // the reeling game: a hook swings along a bar; tap when it's over the green
 function startReel() {
@@ -151,33 +153,50 @@ function reelTap() {
   reelDraw();
 }
 function catchIt() {
-  const f = fishing, k = f.fish, d = FISH[k]; f.phase = 'caught'; f.t = 0;
+  const f = fishing, k = f.fish, d = FISH[k]; f.phase = 'caught'; f.t = 0; sfx.pick();
+  f.lb = d.lb ? Math.round(rnd(d.lb[0], d.lb[1]) * (d.lb[1] < 1 ? 100 : 10)) / (d.lb[1] < 1 ? 100 : 10) : 0;
   const left = addItem('fish_' + k, 1); if (left) drop('fish_' + k, 1, player.x, player.y + .4);
-  sfx.pick(); setTimeout(() => sfx.pop(), 120);
   state.stats.fish = (state.stats.fish || 0) + 1; const log = state.fishLog = state.fishLog || {};
-  if (d.junk) { toast(`You reeled in… an ${d.n.toLowerCase()}.`); return }
-  const cm = Math.round(rnd(d.cm[0], d.cm[1])), first = !log[k]; log[k] = Math.max(log[k] || 0, cm);
-  toast(first ? `New fish! You caught a ${d.n} (${cm} cm)!` : `You caught a ${d.n}! (${cm} cm)`);
-  if (k === 'bigfish') banner('The Great Fish!');
+  f.first = !d.junk && !log[k]; f.record = !d.junk && !f.first && f.lb > log[k]; if (!d.junk) log[k] = Math.max(log[k] || 0, f.lb);
 }
-// line, bobber and the "!" — drawn with the player, in world pixels
+// the catch window: picture, name, weight and price
+function showCatch() {
+  const f = fishing; if (f.phase === 'show') return; f.phase = 'show'; const d = FISH[f.fish];
+  const el = document.createElement('div'); el.id = 'catchpop';
+  const badge = f.first ? '<div class="cp-badge">New fish!</div>' : f.record ? '<div class="cp-badge">Biggest yet!</div>' : '';
+  const lbs = f.lb >= 10 ? f.lb.toFixed(0) : f.lb.toFixed(f.lb < 1 ? 2 : 1);
+  el.innerHTML = `<div class="cp-card">${badge}<div class="cp-pic"><img src="${iconURL('fish_' + f.fish)}"></div><div class="cp-name">${d.junk ? 'Hmm… an ' + d.n : d.n}</div>
+    ${d.junk ? '<div class="cp-sub">Not quite a fish.</div>' : `<div class="cp-stats"><div><b>${lbs} lb</b><span>Weight</span></div><div><b>₪ ${d.price}</b><span>Value</span></div></div>`}
+    <button class="btn">Nice!</button></div>`;
+  el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); closeCatch() });
+  document.body.appendChild(el); sfx.pop(); if (f.fish === 'bigfish') banner('The Great Fish!');
+}
+function closeCatch() { sfx.tap(); stopFishing() }
+// float, splashes, the fish leaping out on the yank, and the "!" (world pixels, drawn with the player)
 function drawFishing(g) {
-  const f = fishing; if (!f) return; const p = player;
-  if (f.phase === 'caught') { const ic = AT['fish_' + f.fish][0], up = Math.min(1, f.t * 3) * 6; g.drawImage(ic, Math.round(p.x * 16 - ic.width / 2), Math.round(p.y * 16 - 40 - up)); return }
-  if (f.phase === 'cast') return;
-  const bob = f.phase === 'bite' ? 2 : Math.sin(GT * 3) * .8, bx = f.tx * 16, by = f.ty * 16 + bob, tipX = p.x * 16 + p.side * 14, tipY = p.y * 16 - 22;
-  g.strokeStyle = 'rgba(255,255,255,.75)'; g.lineWidth = .6; g.beginPath(); g.moveTo(tipX, tipY); g.quadraticCurveTo((tipX + bx) / 2, Math.max(tipY, by) + 6, bx, by - 2); g.stroke();
-  if (f.phase !== 'game') {
-    g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(bx, by + 1, 3 + Math.sin(GT * 3) * .5, 1.2, 0, 0, 7); g.fill();
-    g.fillStyle = '#2a1a10'; g.fillRect(Math.round(bx) - 2, Math.round(by) - 4, 4, 5); g.fillStyle = '#e8392a'; g.fillRect(Math.round(bx) - 1, Math.round(by) - 4, 2, 2); g.fillStyle = '#fff'; g.fillRect(Math.round(bx) - 1, Math.round(by) - 2, 2, 2);
+  const f = fishing; if (!f) return; const p = player, bx = f.tx * 16, by = f.ty * 16;
+  const float = (dip) => { const y = Math.round(by + dip), x = Math.round(bx); g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(x, y + 1, 3.5 + Math.sin(GT * 3) * .6, 1.3, 0, 0, 7); g.fill(); g.fillStyle = '#2a1a10'; g.fillRect(x - 2, y - 4, 4, 5); g.fillStyle = '#e8392a'; g.fillRect(x - 1, y - 4, 2, 2); g.fillStyle = '#fff'; g.fillRect(x - 1, y - 2, 2, 2) };
+  if (f.phase === 'wait') float(Math.sin(GT * 3) * .7);
+  if (f.phase === 'bite') float(2 + Math.sin(GT * 30));
+  if (f.phase === 'game') { const sx = Math.sin(GT * 9) * 3; g.fillStyle = 'rgba(30,50,70,.45)'; g.beginPath(); g.ellipse(bx + sx, by + 2, 6, 2, 0, 0, 7); g.fill(); g.fillStyle = 'rgba(255,255,255,.55)'; g.beginPath(); g.ellipse(bx + sx, by + 1, 4 + Math.sin(GT * 14), 1.4, 0, 0, 7); g.fill() }
+  if (f.phase === 'bite' || f.phase === 'game') { const y = p.y * 16 - 40 - Math.abs(Math.sin(GT * 12)) * 2, x = Math.round(p.x * 16); g.fillStyle = '#2a1a10'; g.fillRect(x - 2, Math.round(y) - 1, 5, 11); g.fillStyle = '#ffd34a'; g.fillRect(x - 1, Math.round(y), 3, 6); g.fillRect(x - 1, Math.round(y) + 7, 3, 2) }
+  if (f.phase === 'caught' || f.phase === 'show') {
+    // the fish thrashes at the surface, then flies up in an arc to above your head
+    const ic = AT['fish_' + f.fish][0], hx = p.x * 16, hy = p.y * 16 - 36, k = clamp((f.t - .4) / .55, 0, 1), e = 1 - (1 - k) * (1 - k);
+    let x, y, rot;
+    if (f.phase === 'show' || f.t >= .95) { x = hx; y = hy - Math.sin(GT * 4) * 1.5; rot = 0 }
+    else if (f.t < .4) { x = bx + Math.sin(GT * 30) * 2; y = by - 3; rot = Math.sin(GT * 25) * .5 }
+    else { x = bx + (hx - bx) * e; y = by + (hy - by) * e - Math.sin(k * Math.PI) * 28; rot = (1 - k) * p.side * 4 }
+    g.save(); g.translate(Math.round(x), Math.round(y)); g.rotate(rot); if (p.side < 0) g.scale(-1, 1); g.drawImage(ic, -Math.round(ic.width / 2), -Math.round(ic.height / 2)); g.restore();
+    if (f.t >= .4 && f.t < .95) for (let i = 0; i < 2; i++) { g.fillStyle = 'rgba(220,240,255,.85)'; g.fillRect(Math.round(x - p.side * (5 + i * 4)), Math.round(y + 2 + i * 3), 2, 2) }   // water drips
   }
-  if (f.phase === 'bite') { const y = p.y * 16 - 38 - Math.abs(Math.sin(GT * 12)) * 2; g.fillStyle = '#2a1a10'; g.fillRect(Math.round(p.x * 16) - 2, Math.round(y) - 1, 5, 11); g.fillStyle = '#ffd34a'; g.fillRect(Math.round(p.x * 16) - 1, Math.round(y), 3, 6); g.fillRect(Math.round(p.x * 16) - 1, Math.round(y) + 7, 3, 2) }
 }
 function fishAnim() {
   const f = fishing;
   if (f.phase === 'cast') return ['casting', Math.min(14, Math.floor(f.t * 15))];
   if (f.phase === 'game') return ['reeling', Math.floor(GT * 12)];
-  if (f.phase === 'caught') return ['caught', Math.min(9, Math.floor(f.t * 10))];
+  if (f.phase === 'caught') return ['caught', Math.min(8, Math.floor(f.t / .95 * 9))];
+  if (f.phase === 'show') return ['caught', 8];
   return ['waiting', Math.floor(GT * 8)];
 }
 
@@ -192,9 +211,14 @@ function drawFloorObj(g, o, x, y) {
     if (water(0, 1)) { g.fillStyle = ink; g.fillRect(X, Y + 15, 16, 1); for (const px of [X + 1, X + 12]) { g.fillStyle = ink; g.fillRect(px, Y + 15, 3, 4); g.fillStyle = '#6a4426'; g.fillRect(px + 1, Y + 15, 1, 3) } }
     if ((x === 28 || x === 33) && y === 47) { g.fillStyle = ink; g.fillRect(X + 6, Y - 4, 4, 7); g.fillStyle = '#8e5e36'; g.fillRect(X + 7, Y - 3, 2, 5) }     // mooring posts
   } else if (o.t === 'bridge') {
-    for (let k = 0; k < 4; k++) { g.fillStyle = ink; g.fillRect(X, Y + k * 4, 16, 4); g.fillStyle = (k + y) % 2 ? '#a87444' : '#986638'; g.fillRect(X, Y + k * 4, 16, 3) }
-    const side = World.objs[idx(x - 1, y)] && World.objs[idx(x - 1, y)].t === 'bridge' ? 1 : -1;
-    const rx = side < 0 ? X : X + 13; g.fillStyle = ink; g.fillRect(rx, Y - 2, 3, 18); g.fillStyle = '#8e5e36'; g.fillRect(rx + 1, Y - 2, 1, 18);
+    const side = o.side, onWater = World.ground[idx(x, y)] === WATER;
+    if (onWater) { g.fillStyle = 'rgba(20,40,60,.35)'; g.fillRect(side < 0 ? X - 3 : X + 16, Y, 3, 16) }          // shadow on the water beside it
+    for (let k = 0; k < 4; k++) { g.fillStyle = ink; g.fillRect(X, Y + k * 4 + 3, 16, 1); g.fillStyle = (k + y) % 2 ? '#b98352' : '#a87444'; g.fillRect(X, Y + k * 4, 16, 3); g.fillStyle = '#d09a62'; g.fillRect(X + (side < 0 ? 5 : 2) + ((k * 3 + y) % 5), Y + k * 4, 4, 1) }
+    // the railing on the outer edge: a beam with posts every half tile
+    const rx = side < 0 ? X : X + 12;
+    g.fillStyle = ink; g.fillRect(rx, Y, 4, 16); g.fillStyle = '#7a4a2a'; g.fillRect(rx + 1, Y, 2, 16); g.fillStyle = '#a06a3e'; g.fillRect(rx + 1, Y, 1, 16);
+    for (const py of [Y + 2, Y + 10]) { g.fillStyle = ink; g.fillRect(rx - 1, py - 1, 6, 4); g.fillStyle = '#8e5e36'; g.fillRect(rx, py, 4, 2); g.fillStyle = '#b07848'; g.fillRect(rx, py, 4, 1) }
+    if (o.end) { const ey = o.end === 'top' ? Y : Y + 15; g.fillStyle = ink; g.fillRect(X, ey, 16, 1) }
   }
 }
 function drawWaterObj(g, o, x, y, t) {
