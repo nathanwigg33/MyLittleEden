@@ -96,6 +96,11 @@ E['node_gold'] = E.pop('node_goldy'); E['ore_gold'] = E.pop('ore_goldy')
 for k, mul in (('emerald', (.25, 1.05, .45)), ('ruby', (1.1, .25, .35)), ('amethyst', (.75, .4, 1.05))):
     E['node_' + k] = recolor(E['node_sapphire'], cyan, gemc(mul)); E['ore_' + k] = recolor(E['ore_sapphire'], lambda r, g, b: b - r > 40, gemc(mul))
 E['minecart'] = trim(gm('spr_deco_minecart'))
+# the hand-drawn versions replace the recoloured pack art for every mine rock and ore item
+import ore_art
+for k in ('stone', 'copper', 'coal', 'iron', 'silver', 'gold', 'amethyst', 'emerald', 'ruby', 'sapphire'): E['node_' + k] = ore_art.node(k)
+for k in ('copper', 'coal', 'iron', 'silver', 'gold'): E['ore_' + k] = trim(ore_art.lump(k))
+for k in ('amethyst', 'emerald', 'ruby', 'sapphire'): E['ore_' + k] = trim(ore_art.gem(k))
 for k, n in [('campfire', 'spr_deco_campfire'), ('well', 'spr_deco_well'), ('chest', 'spr_deco_chest_01_closed'), ('crate', 'spr_deco_crate_01'),
              ('barrel', 'spr_deco_barrel_closed'), ('bucket', 'spr_deco_bucket'), ('chair', 'spr_deco_chair_01')]:
     try: E[k] = trim(gm(n))

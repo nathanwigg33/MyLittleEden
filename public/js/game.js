@@ -386,7 +386,7 @@ function update(dt) {
   parts = parts.filter(p => p.life > 0);
   for (const f of falling) f.t += dt; for (const f of falling) if (f.t > .9 && !f.done) { f.done = 1; drop('wood', ri(6, 9), f.x + .5 + f.side * 1.2, f.y); leaves(f.x + .5 + f.side * 1.4, f.y, 10); sfx.rock() } falling = falling.filter(f => f.t < 1.3);
   for (const n of notes) { n.t -= dt; if (n.t <= 0 && !n.gone) { n.gone = 1; n.el.classList.add('out'); setTimeout(() => n.el.remove(), 400) } } notes = notes.filter(n => !n.gone || n.t > -1);
-  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60 && !isInside()) { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
+  birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60 && !isInside() && World.cur !== 'mine') { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
   for (const b of birds) { b.t += dt; b.x += b.dir * 3.2 * dt; b.y += Math.sin(b.t * 2) * .3 * dt } birds = birds.filter(b => b.t < 12);
   if (mode !== 'play' || !state) return;
   if (dlgOpen || menuOpen || sleeping) { player.moving = false; return }
