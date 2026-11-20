@@ -1,10 +1,19 @@
 // Farming: tilled soil, watering, seeds, crops that grow day by day, and the merchant's seed cart.
 'use strict';
-const CROPS = {
+const CROPS = {   // seasons: 0 spring, 1 summer, 2 autumn (winter is for resting the land)
+  radish: { n: 'Radishes', sn: 'Radish', days: 3, seed: 12, sell: 28, seasons: [0] },
   wheat: { n: 'Wheat', days: 4, seed: 10, sell: 25, seasons: [0, 1] },
-  barley: { n: 'Barley', days: 5, seed: 15, sell: 35, seasons: [0] },
-  leek: { n: 'Leeks', days: 6, seed: 20, sell: 50, seasons: [0] },
+  barley: { n: 'Barley', days: 5, seed: 15, sell: 35, seasons: [0, 2] },
+  onion: { n: 'Onions', sn: 'Onion', days: 5, seed: 20, sell: 45, seasons: [0] },
+  leek: { n: 'Leeks', sn: 'Leek', days: 6, seed: 20, sell: 50, seasons: [0] },
   garlic: { n: 'Garlic', days: 7, seed: 30, sell: 75, seasons: [0] },
+  cabbage: { n: 'Cabbage', days: 9, seed: 45, sell: 125, seasons: [0] },
+  carrot: { n: 'Carrots', sn: 'Carrot', days: 4, seed: 15, sell: 38, seasons: [1, 2] },
+  coriander: { n: 'Coriander', days: 5, seed: 25, sell: 62, seasons: [1, 2] },
+  flax: { n: 'Flax', days: 6, seed: 30, sell: 82, seasons: [1] },
+  melon: { n: 'Melons', sn: 'Melon', days: 10, seed: 70, sell: 210, seasons: [1] },
+  beet: { n: 'Beets', sn: 'Beet', days: 6, seed: 25, sell: 66, seasons: [2] },
+  gourd: { n: 'Gourds', sn: 'Gourd', days: 11, seed: 75, sell: 240, seasons: [2] },
 };
 const CAN_MAX = 40;
 function farmItems() {
@@ -14,7 +23,7 @@ function farmItems() {
   };
   for (const k in CROPS) {
     const c = CROPS[k];
-    o['seed_' + k] = { n: c.n + ' Seeds', icon: 'seed_' + k, seed: k, price: Math.floor(c.seed / 2), d: `Plant in tilled soil and water every day. Ready in ${c.days} days. Grows in ${c.seasons.map(s => SEASONS[s]).join(' and ')}.` };
+    o['seed_' + k] = { n: (c.sn || c.n) + ' Seeds', icon: 'seed_' + k, seed: k, price: Math.floor(c.seed / 2), d: `Plant in tilled soil and water every day. Ready in ${c.days} days. Grows in ${c.seasons.map(s => SEASONS[s]).join(' and ')}.` };
     o[k] = { n: c.n, icon: 'item_' + k, price: c.sell, d: `Fresh from your field. Sells for ₪ ${c.sell}.` };
   }
   return o;

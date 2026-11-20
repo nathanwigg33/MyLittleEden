@@ -8,6 +8,7 @@ const ROOMS = {
     door: 32,                                               // the doorway cell in the bottom wall (y = bot + 1)
     gen: () => genSynagogue(), draw: (...a) => drawChurchRoom(...a),
   },
+  inn: { name: 'The Inn', x0: 26, x1: 38, top: 22, bot: 31, door: 32, shop: 'inn', gen: () => genInn(), draw: (...a) => drawInnRoom(...a) },
   smithy: { name: 'Blacksmith', x0: 28, x1: 36, top: 23, bot: 30, door: 32, shop: 'smithy', gen: () => genSmithy(), draw: (...a) => drawSmithyRoom(...a) },
 };
 // door of a building in town, in world tiles: [centre x, the y just in front of it]
@@ -15,7 +16,7 @@ function bldDoor(k) {
   for (let i = 0; i < W * H; i++) { const o = World.maps.town.objs[i]; if (o && o.t === 'bld' && o.k === k) { const x = i % W, y = (i / W) | 0, b = BLD[k], s = AT[b[0]][0]; return [(x * 16 + b[1] * 8 - s.width / 2 + DOOR_PX[k]) / 16, y + 1] } }
   return null;
 }
-const DOOR_PX = { synagogue: 48, smithy: 16 };   // door centre, in pixels from the left of the building sprite
+const DOOR_PX = { synagogue: 48, smithy: 16, inn: 48 };   // door centre, in pixels from the left of the building sprite
 
 // ---------- the synagogue's room ----------
 // a blank room: solid everywhere outside the floor, with a gap for the door. Returns a furniture placer.
@@ -24,6 +25,13 @@ function roomBase(R) {
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < R.x0 || x > R.x1 || y < R.top || y > R.bot) World.objs[idx(x, y)] = { t: 'part', ox: -1, oy: -1 };
   World.objs[idx(R.door, R.bot + 1)] = null; World.objs[idx(R.door, R.bot + 2)] = null;
   return (x, y, k, w = 1, extra) => { for (let xx = x; xx < x + w; xx++) World.objs[idx(xx, y)] = { t: 'part', ox: x, oy: y }; World.objs[idx(x, y)] = Object.assign({ t: 'ifurn', k, w }, extra || {}) };
+}
+function genInn() {
+  const put = roomBase(ROOMS.inn);
+  put(26, 22, 'hearth', 3); put(29, 22, 'pantry', 2); put(32, 22, 'kegs', 2); put(34, 22, 'dresser', 2); put(37, 22, 'stairs', 2);
+  put(29, 25, 'bar', 6);                                    // Miriam serves food across this
+  for (const [x, y] of [[26, 27], [36, 27], [26, 30], [36, 30]]) put(x, y, 'table', 3);
+  put(38, 25, 'ibarrel'); put(26, 25, 'iplant');
 }
 function genSmithy() {
   const put = roomBase(ROOMS.smithy);
@@ -112,7 +120,7 @@ function drawChurchRoom(g, x0, y0, x1, y1, t) {
 
 function drawFurn(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, B = Y + 16, w = (o.w || 1) * 16;
-  if (drawSmithFurn(g, o, X, Y, B, w, t)) return;
+  if (drawSmithFurn(g, o, X, Y, B, w, t) || drawInnFurn(g, o, X, Y, B, w, t)) return;
   const shadow = (sx, sw) => px(g, 'rgba(60,35,15,.22)', sx, B - 2, sw, 2);
   switch (o.k) {
     case 'pew': {   // walnut benches, gold caps, crimson cushions
@@ -281,6 +289,101 @@ function drawSmithFurn(g, o, X, Y, B, w, t) {
   return true;
 }
 
+// ---------- the inn ----------
+const IN = { ink: '#2e1a0e', plaster: '#ead6ae', plasterLo: '#d7bd8e', beam: '#6a4426', beamHi: '#8e5e36', beamLo: '#432916',
+  floorA: '#c08850', floorB: '#b47c47', floorLine: '#8e5c34', stone: '#9b9288', stoneLo: '#6c645b', stoneHi: '#bdb4a8',
+  rug: '#8e3a2e', rugHi: '#b85a3e', rugLo: '#5e2218', teal: '#3f8a8a', tealHi: '#62b0aa' };
+function drawInnRoom(g, x0, y0, x1, y1, t) {
+  const R = ROOMS[World.cur]; g.fillStyle = WG.dark; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
+  const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16, cx = (R.door + .5) * 16;
+  // honey-coloured plank floor
+  for (let y = T, r = 0; y < B; y += 6, r++) { px(g, r % 2 ? IN.floorA : IN.floorB, L, y, Rr - L, 6); px(g, IN.floorLine, L, y + 5, Rr - L, 1); for (let x = L + ((r * 29) % 41); x < Rr; x += 41) px(g, IN.floorLine, x, y, 1, 5) }
+  // woven rug in the middle
+  const rx = cx - 40, ry = T + 66, rw = 80, rh = B - ry - 10;
+  px(g, IN.ink, rx - 1, ry - 1, rw + 2, rh + 2); px(g, IN.rugLo, rx, ry, rw, rh); px(g, IN.rug, rx + 2, ry + 2, rw - 4, rh - 4); px(g, IN.rugHi, rx + 5, ry + 5, rw - 10, 1); px(g, IN.rugHi, rx + 5, ry + rh - 6, rw - 10, 1);
+  for (let x = rx + 9; x < rx + rw - 8; x += 10) for (let y = ry + 10; y < ry + rh - 10; y += 10) { px(g, '#e2b04a', x, y + 1, 3, 1); px(g, '#e2b04a', x + 1, y, 1, 3) }
+  for (let x = rx; x < rx + rw; x += 3) { px(g, '#d9c08a', x, ry - 2, 1, 1); px(g, '#d9c08a', x, ry + rh + 1, 1, 1) }
+  // back wall: plaster between timber posts, beams, hanging herbs
+  const WT = T - 40; px(g, IN.plaster, L, WT, Rr - L, 40);
+  for (let i = 0; i < 40; i++) px(g, IN.plasterLo, L + (hash(i, 7) * (Rr - L) | 0), WT + 6 + (hash(7, i) * 24 | 0), 2, 1);
+  for (let x = L; x <= Rr - 4; x += 48) { px(g, IN.beamLo, x, WT, 5, 40); px(g, IN.beam, x + 1, WT, 3, 40); px(g, IN.beamHi, x + 1, WT, 1, 40) }
+  px(g, IN.beamLo, L, WT, Rr - L, 6); px(g, IN.beam, L, WT, Rr - L, 5); px(g, IN.beamHi, L, WT, Rr - L, 1);
+  px(g, IN.beamLo, L, T - 6, Rr - L, 6); px(g, IN.beam, L, T - 5, Rr - L, 4); px(g, IN.beamHi, L, T - 5, Rr - L, 1); px(g, IN.ink, L, T - 1, Rr - L, 1);
+  for (let x = L + 66; x < Rr - 40; x += 22) { px(g, IN.ink, x, WT + 5, 1, 4); const c = hash(x, 1) > .5 ? ['#5f8f3a', '#86b04e'] : ['#e9e1c8', '#c8bfa4']; for (let k = 0; k < 4; k++) { px(g, c[0], x - 2 + (k % 2) * 3, WT + 9 + k * 2, 2, 3); px(g, c[1], x - 2 + (k % 2) * 3, WT + 9 + k * 2, 1, 1) } }
+  // side and front walls
+  for (const x of [L - 6, Rr]) { px(g, IN.ink, x, WT, 6, B - WT + 6); px(g, IN.beamHi, x + 1, WT, 4, B - WT + 5); px(g, IN.beam, x + 2, WT, 2, B - WT + 5) }
+  px(g, IN.ink, L - 6, B, Rr - L + 12, 6); px(g, IN.beamHi, L - 5, B + 1, Rr - L + 10, 4); px(g, IN.beam, L - 5, B + 2, Rr - L + 10, 2);
+  const dx = R.door * 16; px(g, WG.dark, dx, B, 16, 6); px(g, IN.beamHi, dx - 1, B, 1, 6); px(g, IN.beamHi, dx + 16, B, 1, 6);
+  px(g, IN.ink, dx + 1, B - 7, 14, 6); px(g, IN.teal, dx + 2, B - 6, 12, 4); px(g, IN.tealHi, dx + 3, B - 5, 10, 1);
+}
+function drawInnFurn(g, o, X, Y, B, w, t) {
+  const sh = (sx, sw) => px(g, 'rgba(40,20,8,.25)', sx, B - 2, sw, 2);
+  switch (o.k) {
+    case 'hearth': {
+      sh(X, w);
+      px(g, IN.ink, X + 2, Y - 38, w - 4, 28); px(g, IN.stone, X + 3, Y - 37, w - 6, 27);
+      for (let r = 0; r < 4; r++) for (let c = (r % 2) * 6; c < w - 6; c += 12) { px(g, IN.stoneLo, X + 3 + c, Y - 37 + r * 7, 1, 6); px(g, IN.stoneHi, X + 4 + c, Y - 37 + r * 7, 10, 1) }
+      px(g, IN.ink, X, Y - 12, w, 28); px(g, IN.stone, X + 1, Y - 11, w - 2, 26); px(g, IN.beam, X, Y - 13, w, 4); px(g, IN.beamHi, X, Y - 13, w, 1);
+      px(g, IN.ink, X + 8, Y - 6, w - 16, 20); px(g, '#1a0c06', X + 9, Y - 5, w - 18, 19);
+      for (let i = 0; i < 13; i++) { const fx = X + 11 + i * 2, h = 3 + ((Math.sin(t * 9 + i * 2.1) + 1) * 2.6 | 0); px(g, SM.fireLo, fx, Y + 12 - h, 2, h); px(g, SM.fire, fx, Y + 13 - h, 2, Math.max(1, h - 2)); if (h > 5) px(g, SM.fireHi, fx, Y + 11 - Math.min(h, 4), 1, 2) }
+      px(g, IN.beamLo, X + 13, Y + 12, 22, 2);
+      const pc = X + w / 2; px(g, IN.ink, pc, Y - 5, 1, 4); px(g, IN.ink, pc - 7, Y - 1, 15, 9); px(g, '#3b3633', pc - 6, Y, 13, 7); px(g, '#5a524c', pc - 6, Y, 13, 1); px(g, '#a0602e', pc - 5, Y - 1, 11, 1);
+      for (let i = 0; i < 2; i++) { const k = (t * .6 + i * .5) % 1; g.fillStyle = `rgba(240,240,240,${.45 * (1 - k)})`; g.fillRect(pc - 3 + i * 4 + Math.sin(t * 2 + i) * 2 | 0, Y - 3 - k * 10 | 0, 3, 2) }
+      px(g, IN.ink, X + 6, Y - 17, 4, 4); px(g, '#c8763a', X + 7, Y - 16, 2, 3); px(g, IN.ink, X + w - 10, Y - 17, 4, 4); px(g, IN.teal, X + w - 9, Y - 16, 2, 3);
+      break;
+    }
+    case 'pantry': {
+      sh(X + 2, w - 4); px(g, IN.ink, X + 1, Y - 18, w - 2, 34); px(g, IN.beam, X + 2, Y - 17, w - 4, 32); px(g, IN.beamHi, X + 2, Y - 17, w - 4, 1);
+      for (let r = 0; r < 3; r++) { const yy = Y - 15 + r * 10; px(g, IN.beamLo, X + 3, yy, w - 6, 8); px(g, IN.beamHi, X + 3, yy + 8, w - 6, 1);
+        if (r === 0) for (let i = 0; i < 3; i++) { px(g, IN.ink, X + 4 + i * 8, yy + 3, 7, 5); px(g, '#d9a050', X + 5 + i * 8, yy + 3, 5, 4); px(g, '#f0c070', X + 5 + i * 8, yy + 3, 5, 1) }
+        if (r === 1) for (let i = 0; i < 4; i++) { px(g, IN.ink, X + 4 + i * 6, yy + 1, 5, 7); px(g, '#e2a52e', X + 5 + i * 6, yy + 2, 3, 5); px(g, '#f6d070', X + 5 + i * 6, yy + 2, 1, 2) }
+        if (r === 2) for (let i = 0; i < 5; i++) { px(g, IN.ink, X + 4 + i * 5, yy + 4, 5, 4); px(g, '#7a4a6a', X + 5 + i * 5, yy + 5, 3, 2) } }
+      break;
+    }
+    case 'kegs': {
+      sh(X + 1, w - 2);
+      for (let i = 0; i < 3; i++) { const jx = X + 2 + i * 10, jy = Y - 6; px(g, IN.ink, jx, jy, 9, 21); px(g, i === 1 ? '#b0623a' : '#c47a46', jx + 1, jy + 1, 7, 19); px(g, '#e0a070', jx + 2, jy + 2, 1, 15); px(g, IN.ink, jx + 2, jy - 2, 5, 3); px(g, '#e8dcc0', jx + 3, jy - 2, 3, 2); px(g, '#7a3a20', jx + 1, jy + 8, 7, 1) }
+      break;
+    }
+    case 'dresser': {
+      sh(X + 1, w - 2); px(g, IN.ink, X + 1, Y - 20, w - 2, 36); px(g, IN.beam, X + 2, Y - 19, w - 4, 34); px(g, IN.beamHi, X + 2, Y - 19, w - 4, 1);
+      for (let r = 0; r < 2; r++) { const yy = Y - 17 + r * 9; px(g, IN.beamLo, X + 3, yy, w - 6, 7); for (let i = 0; i < 3; i++) { const c = X + 7 + i * 9; px(g, IN.ink, c - 3, yy + 1, 7, 6); px(g, '#f0ece2', c - 2, yy + 2, 5, 4); px(g, '#3a6ab0', c - 1, yy + 3, 3, 2) } }
+      px(g, IN.beamLo, X + 3, Y + 2, w - 6, 12); px(g, IN.beam, X + 4, Y + 3, 11, 10); px(g, IN.beam, X + 17, Y + 3, 11, 10); px(g, '#e2b04a', X + 13, Y + 8, 2, 1); px(g, '#e2b04a', X + 18, Y + 8, 2, 1);
+      break;
+    }
+    case 'stairs': {
+      px(g, IN.ink, X + 1, Y - 40, w - 2, 56); px(g, IN.beamLo, X + 2, Y - 39, w - 4, 54);
+      for (let i = 0; i < 9; i++) { const yy = Y + 10 - i * 6; px(g, IN.beamHi, X + 4, yy, w - 8, 2); px(g, IN.beam, X + 4, yy + 2, w - 8, 3); px(g, IN.ink, X + 4, yy + 5, w - 8, 1) }
+      px(g, IN.beamHi, X + 2, Y - 39, 2, 54); px(g, IN.beamHi, X + w - 4, Y - 39, 2, 54);
+      break;
+    }
+    case 'bar': {
+      sh(X, w);
+      px(g, IN.ink, X, Y - 5, w, 21); px(g, IN.beamHi, X + 1, Y - 4, w - 2, 4); px(g, '#b07848', X + 1, Y - 4, w - 2, 1);
+      px(g, IN.beam, X + 1, Y, w - 2, 15); for (let i = 0; i < w - 2; i += 12) px(g, IN.beamLo, X + 2 + i, Y + 2, 1, 12); px(g, IN.teal, X + 1, Y + 6, w - 2, 2); px(g, IN.tealHi, X + 1, Y + 6, w - 2, 1);
+      px(g, IN.ink, X + 10, Y - 9, 12, 6); px(g, '#d9a050', X + 11, Y - 8, 10, 4); px(g, '#f0c070', X + 12, Y - 8, 8, 1);
+      px(g, IN.ink, X + 34, Y - 12, 7, 9); px(g, '#c47a46', X + 35, Y - 11, 5, 7); px(g, '#e0a070', X + 35, Y - 11, 1, 6);
+      for (const bx of [X + 52, X + 62]) { px(g, IN.ink, bx, Y - 7, 8, 4); px(g, '#f0ece2', bx + 1, Y - 7, 6, 2); px(g, '#8a5a2a', bx + 2, Y - 7, 4, 1) }
+      px(g, IN.ink, X + 80, Y - 9, 7, 6); px(g, '#e2b04a', X + 81, Y - 8, 5, 4); px(g, IN.ink, X + 83, Y - 10, 1, 1);
+      break;
+    }
+    case 'table': {
+      sh(X + 2, w - 4);
+      for (const bx of [X + 1, X + w - 9]) { px(g, IN.ink, bx, Y + 2, 8, 12); px(g, IN.beam, bx + 1, Y + 3, 6, 9); px(g, IN.beamHi, bx + 1, Y + 3, 6, 1) }
+      px(g, IN.ink, X + 10, Y - 2, w - 20, 17); px(g, IN.beamHi, X + 11, Y - 1, w - 22, 11); px(g, '#b07848', X + 11, Y - 1, w - 22, 1); px(g, IN.beam, X + 11, Y + 10, w - 22, 4);
+      const c = X + w / 2; px(g, IN.ink, c - 9, Y + 1, 7, 4); px(g, '#f0ece2', c - 8, Y + 1, 5, 2); px(g, '#a0602e', c - 7, Y + 1, 3, 1);
+      px(g, IN.ink, c + 2, Y + 3, 7, 4); px(g, '#d9a050', c + 3, Y + 3, 5, 3);
+      px(g, IN.ink, c - 1, Y - 3, 4, 3); px(g, '#c47a46', c, Y - 2, 2, 2); px(g, Math.sin(t * 7 + X) > 0 ? '#ffd36b' : '#ffb340', c, Y - 5, 2, 2);
+      break;
+    }
+    case 'ibarrel': { sh(X + 2, 12); px(g, IN.ink, X + 2, Y - 1, 12, 17); px(g, IN.beam, X + 3, Y, 10, 15); px(g, IN.beamHi, X + 4, Y, 2, 15); px(g, '#4a4440', X + 3, Y + 3, 10, 1); px(g, '#4a4440', X + 3, Y + 11, 10, 1); px(g, '#3f6f8f', X + 4, Y - 1, 8, 2); break }
+    case 'iplant': { sh(X + 3, 10); px(g, IN.ink, X + 3, Y + 6, 10, 10); px(g, '#b0623a', X + 4, Y + 7, 8, 8); px(g, '#d08050', X + 4, Y + 7, 8, 1); px(g, IN.beamLo, X + 7, Y - 4, 2, 11);
+      for (const [lx, ly] of [[3, -8], [8, -10], [11, -6], [4, -3], [10, -1], [6, -6]]) { px(g, '#5a7a3a', X + lx, Y + ly, 3, 2); px(g, '#8aa860', X + lx, Y + ly, 2, 1) } break }
+    default: return false;
+  }
+  return true;
+}
+
 // ---------- going in and out ----------
 async function enterBuilding(k) {
   const R = ROOMS[k]; if (!R) return;
@@ -368,6 +471,15 @@ function mapTab(b, which) {
 function furnitureAction(o) {
   switch (o.k) {
     case 'bimah': visitChurch(); break;
+    case 'bar': { const m = npcs.find(n => n.v.id === 'miriam' && n.map === World.cur); if (m && shopOpen('inn')) talkTo(m); else say(closedMsg('inn')); break }
+    case 'hearth': say('A big stone hearth. A pot of lentil stew bubbles over the fire and smells wonderful.'); break;
+    case 'pantry': say('Shelves of fresh loaves, honey jars and dried figs.'); break;
+    case 'kegs': say('Clay jars of olive oil and wine, sealed with wax.'); break;
+    case 'dresser': say('Miriam’s best plates and bowls, painted blue and white.'); break;
+    case 'stairs': say('Stairs up to the guest rooms. Miriam says they’re being freshened up. (Coming soon!)'); break;
+    case 'table': say(pick(['A sturdy table, scrubbed clean. Someone left a few crumbs of bread.', 'A wooden table with a little oil lamp on it.', 'The table wobbles a little. Cozy anyway.'])); break;
+    case 'ibarrel': say('A barrel of water for the kitchen.'); break;
+    case 'iplant': say('A potted olive sapling.'); break;
     case 'counter': { const j = npcs.find(n => n.v.id === 'jesse' && n.map === World.cur); if (j && shopOpen('smithy')) talkTo(j); else say(closedMsg('smithy')); break }
     case 'forge': say('The forge roars. The coals glow white-hot in the middle.'); break;
     case 'bellows': say('A big leather bellows for blowing air into the forge.'); break;

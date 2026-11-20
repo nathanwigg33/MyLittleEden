@@ -43,7 +43,8 @@ function renderMarket() {
   const b = $('#binM .mbody');
   let h = `<div class="binhead"><span>Tobiah’s stalls</span>${money()}</div>` + tabsHTML(marketTab, [['buy', 'Buy seeds'], ['sell', 'Sell']]);
   if (marketTab === 'buy') {
-    for (const k in CROPS) {
+    const order = Object.keys(CROPS).sort((p, q) => (CROPS[q].seasons.includes(state.season) - CROPS[p].seasons.includes(state.season)) || CROPS[p].seed - CROPS[q].seed);
+    for (const k of order) {
       const c = CROPS[k], inS = c.seasons.includes(state.season), id = 'seed_' + k;
       h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
     }
