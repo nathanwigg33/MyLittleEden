@@ -215,8 +215,19 @@ button{font:inherit;cursor:pointer}
 
 #btnMap{position:fixed;left:calc(env(safe-area-inset-left) + 10px);top:calc(env(safe-area-inset-top) + 70px);width:44px;height:44px;font-size:22px;z-index:6}
 @media (orientation:landscape) and (max-height:500px){#btnMap{left:calc(env(safe-area-inset-left) * .35 + 10px);top:66px}}
-.mapwrap{position:relative;border:3px solid #5b2e12;border-radius:6px;overflow:hidden;background:#2b5a2a}
-.mapwrap canvas{display:block;width:100%;height:auto;image-rendering:pixelated}
-.mapwrap .pin{position:absolute;width:26px;height:26px;margin:-13px 0 0 -13px;border-radius:50%;border:3px solid #ff4a32;animation:pinp 1.2s ease-out infinite;pointer-events:none}
+.mapwrap{position:relative;border:3px solid #5b2e12;border-radius:6px;overflow:auto;background:#2b5a2a;max-height:52vh;-webkit-overflow-scrolling:touch}
+.mapinner{position:relative;width:100%}.mapinner.zoom{width:250%}
+.mapart{display:block;width:100%;height:auto}
+.mlab{position:absolute;transform:translate(-50%,-100%);background:rgba(44,24,10,.86);color:#fff7e2;font:700 11px 'Pixelify Sans',monospace;padding:1px 5px 2px;border-radius:4px;border:1px solid #d9ad3c;white-space:nowrap;pointer-events:none;display:flex;align-items:center;gap:3px;line-height:1.2}
+.mlab.sm{font-size:9px;border-color:#a77c22}.mlab.road{background:rgba(255,248,230,.9);color:#5b2e12;border-color:#5b2e12;font-size:10px}.mlab small{font-size:8px;opacity:.75}
+.mapinner.zoom .mlab{font-size:13px}.mapinner.zoom .mlab.sm{font-size:11px}
+.kd{display:inline-block;width:7px;height:7px;border-radius:50%;flex:none}.kd.open{background:#6fdc4f;box-shadow:0 0 0 1px #2d6b1e}.kd.shut{background:#ef5a3c;box-shadow:0 0 0 1px #7a2414}.kd.you{background:#e8392a;box-shadow:0 0 0 2px #fff}
+.mapkey{display:flex;gap:12px;justify-content:center;margin-top:6px;font-size:12px;color:#5b2e12;font-weight:700}.mapkey span{display:flex;align-items:center;gap:5px}
+.mapbtns .mz{flex:0 0 44px}
+.pin{position:absolute;width:0;height:0;pointer-events:none;z-index:2}
+.pin b{position:absolute;left:-6px;top:-6px;width:12px;height:12px;border-radius:50%;background:#e8392a;border:2px solid #fff;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.5)}
+.pin::before{content:'';position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;border:3px solid #ff4a32;box-sizing:border-box;animation:pinp 1.2s ease-out infinite}
+.pin span{position:absolute;left:0;top:9px;transform:translateX(-50%);background:#e8392a;color:#fff;font:700 10px 'Pixelify Sans',monospace;padding:0 4px;border-radius:3px;white-space:nowrap}
 @keyframes pinp{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.4);opacity:0}}
 .mapbtns{display:flex;gap:6px;margin-bottom:6px}.mapbtns .btn{flex:1;padding:6px 4px;font-size:14px}
+.mlab.below{transform:translate(-50%,0)}.mlab.right{transform:translate(-100%,-100%)}.mlab.left{transform:translate(0,-100%)}
