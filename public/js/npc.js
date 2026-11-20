@@ -40,6 +40,7 @@ const inService = () => isSabbath() && state.time >= 9 * 60 && state.time < 13 *
 function villagerHome(n, k) {
   if (inService()) return n.v.id === 'simeon' ? ['synagogue', 32.5, 25.35, 0] : ['synagogue', ...SEATS[k % SEATS.length], 0];
   if (n.v.id === 'simeon' && state.time >= 8 * 60 && state.time < 18 * 60) return ['synagogue', 30.5, 27.6, 1.2];
+  if (n.v.id === 'jesse' && shopOpen('smithy')) return ['smithy', 32.5, 25.2, .9];          // behind his counter
   return ['town', n.v.spot[0], n.v.spot[1], n.v.roam];
 }
 const villagersOut = () => state.time >= 7 * 60 && state.time < 19 * 60;

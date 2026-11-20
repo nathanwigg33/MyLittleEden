@@ -6,16 +6,31 @@ const ROOMS = {
   synagogue: {
     name: 'Church', x0: 27, x1: 37, top: 22, bot: 32,   // floor cells (inclusive)
     door: 32,                                               // the doorway cell in the bottom wall (y = bot + 1)
+    gen: () => genSynagogue(), draw: (...a) => drawChurchRoom(...a),
   },
+  smithy: { name: 'Blacksmith', x0: 28, x1: 36, top: 23, bot: 30, door: 32, shop: 'smithy', gen: () => genSmithy(), draw: (...a) => drawSmithyRoom(...a) },
 };
 // door of a building in town, in world tiles: [centre x, the y just in front of it]
 function bldDoor(k) {
   for (let i = 0; i < W * H; i++) { const o = World.maps.town.objs[i]; if (o && o.t === 'bld' && o.k === k) { const x = i % W, y = (i / W) | 0, b = BLD[k], s = AT[b[0]][0]; return [(x * 16 + b[1] * 8 - s.width / 2 + DOOR_PX[k]) / 16, y + 1] } }
   return null;
 }
-const DOOR_PX = { synagogue: 48 };   // door centre, in pixels from the left of the building sprite
+const DOOR_PX = { synagogue: 48, smithy: 16 };   // door centre, in pixels from the left of the building sprite
 
 // ---------- the synagogue's room ----------
+// a blank room: solid everywhere outside the floor, with a gap for the door. Returns a furniture placer.
+function roomBase(R) {
+  World.ground = new Uint8Array(W * H).fill(GRASS); World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
+  for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (x < R.x0 || x > R.x1 || y < R.top || y > R.bot) World.objs[idx(x, y)] = { t: 'part', ox: -1, oy: -1 };
+  World.objs[idx(R.door, R.bot + 1)] = null; World.objs[idx(R.door, R.bot + 2)] = null;
+  return (x, y, k, w = 1, extra) => { for (let xx = x; xx < x + w; xx++) World.objs[idx(xx, y)] = { t: 'part', ox: x, oy: y }; World.objs[idx(x, y)] = Object.assign({ t: 'ifurn', k, w }, extra || {}) };
+}
+function genSmithy() {
+  const put = roomBase(ROOMS.smithy);
+  put(28, 23, 'forge', 2); put(30, 23, 'bellows'); put(31, 24, 'sanvil'); put(33, 23, 'quench'); put(34, 23, 'toolwall', 2); put(36, 23, 'grind');
+  put(29, 26, 'counter', 7);                                // Jesse serves you across this
+  put(28, 29, 'display', 2); put(35, 29, 'ore'); put(36, 29, 'coal'); put(28, 30, 'sbarrel'); put(36, 30, 'sbarrel');
+}
 function genSynagogue() {
   const R = ROOMS.synagogue;
   World.ground = new Uint8Array(W * H).fill(GRASS); World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
@@ -59,7 +74,8 @@ function glassWindow(g, x, y) {
   px(g, WG.redHi, x + 3, y + 2, 6, 1); px(g, '#f0d070', x + 5, y + 1, 2, 1);                // arch top
   px(g, 'rgba(255,255,255,.45)', x + 2, y + 3, 1, 15);                                        // shine
 }
-function drawInterior(g, x0, y0, x1, y1, t) {
+function drawInterior(g, x0, y0, x1, y1, t) { ROOMS[World.cur].draw(g, x0, y0, x1, y1, t) }
+function drawChurchRoom(g, x0, y0, x1, y1, t) {
   const R = ROOMS[World.cur]; g.fillStyle = WG.dark; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
   const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16, cx = (R.door + .5) * 16;
   // floor: cream and sandstone tiles, a blue border band round the edge
@@ -96,6 +112,7 @@ function drawInterior(g, x0, y0, x1, y1, t) {
 
 function drawFurn(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, B = Y + 16, w = (o.w || 1) * 16;
+  if (drawSmithFurn(g, o, X, Y, B, w, t)) return;
   const shadow = (sx, sw) => px(g, 'rgba(60,35,15,.22)', sx, B - 2, sw, 2);
   switch (o.k) {
     case 'pew': {   // walnut benches, gold caps, crimson cushions
@@ -161,9 +178,113 @@ function drawFurn(g, o, x, y, t) {
   }
 }
 
+// ---------- the blacksmith's workshop ----------
+const SM = { ink: '#24160e', stoneA: '#8b8174', stoneB: '#7a7064', mortar: '#4f483f', stoneHi: '#a1978a', brick: '#8e3b2a', brickHi: '#b0503a', brickLo: '#5c2216',
+  iron: '#6c7884', ironHi: '#a7b3bf', ironLo: '#3b434c', bronze: '#c58a3a', bronzeHi: '#e8b25a', fire: '#ff8a2a', fireHi: '#ffd36b', fireLo: '#d2401c',
+  wood: '#6a4426', woodHi: '#8e5e36', woodLo: '#432916', wall: '#5e5148', wallHi: '#776759', wallLo: '#3f3630' };
+function drawSmithyRoom(g, x0, y0, x1, y1, t) {
+  const R = ROOMS[World.cur]; g.fillStyle = WG.dark; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
+  const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16;
+  // flagstone floor: rows of uneven stones
+  px(g, SM.mortar, L, T, Rr - L, B - T);
+  for (let y = T, r = 0; y < B; y += 8, r++) { let x = L - (r % 3) * 5; while (x < Rr) { const w = 9 + (hash(x, y) * 8 | 0), a = Math.max(x, L), b = Math.min(x + w - 1, Rr); if (b > a) { px(g, hash(y, x) > .5 ? SM.stoneA : SM.stoneB, a, y, b - a, 7); px(g, SM.stoneHi, a, y, b - a, 1); if (hash(x + 3, y) > .8) px(g, SM.mortar, a + 3, y + 3, 2, 1) } x += w } }
+  // soot and scorch near the forge
+  g.fillStyle = 'rgba(30,20,15,.28)'; g.fillRect(L, T, 56, 26); g.fillRect(L, T + 26, 36, 10);
+  // back wall: dark stone blocks with a timber beam, a little shuttered window and a hanging lantern
+  const WT = T - 40; px(g, SM.wall, L, WT, Rr - L, 40);
+  for (let y = WT, r = 0; y < T - 8; y += 7, r++) { px(g, SM.wallLo, L, y + 6, Rr - L, 1); for (let x = L + (r % 2) * 9; x < Rr; x += 18) { px(g, SM.wallLo, x, y, 1, 6); px(g, SM.wallHi, x + 1, y, 16, 1) } }
+  px(g, SM.woodLo, L, WT, Rr - L, 5); px(g, SM.wood, L, WT, Rr - L, 4); px(g, SM.woodHi, L, WT, Rr - L, 1);
+  px(g, SM.woodLo, L, T - 8, Rr - L, 8); px(g, SM.wood, L, T - 7, Rr - L, 6); px(g, SM.woodHi, L, T - 7, Rr - L, 1); px(g, SM.ink, L, T - 1, Rr - L, 1);
+  const wx = 32 * 16; px(g, SM.ink, wx, WT + 9, 16, 16); px(g, '#9fd2ef', wx + 1, WT + 10, 14, 14); px(g, '#d5eefa', wx + 2, WT + 11, 4, 6); px(g, SM.woodLo, wx + 7, WT + 10, 2, 14); px(g, SM.woodLo, wx + 1, WT + 16, 14, 2);
+  px(g, SM.wood, wx - 6, WT + 9, 5, 16); px(g, SM.wood, wx + 17, WT + 9, 5, 16); px(g, SM.woodLo, wx - 6, WT + 16, 5, 1); px(g, SM.woodLo, wx + 17, WT + 16, 5, 1);
+  // side and front walls
+  for (const x of [L - 6, Rr]) { px(g, SM.ink, x, WT, 6, B - WT + 6); px(g, SM.wallHi, x + 1, WT, 4, B - WT + 5); px(g, SM.woodHi, x === L - 6 ? L - 1 : Rr, WT, 1, B - WT + 1) }
+  px(g, SM.ink, L - 6, B, Rr - L + 12, 6); px(g, SM.wallHi, L - 5, B + 1, Rr - L + 10, 4);
+  const dx = R.door * 16; px(g, WG.dark, dx, B, 16, 6); px(g, SM.woodHi, dx - 1, B, 1, 6); px(g, SM.woodHi, dx + 16, B, 1, 6);
+  px(g, SM.ink, dx + 1, B - 7, 14, 6); px(g, '#7d5a2a', dx + 2, B - 6, 12, 4); px(g, '#9a7236', dx + 3, B - 5, 10, 1);
+  // wall lantern beside the window
+  const lx = 32 * 16 - 9, ly = T - 22; px(g, SM.ink, lx - 1, ly - 2, 4, 2); px(g, SM.ink, lx - 3, ly, 7, 9); px(g, SM.ironLo, lx - 2, ly + 1, 5, 7); px(g, Math.sin(t * 6) > 0 ? SM.fireHi : '#ffe9a0', lx - 1, ly + 2, 3, 5);
+}
+// ---- workshop furniture ----
+function drawSmithFurn(g, o, X, Y, B, w, t) {
+  const sh = (sx, sw) => px(g, 'rgba(20,10,5,.3)', sx, B - 2, sw, 2);
+  switch (o.k) {
+    case 'forge': {
+      sh(X, w);
+      // stone hood and chimney rising up the wall
+      px(g, SM.ink, X + 7, Y - 40, 18, 22); px(g, SM.wallLo, X + 8, Y - 40, 16, 21); px(g, SM.ink, X + 1, Y - 19, 30, 8); px(g, SM.wallHi, X + 2, Y - 18, 28, 6); px(g, SM.wall, X + 2, Y - 14, 28, 2);
+      // brick body
+      px(g, SM.ink, X, Y - 11, w, 27); px(g, SM.brick, X + 1, Y - 10, w - 2, 25);
+      for (let r = 0; r < 6; r++) { const yy = Y - 10 + r * 4; px(g, SM.brickLo, X + 1, yy + 3, w - 2, 1); for (let c = (r % 2) * 4; c < w - 2; c += 8) px(g, SM.brickLo, X + 1 + c, yy, 1, 3); px(g, SM.brickHi, X + 1, yy, w - 2, 1) }
+      // the fire
+      px(g, SM.ink, X + 5, Y - 6, 22, 13); px(g, '#1a0c06', X + 6, Y - 5, 20, 11);
+      for (let i = 0; i < 9; i++) { const fx = X + 7 + i * 2, h = 3 + ((Math.sin(t * 10 + i * 1.9) + 1) * 2.5 | 0); px(g, SM.fireLo, fx, Y + 5 - h, 2, h); px(g, SM.fire, fx, Y + 6 - h, 2, Math.max(1, h - 2)); if (h > 5) px(g, SM.fireHi, fx, Y + 4 - Math.min(h, 4), 1, 2) }
+      px(g, SM.fireHi, X + 9, Y + 3, 14, 2); px(g, '#fff2c0', X + 12, Y + 3, 8, 1);
+      // sparks
+      for (let i = 0; i < 3; i++) { const k = (t * 1.3 + i / 3) % 1; px(g, k < .5 ? SM.fireHi : SM.fire, X + 10 + i * 5 + Math.sin(t * 3 + i) * 2 | 0, Y - 6 - k * 14 | 0, 1, 1) }
+      break;
+    }
+    case 'bellows': { sh(X + 2, 12); px(g, SM.ink, X + 1, Y - 2, 14, 12); px(g, SM.woodHi, X + 2, Y - 1, 12, 2); px(g, '#7a4a2e', X + 2, Y + 1, 12, 6); px(g, '#946040', X + 3, Y + 2, 10, 1); px(g, SM.woodHi, X + 2, Y + 7, 12, 2); px(g, SM.ironLo, X - 3, Y + 3, 5, 2); px(g, SM.wood, X + 13, Y - 6, 2, 6); break }
+    case 'sanvil': {
+      sh(X, 16);
+      px(g, SM.ink, X + 3, Y + 6, 10, 10); px(g, SM.woodHi, X + 4, Y + 7, 8, 8); px(g, SM.wood, X + 4, Y + 9, 8, 1); px(g, SM.wood, X + 6, Y + 12, 5, 1);       // stump
+      px(g, SM.ink, X - 2, Y - 2, 19, 6); px(g, SM.iron, X - 1, Y - 1, 17, 4); px(g, SM.ironHi, X - 1, Y - 1, 17, 1); px(g, SM.ink, X + 4, Y + 3, 8, 4); px(g, SM.ironLo, X + 5, Y + 3, 6, 3);   // anvil
+      px(g, SM.ink, X - 4, Y, 3, 2); px(g, SM.iron, X - 3, Y, 2, 1);                                                                                        // horn
+      const hot = (Math.sin(t * 2) + 1) / 2; px(g, hot > .5 ? SM.fireHi : SM.fire, X + 2, Y - 3, 9, 2); px(g, SM.fireLo, X + 2, Y - 2, 9, 1);              // glowing bar
+      px(g, SM.ink, X + 11, Y - 9, 3, 7); px(g, SM.ironLo, X + 9, Y - 11, 7, 3); px(g, SM.iron, X + 10, Y - 11, 5, 1);                                       // hammer resting
+      break;
+    }
+    case 'quench': {
+      sh(X + 1, 14); px(g, SM.ink, X + 1, Y - 2, 14, 18); px(g, SM.wood, X + 2, Y - 1, 12, 16); px(g, SM.woodHi, X + 3, Y - 1, 2, 16); px(g, SM.ironLo, X + 2, Y + 2, 12, 1); px(g, SM.ironLo, X + 2, Y + 11, 12, 1);
+      px(g, '#3f6f8f', X + 3, Y - 2, 10, 3); px(g, '#6fa3c4', X + 4, Y - 2, 4, 1);
+      for (let i = 0; i < 2; i++) { const k = (t * .7 + i * .5) % 1; g.fillStyle = `rgba(230,230,230,${.5 * (1 - k)})`; g.fillRect(X + 5 + i * 4 + Math.sin(t * 2 + i) * 2 | 0, Y - 5 - k * 12 | 0, 3, 2) }
+      break;
+    }
+    case 'toolwall': {
+      px(g, SM.ink, X + 1, Y - 30, w - 2, 22); px(g, SM.woodHi, X + 2, Y - 29, w - 4, 20); px(g, SM.wood, X + 2, Y - 21, w - 4, 1);
+      const hang = (hx, kind) => { px(g, SM.ink, hx, Y - 28, 1, 1); if (kind === 0) { px(g, SM.woodLo, hx, Y - 27, 1, 14); px(g, SM.ironLo, hx - 2, Y - 27, 5, 3) } else if (kind === 1) { px(g, SM.ironLo, hx - 1, Y - 27, 1, 14); px(g, SM.ironLo, hx + 1, Y - 27, 1, 14); px(g, SM.iron, hx - 1, Y - 14, 3, 1) } else { px(g, SM.woodLo, hx, Y - 27, 1, 12); px(g, SM.iron, hx - 1, Y - 16, 3, 4) } };
+      [0, 1, 2, 0, 1, 2].forEach((k, i) => hang(X + 5 + i * 4, k));
+      // shelf below with buckets of nails
+      px(g, SM.ink, X + 1, Y + 4, w - 2, 12); px(g, SM.wood, X + 2, Y + 5, w - 4, 10); px(g, SM.woodHi, X + 2, Y + 5, w - 4, 1); px(g, SM.ironLo, X + 5, Y + 1, 6, 4); px(g, SM.ironLo, X + 18, Y + 1, 7, 4); px(g, SM.iron, X + 6, Y + 1, 4, 1); px(g, SM.iron, X + 19, Y + 1, 5, 1);
+      break;
+    }
+    case 'grind': {
+      sh(X + 2, 12); px(g, SM.ink, X + 2, Y + 4, 2, 12); px(g, SM.ink, X + 12, Y + 4, 2, 12); px(g, SM.wood, X + 2, Y + 8, 12, 2);
+      const c = X + 8, cy = Y + 3, a = t * 4; g.fillStyle = SM.ink; g.beginPath(); g.arc(c, cy, 7, 0, 7); g.fill(); g.fillStyle = '#9a948a'; g.beginPath(); g.arc(c, cy, 6, 0, 7); g.fill(); px(g, '#7a746a', c - 1 + Math.round(Math.cos(a) * 4), cy - 1 + Math.round(Math.sin(a) * 4), 2, 2); px(g, SM.ink, c - 1, cy - 1, 2, 2);
+      break;
+    }
+    case 'counter': {
+      sh(X, w);
+      px(g, SM.ink, X, Y - 4, w, 20); px(g, SM.woodHi, X + 1, Y - 3, w - 2, 4); px(g, '#b07848', X + 1, Y - 3, w - 2, 1);
+      px(g, SM.wood, X + 1, Y + 1, w - 2, 14); for (let i = 0; i < w - 2; i += 16) { px(g, SM.woodLo, X + 3 + i, Y + 3, 12, 10); px(g, SM.wood, X + 4 + i, Y + 4, 10, 8) }
+      // ledger, bell, a coin pile and a pair of horseshoes on top
+      const cx = X + 48; px(g, SM.ink, cx, Y - 8, 12, 5); px(g, '#f2e6c4', cx + 1, Y - 7, 10, 3); px(g, '#7a2a2a', cx + 5, Y - 7, 1, 3);
+      px(g, SM.ink, X + 72, Y - 9, 7, 6); px(g, SM.bronzeHi, X + 73, Y - 8, 5, 4); px(g, SM.ink, X + 75, Y - 10, 1, 1);
+      px(g, SM.ink, X + 20, Y - 7, 7, 4); px(g, '#f2c94c', X + 21, Y - 6, 5, 2); px(g, SM.ink, X + 92, Y - 8, 7, 5); px(g, SM.iron, X + 93, Y - 7, 5, 3); px(g, SM.ink, X + 95, Y - 6, 1, 2);
+      break;
+    }
+    case 'display': {
+      sh(X + 2, w - 4); px(g, SM.ink, X + 2, Y - 14, w - 4, 30); px(g, SM.woodHi, X + 3, Y - 13, w - 6, 28); px(g, SM.wood, X + 3, Y + 4, w - 6, 11);
+      // bronze axe and iron pickaxe crossed
+      for (let i = 0; i < 18; i++) { px(g, SM.woodLo, X + 7 + i, Y - 10 + i, 1, 1); px(g, SM.woodLo, X + 25 - i, Y - 10 + i, 1, 1) }
+      px(g, SM.ink, X + 4, Y - 13, 7, 7); px(g, SM.bronze, X + 5, Y - 12, 5, 5); px(g, SM.bronzeHi, X + 5, Y - 12, 2, 5);
+      px(g, SM.ink, X + 20, Y - 13, 10, 4); px(g, SM.iron, X + 21, Y - 12, 8, 2); px(g, SM.ironHi, X + 21, Y - 12, 8, 1);
+      px(g, SM.ink, X + 8, Y + 6, 16, 6); px(g, '#e9dcc0', X + 9, Y + 7, 14, 4);                                                  // little price card
+      break;
+    }
+    case 'ore': { sh(X + 1, 14); px(g, SM.ink, X + 1, Y + 2, 14, 14); px(g, SM.woodHi, X + 2, Y + 3, 12, 12); px(g, SM.wood, X + 2, Y + 8, 12, 1); px(g, SM.wood, X + 7, Y + 3, 1, 12);
+      for (const [ox, oy, c] of [[3, -1, '#c8743a'], [7, -2, '#8a8f96'], [10, 0, '#c8743a'], [5, 1, '#a35a3a'], [11, -3, '#8a8f96']]) { px(g, SM.ink, X + ox - 1, Y + oy - 1, 5, 4); px(g, c, X + ox, Y + oy, 3, 3); px(g, '#ffffff55', X + ox, Y + oy, 1, 1) } break }
+    case 'coal': { sh(X + 1, 14); for (const [ox, oy, s] of [[2, 9, 5], [7, 8, 6], [4, 5, 5], [9, 4, 4], [6, 2, 4], [11, 10, 4]]) { px(g, '#0e0c0c', X + ox - 1, Y + oy - 1, s + 2, s + 1); px(g, '#2a2626', X + ox, Y + oy, s, s - 1); px(g, '#4e4846', X + ox, Y + oy, 1, 1) } break }
+    case 'sbarrel': { sh(X + 2, 12); px(g, SM.ink, X + 2, Y - 1, 12, 17); px(g, SM.wood, X + 3, Y, 10, 15); px(g, SM.woodHi, X + 4, Y, 2, 15); px(g, SM.ironLo, X + 3, Y + 3, 10, 1); px(g, SM.ironLo, X + 3, Y + 11, 10, 1); px(g, SM.ironLo, X + 4, Y - 1, 8, 2); px(g, SM.iron, X + 5, Y - 1, 2, 1); break }
+    default: return false;
+  }
+  return true;
+}
+
 // ---------- going in and out ----------
 async function enterBuilding(k) {
   const R = ROOMS[k]; if (!R) return;
+  if (R.shop && !shopOpen(R.shop)) { if (!enterBuilding.told) { enterBuilding.told = 1; await say(`The door is locked. ${closedMsg(R.shop)}`); setTimeout(() => enterBuilding.told = 0, 1500) } return }
   sfx.tap(); await travel(k, R.door + .5, R.bot + .6, 'n');
 }
 async function leaveBuilding() {
@@ -247,6 +368,17 @@ function mapTab(b, which) {
 function furnitureAction(o) {
   switch (o.k) {
     case 'bimah': visitChurch(); break;
+    case 'counter': { const j = npcs.find(n => n.v.id === 'jesse' && n.map === World.cur); if (j && shopOpen('smithy')) talkTo(j); else say(closedMsg('smithy')); break }
+    case 'forge': say('The forge roars. The coals glow white-hot in the middle.'); break;
+    case 'bellows': say('A big leather bellows for blowing air into the forge.'); break;
+    case 'sanvil': say('Jesse’s main anvil, worn shiny on top from years of hammering.'); break;
+    case 'quench': say('A barrel of water for cooling hot metal. It hisses and steams.'); break;
+    case 'toolwall': say('Hammers, tongs and chisels, each hanging in its own place.'); break;
+    case 'grind': say('A grinding wheel for sharpening blades.'); break;
+    case 'display': say('Jesse’s finest work: a bronze axe and an iron pickaxe, polished to a shine. Ask him about upgrades at the counter.'); break;
+    case 'ore': say('A crate of copper and iron ore, waiting to be smelted.'); break;
+    case 'coal': say('A pile of charcoal for the forge.'); break;
+    case 'sbarrel': say('A barrel of iron nails and odd bits of metal.'); break;
     case 'ark': say('The altar, hung with a blue curtain and a golden cross. On top sit two stone tablets for the Ten Commandments, and a small lamp burns before it day and night.'); break;
     case 'menorah': say('A golden lampstand with seven branches. Its flames flicker softly.'); break;
     case 'shelf': say('Shelves of scrolls: the Law, the Prophets and the Psalms.'); break;
