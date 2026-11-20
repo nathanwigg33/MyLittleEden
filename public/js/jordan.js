@@ -210,7 +210,7 @@ function lineSpot(side) {
 function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
-  if (isInside()) { sfx.no(); return }
+  if (isInside() || World.cur === 'mine') { sfx.no(); return }
   // cast to the side you face; facing up or down, try the side you last faced, then the other
   const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)];
   let side = 0, c = null; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } }

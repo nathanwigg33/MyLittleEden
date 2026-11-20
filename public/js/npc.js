@@ -47,6 +47,7 @@ function villagerHome(n, k) {
   if (n.v.id === 'jesse' && shopOpen('smithy')) return ['smithy', 32.5, 25.2, .9];          // behind his counter
   if (n.v.id === 'joseph' && shopOpen('carpenter')) return ['carpenter', 32.5, 25.2, .9];    // behind his planning table
   if (n.v.id === 'miriam' && shopOpen('inn')) return ['inn', 32, 24.2, 1];                    // behind her bar
+  if (n.v.id === 'bezalel') return villagersOut() ? ['sinai', ...n.v.spot, n.v.roam] : ['away', 0, 0, 0];
   if (n.v.id === 'peter') return villagersOut() ? ['jordan', JORDAN.dock[0], JORDAN.dock[1], 1.2] : ['away', 0, 0, 0];
   const P = INN_GUESTS[n.v.id]; if (P && state.time >= 19 * 60 && state.time < 22 * 60) return ['inn', P[0], P[1], 0];   // supper at the inn
   if (!villagersOut()) return ['away', 0, 0, 0];

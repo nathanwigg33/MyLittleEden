@@ -69,6 +69,33 @@ rows = {}
 for c in cs: rows.setdefault(round((c[1]+c[3])/2/32), []).append(c)
 orerows = [r for r in [sorted(v) for k, v in sorted(rows.items())] if len(r) >= 4]
 E['boulder'] = px(*orerows[0][1]); E['stone'] = px(*orerows[0][2])
+# ---------- mine: ore rocks and ore / gem items, recoloured from the pack's silver, coal, blue-gem and gold rocks ----------
+def recolor(im, pick, fn):
+    im = im.copy(); P = im.load()
+    for y in range(im.height):
+        for x in range(im.width):
+            r, g, b, a = P[x, y]
+            if a and pick(r, g, b): P[x, y] = fn(r, g, b) + (a,)
+    return im
+white = lambda r, g, b: r > 215 and g > 215 and b > 215
+cyan = lambda r, g, b: b - r > 70 and g - r > 45
+orange = lambda r, g, b: r > 190 and b < 130
+def gemc(mul):
+    return lambda r, g, b: tuple(min(255, int(v)) for v in (b * mul[0] + 20, b * mul[1] + 10, b * mul[2] + 10))
+copper = lambda r, g, b: (min(255, int(r * .92)), int(g * .62), int(b * .5))
+iron = lambda r, g, b: (int(150 + (r - 200) * .6), int(78 + (g - 200) * .4), int(52 + (b - 200) * .3))
+NODE = {'silver': orerows[0][2], 'coal': orerows[1][2], 'sapphire': orerows[2][2], 'gold': orerows[3][2], 'plain': orerows[4][2]}
+ICON = {'silver': orerows[0][3], 'coal': orerows[1][3], 'sapphire': orerows[2][3], 'gold': orerows[3][3]}
+for k in ('silver', 'coal', 'sapphire', 'gold'): E['node_' + k] = px(*NODE[k]); E['ore_' + k] = px(*ICON[k])
+goldy = lambda r, g, b: (min(255, r + 10), min(255, int(g * 1.18 + 28)), int(b * .7))
+E['node_goldy'] = recolor(E['node_gold'], orange, goldy); E['ore_goldy'] = recolor(E['ore_gold'], orange, goldy)
+E['node_stone'] = px(*NODE['plain'])
+E['node_copper'] = recolor(E['node_gold'], orange, copper); E['ore_copper'] = recolor(E['ore_gold'], orange, copper)
+E['node_iron'] = recolor(E['node_silver'], lambda r, g, b: r > 200 and g > 200 and b > 200, iron); E['ore_iron'] = recolor(E['ore_silver'], lambda r, g, b: r > 120, iron)
+E['node_gold'] = E.pop('node_goldy'); E['ore_gold'] = E.pop('ore_goldy')
+for k, mul in (('emerald', (.25, 1.05, .45)), ('ruby', (1.1, .25, .35)), ('amethyst', (.75, .4, 1.05))):
+    E['node_' + k] = recolor(E['node_sapphire'], cyan, gemc(mul)); E['ore_' + k] = recolor(E['ore_sapphire'], lambda r, g, b: b - r > 40, gemc(mul))
+E['minecart'] = trim(gm('spr_deco_minecart'))
 for k, n in [('campfire', 'spr_deco_campfire'), ('well', 'spr_deco_well'), ('chest', 'spr_deco_chest_01_closed'), ('crate', 'spr_deco_crate_01'),
              ('barrel', 'spr_deco_barrel_closed'), ('bucket', 'spr_deco_bucket'), ('chair', 'spr_deco_chair_01')]:
     try: E[k] = trim(gm(n))

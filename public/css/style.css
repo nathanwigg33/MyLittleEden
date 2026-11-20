@@ -229,7 +229,7 @@ button{font:inherit;cursor:pointer}
 .pin::before{content:'';position:absolute;left:-14px;top:-14px;width:28px;height:28px;border-radius:50%;border:3px solid #ff4a32;box-sizing:border-box;animation:pinp 1.2s ease-out infinite}
 .pin span{position:absolute;left:0;top:9px;transform:translateX(-50%);background:#e8392a;color:#fff;font:700 10px 'Pixelify Sans',monospace;padding:0 4px;border-radius:3px;white-space:nowrap}
 @keyframes pinp{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.4);opacity:0}}
-.mapbtns{display:flex;gap:6px;margin-bottom:6px}.mapbtns .btn{flex:1;padding:6px 4px;font-size:14px}
+.mapbtns{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}.mapbtns .btn{flex:1 1 28%;padding:5px 3px;font-size:13px}
 .mlab.below{transform:translate(-50%,0)}.mlab.right{transform:translate(-100%,-100%)}.mlab.left{transform:translate(0,-100%)}
 
 #fishgame{position:fixed;inset:0;z-index:30;display:flex;align-items:flex-end;justify-content:center;padding-bottom:calc(env(safe-area-inset-bottom) + 150px);background:rgba(10,20,30,.18);touch-action:none}

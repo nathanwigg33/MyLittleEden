@@ -81,5 +81,6 @@ const sfx = {
   water: () => { noise(.25, .05, 2600); tone(1500, .06, 'sine', .015, .05, 1200) },
   splash: () => { noise(.35, .1, 900); tone(500, .2, 'sine', .03, 0, 250) },
   plant: () => { tone(520, .06, 'triangle', .03); tone(780, .08, 'triangle', .025, .06) },
+  thunder: () => { noise(1.8, .22, 30); noise(.25, .18, 60); tone(55, 1.6, 'sine', .09, 0, 32); tone(70, .9, 'triangle', .05, .15, 40) },
   bird: () => { const b = rnd(2200, 3000); tone(b, .07, 'sine', .015, 0, b * 1.3); tone(b * 1.1, .06, 'sine', .012, .1, b * 1.4) },
 };

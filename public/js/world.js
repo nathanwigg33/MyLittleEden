@@ -9,14 +9,14 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
   TENT: { x: 20, y: 12 }, EXIT: { x: 63, y: 27 },
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
-  owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') return { o: this.objs[idx(o.ox, o.oy)], x: o.ox, y: o.oy }; return o ? { o, x, y } : null },
+  owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') { if (o.ox < 0) return null; const ow = this.objs[idx(o.ox, o.oy)]; return ow ? { o: ow, x: o.ox, y: o.oy } : null } return o ? { o, x, y } : null },
   solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')); return !!(o && OBJ[o.t] && OBJ[o.t].solid) },
   place(x, y, o) { this.objs[idx(x, y)] = o },
   footprint(x, y, w, h, o) { for (let yy = y - h + 1; yy <= y; yy++) for (let xx = x - Math.floor(w / 2); xx <= x + Math.floor(w / 2); xx++) this.objs[idx(xx, yy)] = (xx === x && yy === y) ? o : { t: 'part', ox: x, oy: y } },
@@ -201,6 +201,7 @@ function drawObject(g, o, x, y, t) {
     case 'ifurn': drawFurn(g, o, x, y, t); break;
     case 'coracle': case 'duck': drawWaterObj(g, o, x, y, t); break;
     case 'shell': case 'wreck': case 'lighthouse': drawSeaObj(g, o, x, y, t); break;
+    case 'node': case 'ladder': case 'ladder_up': case 'minecart': drawMineObj(g, o, x, y, t); break;
     case 'dock': case 'bridge': case 'deck': break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
     case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
@@ -249,7 +250,7 @@ function genTown() {
   dirt(P.x, 12, P.x + 1, H - 1);               // north-south, out to the Jordan
   dirt(P.x, 27, 58, 28);                       // east street
   dirt(16, 17, 30, 25);                        // market square
-  dirt(24, 6, 25, 17);                         // path north toward Mount Sinai
+  dirt(24, 0, 25, 17);                         // the road north to Mount Sinai
   // paved plaza
   for (let y = P.y - 7; y <= P.y + 7; y++) for (let x = P.x - 10; x <= P.x + 10; x++) if (inb(x, y) && Math.hypot((x - P.x) / 8, (y - P.y) / 5.2) < 1) { pv[idx(x, y)] = 1; g[idx(x, y)] = DIRT }
   // buildings (bottom-left cell) and the little paths to their doors
@@ -263,7 +264,7 @@ function genTown() {
   World.place(49, 24, { t: 'anvil' }); World.place(51, 24, { t: 'forge' }); World.place(51, 22, { t: 'barrel' });
   placeBld(33, 28, 'well');
   for (const [x, y] of [[26, 24], [42, 24], [26, 32], [42, 32], [30, 20], [38, 20], [42, 39], [49, 39], [16, 25], [12, 35]]) World.place(x, y, { t: 'torch' });
-  World.place(26, 7, { t: 'sign', text: 'North: the road to Mount Sinai. (Not open yet.)' });
+  World.place(26, 7, { t: 'sign', text: 'North: the road to Mount Sinai and the Sinai Mines.' });
   World.place(36, 47, { t: 'sign', text: 'South: the Jordan River and Galilee Bay. Good fishing!' });
   for (const [x, y, k] of [[43, 22, 'crate'], [41, 37, 'barrel'], [48, 37, 'barrel'], [16, 21, 'crate'], [29, 21, 'barrel'], [19, 33, 'crate'], [12, 33, 'barrel'], [20, 33, 'crate']]) World.place(x, y, { t: k });
   for (const [x, y] of [[14, 25], [20, 30], [29, 35], [39, 34], [47, 30], [55, 25], [39, 15], [20, 14], [31, 47], [58, 37], [10, 30], [45, 46], [28, 10], [40, 10], [10, 15], [57, 20]]) if (!o[idx(x, y)]) World.place(x, y, { t: 'wild', k: 'olive', v: ri(0, 3) });
