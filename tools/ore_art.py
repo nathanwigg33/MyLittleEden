@@ -129,3 +129,15 @@ def gem(kind):
         if P[x, y][3] and P[x, y] != INK: P[x, y] = light + (255,)
     P[4, 2] = (255, 255, 255, 255); P[3, 3] = (255, 255, 255, 255)
     return im
+
+def bar(kind):
+    """an ingot (15 x 9): a trapezoid with a bright top face and a darker front"""
+    dark, mid, light = METAL[kind]; im = Image.new('RGBA', (15, 9)); P = im.load()
+    rows = ['...XXXXXXXXX...', '..XLLLLLLLLLX..', '.XLLLLLLLLLLLX.', 'XMMMMMMMMMMMMMX', 'XMMMMMMMMMMMMDX', 'XMMMMMMMMMMMDDX', 'XDDDDDDDDDDDDDX', '.XXXXXXXXXXXXX.']
+    for y, row in enumerate(rows):
+        for x, ch in enumerate(row):
+            if ch == 'X': P[x, y] = INK
+            elif ch in 'LMD': P[x, y] = {'L': light, 'M': mid, 'D': dark}[ch] + (255,)
+    for x in range(4, 10): P[x, 1] = (255, 255, 255, 255) if x < 6 else light + (255,)
+    P[3, 4] = light + (255,); P[4, 4] = light + (255,)
+    return im

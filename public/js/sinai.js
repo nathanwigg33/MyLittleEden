@@ -208,3 +208,83 @@ const BEZALEL = { id: 'bezalel', name: 'Bezalel', role: 'Craftsman', spot: [41.5
   lines: ['I was given skill to work in gold, in silver and in bronze, and in cutting of stones. The mountain is full of them!', 'Copper and stone near the top of the mine. Iron from floor 5, silver from 10, gold from 15.', 'Every rock might hide the ladder down. Keep swinging!', 'Precious stones are rare: amethyst, emerald, ruby, sapphire. They catch the light, so look for the sparkle.', 'When the thunder rolls over the mountain, I remember who gave the Law here.', 'Eat well before you go down. Mining is hungry work.'],
   warm: ['Your hands are getting a miner’s calluses. Good!', 'You’d make a fine craftsman, friend.'] };
 VILLAGERS.push(BEZALEL);
+
+// ---------- Bezalel's workshop: decorations crafted from gems, bars and stone, placed on your farm ----------
+const DECOR = {
+  pillar: { n: 'Stone Pillar', d: 'A carved stone pillar with a copper cap.', need: { stone: 15, bar_copper: 1 }, fee: 40 },
+  planter: { n: 'Emerald Planter', d: 'A stone planter full of flowers, trimmed with emerald.', need: { stone: 12, ore_emerald: 1 }, fee: 80 },
+  lamb: { n: 'Bronze Lamb', d: 'A gleaming bronze statue of a lamb.', need: { bar_copper: 4, stone: 10 }, fee: 150 },
+  lantern: { n: 'Gem Lantern', d: 'An iron lantern with a sapphire inside. It glows blue at night.', need: { bar_iron: 1, ore_sapphire: 1 }, fee: 100, light: [50, .85] },
+  sundial: { n: 'Ruby Sundial', d: 'A stone sundial with a gold pointer and a ruby at its center.', need: { stone: 15, bar_gold: 1, ore_ruby: 1 }, fee: 200 },
+  lampstand: { n: 'Golden Lampstand', d: 'Seven golden lamps on one stand, set with an amethyst. Glows at night.', need: { bar_gold: 2, ore_amethyst: 1 }, fee: 150, light: [64, .95] },
+  fountain: { n: 'Stone Fountain', d: 'Water sparkles in a stone basin set with a sapphire.', need: { stone: 30, bar_silver: 2, ore_sapphire: 1 }, fee: 300 },
+};
+function decorItems() { const o = {}; for (const k in DECOR) o['decor_' + k] = { n: DECOR[k].n, icon: 'decor_' + k, place: k, price: 0, d: DECOR[k].d + ' Select it and face an empty spot on your farm to place it.' }; return o }
+// pixel art for each decoration, drawn with its feet at (cx, by)
+function drawDecor(g, k, cx, by, t) {
+  const P = (c, x, y, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(cx + x), Math.round(by + y), w, h) }, ink = '#2a1e18';
+  const stone = ['#8e867c', '#b4ac9f', '#d4ccbe'], gold = ['#b07a16', '#eabf40', '#fff0a0'], cop = ['#7a3a1c', '#c8743a', '#f0a868'];
+  P('rgba(0,0,0,.22)', -7, -1, 14, 2);
+  switch (k) {
+    case 'pillar': P(ink, -5, -4, 10, 4); P(stone[0], -4, -3, 8, 2); P(ink, -4, -28, 8, 25); P(stone[1], -3, -27, 6, 24); P(stone[2], -3, -27, 1, 24); P(stone[0], 1, -27, 1, 24);
+      for (const y of [-22, -15, -8]) P(stone[0], -3, y, 6, 1); P(ink, -6, -32, 12, 5); P(cop[1], -5, -31, 10, 3); P(cop[2], -5, -31, 10, 1); P(cop[0], -5, -29, 10, 1); break;
+    case 'planter': P(ink, -8, -9, 16, 9); P(stone[1], -7, -8, 14, 7); P(stone[2], -7, -8, 14, 1); P(stone[0], -7, -3, 14, 2); P('#2ea85a', -2, -6, 4, 2); P('#a8f0c0', -1, -6, 1, 1);
+      for (const [x, y, c] of [[-6, -13, '#e04a6a'], [-3, -16, '#f0d040'], [0, -13, '#9a60e0'], [3, -15, '#ffffff'], [5, -12, '#e04a6a'], [-1, -18, '#f08a3a']]) { P('#3f8a3a', x, y + 2, 1, 4); P(c, x - 1, y, 3, 2); P('#ffffff88', x, y, 1, 1) }
+      for (const x of [-7, -4, 2, 6]) P('#5aa84a', x, -11, 2, 3); break;
+    case 'lamb': {   // a little bronze lamb standing on a stone base, facing right
+      P(ink, -8, -4, 16, 4); P(stone[1], -7, -3, 14, 2); P(stone[2], -7, -3, 14, 1); P(stone[0], -7, -2, 14, 1);
+      for (const x of [-5, -3, 2, 4]) { P(ink, x - 1, -9, 3, 6); P(cop[0], x, -9, 1, 5) }                         // legs
+      const wool = [[-6, -13], [-3, -15], [0, -15], [3, -13], [-5, -10], [-1, -10], [3, -10]];
+      for (const [x, y] of wool) { g.fillStyle = ink; g.beginPath(); g.arc(cx + x, by + y, 3, 0, 7); g.fill() }       // woolly outline
+      for (const [x, y] of wool) { g.fillStyle = cop[1]; g.beginPath(); g.arc(cx + x, by + y, 2.2, 0, 7); g.fill() }
+      for (const [x, y] of wool.slice(0, 4)) P(cop[2], x - 1, y - 1, 2, 1);                                           // curls catching the light
+      P(ink, -9, -12, 3, 3); P(cop[1], -9, -11, 2, 1);                                                                  // tail
+      P(ink, 4, -19, 7, 7); P(cop[1], 5, -18, 5, 5); P(cop[2], 5, -18, 3, 1); P(ink, 8, -16, 1, 1); P(cop[0], 9, -14, 1, 1);   // head
+      P(ink, 3, -18, 3, 3); P(cop[0], 4, -17, 1, 1); break }                                                          // ear
+    case 'lantern': { const glow = .55 + Math.sin(t * 3) * .15; P(ink, -1, -28, 3, 25); P('#4a4a52', 0, -27, 1, 24); P(ink, -4, -4, 9, 4); P('#5a5a64', -3, -3, 7, 2);
+      P(ink, -5, -36, 11, 10); P('#6a6a74', -4, -35, 9, 8); P(`rgba(110,180,255,${glow})`, -3, -34, 7, 6); P('#3aa0e8', -1, -32, 3, 3); P('#d8f0ff', 0, -32, 1, 1); P(ink, -6, -38, 13, 3); P('#5a5a64', -5, -37, 11, 1); P(ink, 0, -40, 1, 2); break }
+    case 'sundial': P(ink, -8, -7, 16, 7); P(stone[1], -7, -6, 14, 5); P(stone[2], -7, -6, 14, 1); P(stone[0], -7, -2, 14, 1); P(ink, -3, -12, 6, 6); P(stone[1], -2, -11, 4, 5);
+      P(ink, -8, -15, 16, 4); P(stone[2], -7, -14, 14, 2); for (let a = 0; a < 6; a++) P(stone[0], -6 + a * 2.4, -14, 1, 1); P(ink, -1, -20, 2, 6); P(gold[1], -1, -19, 1, 5); P(gold[2], -1, -19, 1, 1); P('#e03a4a', -1, -13, 2, 1); P('#ffb0b8', -1, -13, 1, 1); break;
+    case 'lampstand': P(ink, -5, -4, 11, 4); P(gold[1], -4, -3, 9, 2); P(ink, -1, -30, 3, 27); P(gold[1], 0, -29, 1, 26); P('#a960e0', -1, -18, 3, 3); P('#e0c0ff', -1, -18, 1, 1);
+      for (let i = 1; i <= 3; i++) { const top = -30, d = i * 3; P(gold[0], -d, top + 2, 1, 4 + i * 3); P(gold[0], d, top + 2, 1, 4 + i * 3); P(gold[0], -d, top + 5 + i * 3, d, 1); P(gold[0], 1, top + 5 + i * 3, d, 1) }
+      for (let i = -3; i <= 3; i++) { const fl = Math.sin(t * 9 + i * 1.7) > .2; P(gold[2], i * 3, -31, 1, 1); P(fl ? '#ffb340' : '#ffd36b', i * 3, -34, 1, 3); P('#fff4c2', i * 3, -33, 1, 1) } break;
+    case 'fountain': P(ink, -9, -9, 18, 9); P(stone[1], -8, -8, 16, 7); P(stone[2], -8, -8, 16, 1); P(stone[0], -8, -3, 16, 2); P('#3f7fb0', -7, -7, 14, 3); P('#9fd2ef', -6, -7, 5, 1);
+      P(ink, -2, -17, 4, 9); P(stone[1], -1, -16, 2, 8); P(ink, -5, -19, 10, 3); P(stone[2], -4, -18, 8, 1); P('#3aa0e8', -1, -14, 2, 2);
+      for (let i = 0; i < 4; i++) { const k2 = (t * 1.6 + i / 4) % 1, x = (i % 2 ? 1 : -1) * (1 + k2 * 5), y = -20 - Math.sin(k2 * Math.PI) * 6 + k2 * 13; P(`rgba(200,236,255,${.9 - k2 * .4})`, x, y, 1, 2) }
+      if (Math.sin(t * 5) > .6) P('#ffffff', 3, -6, 1, 1); break;
+  }
+}
+function makeDecorIcons() { for (const k in DECOR) { const c = mkc(20, 44), g = c.getContext('2d'); drawDecor(g, k, 10, 43, 0); const s = trimCanvas(c); AT['decor_' + k] = [s] } }
+function trimCanvas(c) { const g = c.getContext('2d'), d = g.getImageData(0, 0, c.width, c.height).data; let x0 = c.width, y0 = c.height, x1 = 0, y1 = 0;
+  for (let y = 0; y < c.height; y++) for (let x = 0; x < c.width; x++) if (d[(y * c.width + x) * 4 + 3] > 0) { x0 = Math.min(x0, x); y0 = Math.min(y0, y); x1 = Math.max(x1, x); y1 = Math.max(y1, y) }
+  const o = mkc(x1 - x0 + 1, y1 - y0 + 1); o.getContext('2d').drawImage(c, -x0, -y0); return o }
+function openWorkshop() { if (!shopOpen('workshop')) { say(closedMsg('workshop')); return } openShopModal('Bezalel’s Workshop', renderWorkshop) }
+function renderWorkshop() {
+  const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Craft decorations</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me gems, bars and stone and I’ll craft something beautiful for your farm.”</p>`;
+  for (const k in DECOR) {
+    const D = DECOR[k], ok = state.money >= D.fee && Object.entries(D.need).every(([id, n]) => count(id) >= n);
+    const req = Object.entries(D.need).map(([id, n]) => `<span class="${count(id) >= n ? 'ok' : 'no'}">${n} ${ITEMS[id].n.toLowerCase()}</span>`).join(' · ');
+    h += `<div class="shoprow"><img class="bimg" src="${iconURL('decor_' + k)}"><div class="si"><b>${D.n}</b><div class="muted">${D.d}</div><div class="req">${req} · <span class="${state.money >= D.fee ? 'ok' : 'no'}">₪ ${D.fee}</span></div></div><div class="sb"><button class="btn" data-craft="${k}" ${ok ? '' : 'disabled'}>Craft</button></div></div>`;
+  }
+  b.innerHTML = h;
+  b.querySelectorAll('[data-craft]').forEach(el => el.onclick = () => {
+    const k = el.dataset.craft, D = DECOR[k]; if (state.money < D.fee || !Object.entries(D.need).every(([id, n]) => count(id) >= n)) return;
+    if (addItem('decor_' + k, 1)) { toast('Your bag is full.'); sfx.no(); return }
+    state.money -= D.fee; for (const [id, n] of Object.entries(D.need)) takeItem(id, n);
+    sfx.rock(); setTimeout(() => { sfx.pick(); toast(`Bezalel crafted a ${D.n}!`) }, 300); renderWorkshop(); updateHUD(); save();
+  });
+}
+// placing a decoration in front of you, and picking it back up
+function placeDecor(slot) {
+  const it = state.inv[slot], k = ITEMS[it.id].place;
+  if (World.cur !== 'farm') { toast('Decorations can be placed on your farm.'); sfx.no(); return }
+  const [x, y] = facingCell(); const i = idx(x, y);
+  if (!inb(x, y) || World.ground[i] === WATER || World.objs[i] || World.soil[i] || (Math.floor(player.x) === x && Math.floor(player.y) === y)) { toast('Face an empty spot to place it.'); sfx.no(); return }
+  World.place(x, y, { t: 'decor', k }); it.n--; if (it.n <= 0) state.inv[slot] = null; sfx.plant(); chips(x + .5, y + .5, '#d4ccbe', 6); updateHUD(); save();
+}
+async function decorAction(r) {
+  const v = await say(`Your ${DECOR[r.o.k].n}. Pick it up?`, [['Pick up', 1], ['Leave it', 0]]); if (!v) return;
+  if (addItem('decor_' + r.o.k, 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(r.x, r.y, null); sfx.pick(); updateHUD(); save();
+}
+BEZALEL.shop = 'workshop';
+BEZALEL.lines.push('Bring me gems and bars and I’ll craft you something fine for your farm: lampstands, lanterns, fountains…');

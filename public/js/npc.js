@@ -88,7 +88,7 @@ async function talkTo(n) {
   if (first && heartsOf(v.id) > Math.floor((f.pts - (isSabbath() ? 8 : 5)) / 20)) { toast(`${v.name} likes you more! ♥ ${heartsOf(v.id)}`); sfx.pick() }
   n.talking = false; n.wait = 1.5;
   if (v.id === 'peter') await peterGift();
-  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter, tackle: openTackle })[v.shop]();
+  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter, tackle: openTackle, workshop: openWorkshop })[v.shop]();
 }
 function drawVillager(g, n) {
   const fx = n.x * 16, fy = n.y * 16; g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(Math.round(fx), Math.round(fy), 5, 2, 0, 0, 7); g.fill();

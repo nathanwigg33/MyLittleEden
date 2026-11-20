@@ -101,6 +101,7 @@ import ore_art
 for k in ('stone', 'copper', 'coal', 'iron', 'silver', 'gold', 'amethyst', 'emerald', 'ruby', 'sapphire'): E['node_' + k] = ore_art.node(k)
 for k in ('copper', 'coal', 'iron', 'silver', 'gold'): E['ore_' + k] = trim(ore_art.lump(k))
 for k in ('amethyst', 'emerald', 'ruby', 'sapphire'): E['ore_' + k] = trim(ore_art.gem(k))
+for k in ('copper', 'iron', 'silver', 'gold'): E['bar_' + k] = trim(ore_art.bar(k))
 for k, n in [('campfire', 'spr_deco_campfire'), ('well', 'spr_deco_well'), ('chest', 'spr_deco_chest_01_closed'), ('crate', 'spr_deco_crate_01'),
              ('barrel', 'spr_deco_barrel_closed'), ('bucket', 'spr_deco_bucket'), ('chair', 'spr_deco_chair_01')]:
     try: E[k] = trim(gm(n))

@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems());
+Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems());
 const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -93,6 +93,7 @@ async function action() {
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
     if (it.o.t === 'shell') { if (addItem('shell', 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(it.x, it.y, null); sfx.pick(); toast('You found a seashell!'); return }
     if (['ladder', 'ladder_up', 'minecart'].includes(it.o.t)) { mineAction(it.o); return }
+    if (it.o.t === 'decor') { decorAction(it); return }
     if (it.o.t === 'wreck') { say('An old fishing boat, washed up and turned over long ago.'); return }
     if (it.o.t === 'lighthouse') { say('The lighthouse keeps boats safe at night. Its light sweeps across the sea after dark.'); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
@@ -106,6 +107,7 @@ async function action() {
   const hv = harvestTarget(); if (hv) { faceToward(hv.x, hv.y); harvest(hv); return }
   const s = selItem(), item = s && ITEMS[s.id];
   if (item && item.food) { eat(state.sel); return }
+  if (item && item.place) { placeDecor(state.sel); return }
   if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
   if (tool === 'rod') { startFishing(); return }
@@ -516,7 +518,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = World.cur === 'mine' ? `rgba(10,6,4,${dark})` : `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
     if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 120 : 34, World.cur === 'mine' ? .97 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
@@ -565,7 +567,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); makeDecorIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

@@ -18,16 +18,21 @@ function eat(slot) {
 }
 
 // ---------- tool upgrades ----------
-const TOOL_LV = ['', 'Basic', 'Bronze', 'Iron'];
-const UPGRADES = { 2: { money: 600, stone: 30, wood: 20 }, 3: { money: 2000, stone: 80, wood: 50 } };
+const TOOL_LV = ['', 'Basic', 'Bronze', 'Iron', 'Gold'];
+// each upgrade needs shekels and bars that Jesse smelts from your ore
+const UPGRADES = { 2: { money: 600, bar: 'bar_copper', n: 5 }, 3: { money: 2000, bar: 'bar_iron', n: 5 }, 4: { money: 5000, bar: 'bar_gold', n: 5 } };
+// smelting: five ore and a lump of coal make one bar
+const SMELT = { bar_copper: 'ore_copper', bar_iron: 'ore_iron', bar_silver: 'ore_silver', bar_gold: 'ore_gold' };
+const BARS = { bar_copper: ['Copper Bar', 130], bar_iron: ['Iron Bar', 220], bar_silver: ['Silver Bar', 380], bar_gold: ['Gold Bar', 700] };
+function barItems() { const o = {}; for (const k in BARS) o[k] = { n: BARS[k][0], icon: k, price: BARS[k][1], d: `Smelted by Jesse from five ${ITEMS[SMELT[k]] ? ITEMS[SMELT[k]].n.toLowerCase() : 'ore'} and a lump of coal. Used for tool upgrades and Bezalel’s crafts.` }; return o }
 const UPG_TOOLS = { axe: 'Chops harder: fewer swings per tree.', pick: 'Breaks stone faster: fewer swings per rock.', hoe: 'Digs a longer row with each swing.', can: 'Holds more water and waters a longer row.' };
 const toolLv = id => (state.toolLv || {})[id] || 1;
-const canMax = () => [0, 40, 70, 100][toolLv('can')];
-const rowLen = id => [0, 1, 3, 5][toolLv(id)];
+const canMax = () => [0, 40, 70, 100, 130][toolLv('can')];
+const rowLen = id => [0, 1, 3, 5, 7][toolLv(id)];
 function toolName(id) { const lv = toolLv(id); return (lv > 1 && UPG_TOOLS[id] ? TOOL_LV[lv] + ' ' : '') + ITEMS[id].n }
 
 // ---------- opening hours ----------
-const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'], carpenter: [9, 17, 'Carpenter'], tackle: [7, 19, 'Tackle shop'] };
+const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'], carpenter: [9, 17, 'Carpenter'], tackle: [7, 19, 'Tackle shop'], workshop: [7, 19, 'Bezalel’s workshop'] };
 function shopOpen(k) { const [a, b] = HOURS[k]; if (k !== 'inn' && isSabbath()) return false; return state.time >= a * 60 && state.time < b * 60 }
 function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 'inn' ? `The ${n.toLowerCase()} is closed for the Sabbath. Come back tomorrow.` : `The ${n.toLowerCase()} is closed. Open ${a % 12 || 12}${a < 12 ? ' am' : ' pm'} to ${b % 12 || 12}${b < 12 || b === 24 ? (b === 24 ? ' midnight' : ' am') : ' pm'}.` }
 function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }
@@ -59,19 +64,36 @@ function renderMarket() {
   b.querySelectorAll('[data-sell]').forEach(el => el.onclick = () => { const i = +el.dataset.sell, s = state.inv[i]; if (!s) return; const n = Math.min(+el.dataset.n, s.n); state.money += n * ITEMS[s.id].price; state.stats.earned = (state.stats.earned || 0) + n * ITEMS[s.id].price; s.n -= n; if (s.n <= 0) state.inv[i] = null; tone(988, .06, 'square', .025); tone(1318, .08, 'square', .02, .06); renderMarket() });
 }
 function openSmithy() { if (!shopOpen('smithy')) { say(closedMsg('smithy')); return } openShopModal("Jesse’s Forge", renderSmithy) }
+let smithTab = 'upgrade';
 function renderSmithy() {
-  const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Tool upgrades</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me shekels, stone and wood, and I’ll make your tools stronger. Later, ore from the mountain will make them even better.”</p>`;
-  for (const id in UPG_TOOLS) {
-    const lv = toolLv(id), nx = UPGRADES[lv + 1];
-    h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money}</span> · <span class="${count('stone') >= nx.stone ? 'ok' : 'no'}">${nx.stone} stone</span> · <span class="${count('wood') >= nx.wood ? 'ok' : 'no'}">${nx.wood} wood</span></div>` : '<div class="req ok">Fully upgraded</div>'}</div>${nx ? `<div class="sb"><button class="btn" data-up="${id}" ${state.money >= nx.money && count('stone') >= nx.stone && count('wood') >= nx.wood ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
+  const b = $('#binM .mbody');
+  let h = `<div class="binhead"><span>${smithTab === 'upgrade' ? 'Tool upgrades' : 'Smelting'}</span>${money()}</div>` + tabsHTML(smithTab, [['upgrade', 'Upgrade tools'], ['smelt', 'Smelt ore']]);
+  if (smithTab === 'upgrade') {
+    h += `<p class="muted" style="margin:2px 0 8px">“Bring me bars and I’ll make your tools stronger. Bronze needs copper bars, iron needs iron bars, and gold needs gold bars.”</p>`;
+    for (const id in UPG_TOOLS) {
+      const lv = toolLv(id), nx = UPGRADES[lv + 1];
+      const ok = nx && state.money >= nx.money && count(nx.bar) >= nx.n;
+      h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money.toLocaleString()}</span> · <span class="${count(nx.bar) >= nx.n ? 'ok' : 'no'}">${nx.n} ${ITEMS[nx.bar].n.toLowerCase()}s (${count(nx.bar)})</span></div>` : '<div class="req ok">Fully upgraded ✓</div>'}</div>${nx ? `<div class="sb"><button class="btn" data-up="${id}" ${ok ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
+    }
+  } else {
+    h += `<p class="muted" style="margin:2px 0 8px">“Five ore and one lump of coal make a bar. Bring me what you dig up on Mount Sinai.” You have ${count('ore_coal')} coal.</p>`;
+    for (const bar in SMELT) {
+      const ore = SMELT[bar], have = count(ore), can = Math.min(Math.floor(have / 5), count('ore_coal'));
+      h += `<div class="shoprow"><img src="${iconURL(bar)}"><div class="si"><b>${ITEMS[bar].n}</b><div class="req"><span class="${have >= 5 ? 'ok' : 'no'}">5 ${ITEMS[ore].n.toLowerCase()} (${have})</span> · <span class="${count('ore_coal') >= 1 ? 'ok' : 'no'}">1 coal</span></div><div class="muted">Sells for ₪${ITEMS[bar].price}</div></div><div class="sb"><button class="btn" data-smelt="${bar}" data-n="1" ${can >= 1 ? '' : 'disabled'}>Smelt</button>${can > 1 ? `<button class="btn alt" data-smelt="${bar}" data-n="${can}">All (${can})</button>` : ''}</div></div>`;
+    }
   }
   b.innerHTML = h;
+  b.querySelectorAll('.stab').forEach(el => el.onclick = () => { smithTab = el.dataset.tab; sfx.tap(); renderSmithy() });
   b.querySelectorAll('[data-up]').forEach(el => el.onclick = () => {
-    const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx) return;
-    if (state.money < nx.money || count('stone') < nx.stone || count('wood') < nx.wood) return;
-    state.money -= nx.money; takeItem('stone', nx.stone); takeItem('wood', nx.wood);
+    const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx || state.money < nx.money || count(nx.bar) < nx.n) return;
+    state.money -= nx.money; takeItem(nx.bar, nx.n);
     (state.toolLv = state.toolLv || {})[id] = toolLv(id) + 1; if (id === 'can') state.can = canMax();
-    sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => { sfx.pick(); toast(`Your ${toolName(id)} is ready!`) }, 380); renderSmithy();
+    sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => { sfx.pick(); toast(`Your ${toolName(id)} is ready!`) }, 380); renderSmithy(); updateHUD(); save();
+  });
+  b.querySelectorAll('[data-smelt]').forEach(el => el.onclick = () => {
+    const bar = el.dataset.smelt, ore = SMELT[bar], n = Math.min(+el.dataset.n, Math.floor(count(ore) / 5), count('ore_coal')); if (n < 1) return;
+    takeItem(ore, n * 5); takeItem('ore_coal', n); const left = addItem(bar, n); if (left) drop(bar, left, player.x, player.y + .5);
+    sfx.rock(); setTimeout(() => sfx.splash(), 200); setTimeout(() => { sfx.pick(); toast(`Jesse smelted ${n} ${ITEMS[bar].n.toLowerCase()}${n > 1 ? 's' : ''}!`) }, 420); renderSmithy(); updateHUD(); save();
   });
 }
 function takeItem(id, n) { for (let i = 0; i < state.inv.length && n > 0; i++) { const s = state.inv[i]; if (s && s.id === id) { const k = Math.min(n, s.n); s.n -= k; n -= k; if (s.n <= 0) state.inv[i] = null } } }

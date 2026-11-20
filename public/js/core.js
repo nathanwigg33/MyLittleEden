@@ -42,7 +42,7 @@ const iconCache = {};
 function iconURL(name) {
   if (iconCache[name]) return iconCache[name];
   const s = AT[name] && AT[name][0]; if (!s) return '';
-  const k = s.width <= 8 && s.height <= 8 ? 2 : 1, c = mkc(16, 16); c.getContext('2d').drawImage(s, Math.round(8 - s.width * k / 2), Math.round(8 - s.height * k / 2), s.width * k, s.height * k);
+  const big = Math.max(16, s.width, s.height), k = s.width <= 8 && s.height <= 8 ? 2 : 1, c = mkc(big, big); c.getContext('2d').drawImage(s, Math.round(big / 2 - s.width * k / 2), Math.round(big / 2 - s.height * k / 2), s.width * k, s.height * k);
   return iconCache[name] = c.toDataURL();
 }
 
