@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'fboat', 'helm', 'mast'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -89,6 +89,7 @@ async function action() {
   if (it) {
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
+    if (['fboat', 'helm', 'mast'].includes(it.o.t)) { boatAction(it.o); return }
     if (it.o.t === 'tent') { const v = await say('Your tent. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep(); return }
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
@@ -220,7 +221,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function travel(map, x, y, dir) {
   if (sleeping) return; sleeping = true; const f = $('#fade'); f.style.transition = 'opacity .3s'; f.classList.add('on'); await wait(320);
   useMap(map); player.x = x; player.y = y; player.dir = dir || (map === 'town' ? 'r' : 'l'); drops = []; snapCam();
-  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : state.look.farm);
+  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : map === 'sea' ? 'The Deep Sea' : state.look.farm);
 }
 
 // ---------- saving ----------
@@ -234,7 +235,7 @@ function save() {
 function hasSave() { try { return !!localStorage.getItem(SAVE_KEY) } catch (e) { return false } }
 function load() {
   try {
-    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state;
+    const d = JSON.parse(localStorage.getItem(SAVE_KEY)); state = d.st; G.state = state; setRodName();
     genFarm(state.seed); const g = b64d(d.g);
     World.soil = {};
     if (d.w === W && d.h === H && g.length === W * H) { World.ground = g; World.objs = new Array(W * H).fill(null); for (const [i, q] of d.o) World.objs[i] = q; World.soil = d.soil || {} }
@@ -459,8 +460,8 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1);
-    for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge')) drawFloorObj(bx, o, x, y) } }
+  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); if (World.cur === 'sea') drawSeaWater(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1);
+    for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')) drawFloorObj(bx, o, x, y) } }
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
     const s = selItem(), it = s && ITEMS[s.id], tool = it && it.tool, t = interactTarget() || harvestTarget() || toolCell(it) || (tool && tool !== 'hoe' && tool !== 'can' && findTarget(tool));
@@ -468,7 +469,7 @@ function render() {
   }
   // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
-  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part' && o.t !== 'dock' && o.t !== 'bridge') D.push([y + (o.t === 'grass' ? .4 : o.t === 'duck' || o.t === 'coracle' ? .1 : .9), 0, o, x, y]) }
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part' && o.t !== 'dock' && o.t !== 'bridge' && o.t !== 'deck') D.push([y + (o.t === 'grass' ? .4 : o.t === 'duck' || o.t === 'coracle' ? .1 : o.t === 'fboat' ? -1 : .9), 0, o, x, y]) }
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const n of npcs) if (n.map === World.cur) D.push([n.y, 5, n]);
@@ -499,7 +500,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'mast') lamp(x + .5, y - 3.8, 50, .9); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (showPlayer) lamp(player.x, player.y - .5, 34, .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3) { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
@@ -543,7 +544,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

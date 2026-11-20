@@ -25,7 +25,7 @@ const VILLAGERS = [
   { id: 'joseph', name: 'Joseph', role: 'Carpenter', shop: 'carpenter', spot: [15.5, 36.2], roam: 1, look: { hair: 'short', hairCol: 2, skin: 2, shirt: 6, pants: 2 },
     lines: ['A good house starts with good timber. Bring me wood and stone and I’ll build you anything.', '“Except the LORD build the house, they labour in vain that build it.” Psalm 127:1', 'Measure twice, cut once. My father taught me that.', 'My family comes from the line of David, like many here in Bethlehem.', 'A barn full of animals is a happy barn. A coop too!'],
     warm: ['Your farm is coming along nicely. I’d like to see it someday.', 'Every beam I set, I set to last a lifetime. Yours too.'] },
-  { id: 'peter', name: 'Peter', role: 'Fisherman', spot: [32.5, 36], roam: 1.2, look: { hair: 'curly', hairCol: 1, skin: 3, shirt: 3, pants: 1 },
+  { id: 'peter', name: 'Peter', role: 'Fisherman', shop: 'tackle', spot: [32.5, 36], roam: 1.2, look: { hair: 'curly', hairCol: 1, skin: 3, shirt: 3, pants: 1 },
     lines: ['I’ve fished these waters since I was a boy. Some nights we caught nothing at all. Other mornings the nets nearly broke!', 'Catfish only come out after dark. Try the river at night.', 'The bay has bigger fish. The river has tastier ones. My opinion, anyway.', 'Old fishermen say a Great Fish lives out past the end of my dock.', 'Throw your line on the other side of the boat sometimes. You never know.', 'Sardines are easy. Sea bream are tricky, and only come in summer and autumn.'],
     warm: ['You’ve got patience. That’s the whole secret of fishing.', 'You’re becoming a real fisher, friend. I’m proud of you.'] },
 ];
@@ -87,7 +87,7 @@ async function talkTo(n) {
   if (first && heartsOf(v.id) > Math.floor((f.pts - (isSabbath() ? 8 : 5)) / 20)) { toast(`${v.name} likes you more! ♥ ${heartsOf(v.id)}`); sfx.pick() }
   n.talking = false; n.wait = 1.5;
   if (v.id === 'peter') await peterGift();
-  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter })[v.shop]();
+  if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter, tackle: openTackle })[v.shop]();
 }
 function drawVillager(g, n) {
   const fx = n.x * 16, fy = n.y * 16; g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(Math.round(fx), Math.round(fy), 5, 2, 0, 0, 7); g.fill();

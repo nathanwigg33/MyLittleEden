@@ -3,74 +3,124 @@
 const JORDAN = { name: 'The Jordan', bay: 39 };
 const shoreY = x => 40 + Math.round(Math.sin(x / 6.5) * 1.6 + Math.sin(x / 2.7 + 1) * .7);   // first water row of the bay in column x
 
+// smooth curve through control points (Catmull-Rom), returned as many small steps
+function spline(P, step = .2) {
+  const out = [];
+  for (let i = 0; i < P.length - 1; i++) {
+    const p0 = P[Math.max(0, i - 1)], p1 = P[i], p2 = P[i + 1], p3 = P[Math.min(P.length - 1, i + 2)], L = Math.hypot(p2[0] - p1[0], p2[1] - p1[1]), n = Math.max(2, Math.ceil(L / step));
+    for (let k = 0; k < n; k++) { const t = k / n, t2 = t * t, t3 = t2 * t, f = (a, b, c, d) => .5 * (2 * b + (-a + c) * t + (2 * a - 5 * b + 4 * c - d) * t2 + (-a + 3 * b - 3 * c + d) * t3); out.push([f(p0[0], p1[0], p2[0], p3[0]), f(p0[1], p1[1], p2[1], p3[1])]) }
+  }
+  out.push(P[P.length - 1]); return out;
+}
 function genJordan() {
   const R = mulberry(31337), ri = (a, b) => a + Math.floor(R() * (b - a + 1));
   const g = World.ground = new Uint8Array(W * H).fill(GRASS), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
   const at = (x, y) => inb(x, y) ? idx(x, y) : -1;
-  // rivers: circles stamped along a path, with a little wobble in the width
-  const carve = (pts, wd) => {
-    for (let i = 0; i < pts.length - 1; i++) {
-      const [ax, ay] = pts[i], [bx, by] = pts[i + 1], L = Math.hypot(bx - ax, by - ay);
-      for (let s = 0; s <= L; s += .25) {
-        const cx = ax + (bx - ax) * s / L, cy = ay + (by - ay) * s / L, r = wd / 2 + (hash(Math.round(cx * 2), Math.round(cy * 2)) - .5) * .7;
-        for (let y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (let x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) if (inb(x, y) && Math.hypot(x + .5 - cx, y + .5 - cy) <= r) g[idx(x, y)] = WATER;
-      }
-    }
-  };
-  carve([[57, -2], [55, 5], [50, 11], [44, 15], [39, 19], [35, 23], [31, 27], [27, 31], [25, 35], [25, 42]], 3.6);     // the Jordan
-  carve([[6, -2], [8, 6], [11, 13], [15, 20], [19, 26], [22, 31], [25, 35]], 2.4);                                   // a stream joining it
+  // rivers: stamped along a smooth curve, widening as they go
+  const carve = (P, w0, w1) => { const S = spline(P); S.forEach(([cx, cy], i) => { const r = (w0 + (w1 - w0) * i / S.length) / 2 + (hash(Math.round(cx * 2), Math.round(cy * 2)) - .5) * .5;
+    for (let y = Math.floor(cy - r - 1); y <= cy + r + 1; y++) for (let x = Math.floor(cx - r - 1); x <= cx + r + 1; x++) if (inb(x, y) && Math.hypot(x + .5 - cx, y + .5 - cy) <= r) g[idx(x, y)] = WATER }) };
+  // the Jordan snakes down from the north-west in a big S; a creek joins it from the east
+  carve([[12, -3], [13, 5], [19, 10], [28, 11], [37, 14], [41, 20], [37, 25], [28, 27], [21, 30], [18, 35], [20, 40], [22, 45]], 2.6, 4.4);
+  carve([[67, 27], [60, 26], [53, 24], [47, 22], [42, 21]], 1.6, 2.4);
   // Galilee Bay along the bottom, with a sandy beach above it
   for (let x = 0; x < W; x++) { const s = shoreY(x); for (let y = s; y < H; y++) g[idx(x, y)] = WATER; for (let y = s - 3 - (hash(x, 9) > .5 ? 1 : 0); y < s; y++) if (g[idx(x, y)] === GRASS) g[idx(x, y)] = DIRT }
-  // the road down from Bethlehem, with a bridge where it crosses the river
-  const wet = []; for (let y = 0; y < shoreY(34) - 1; y++) for (const x of [34, 35]) { if (g[idx(x, y)] === WATER) wet.push(y); else g[idx(x, y)] = DIRT }
-  const by0 = Math.min(...wet) - 1, by1 = Math.max(...wet) + 1;
-  for (let y = by0; y <= by1; y++) for (const x of [34, 35]) o[idx(x, y)] = { t: 'bridge', side: x === 34 ? -1 : 1, end: y === by0 ? 'top' : y === by1 ? 'bot' : '' };
+  // bridges: lay one across each run of water along a row (h) or column (v), resting on the banks
+  const bridgeV = (xs, y0, y1) => { let run = null; const lay = (a, b) => { for (let y = a - 1; y <= b + 1; y++) xs.forEach((x, k) => { o[idx(x, y)] = { t: 'bridge', d: 'v', side: xs.length === 1 ? 0 : k === 0 ? -1 : 1, end: y === a - 1 ? 'a' : y === b + 1 ? 'b' : '' }; if (g[idx(x, y)] !== WATER) g[idx(x, y)] = DIRT }) };
+    for (let y = y0; y <= y1 + 1; y++) { const wet = y <= y1 && xs.some(x => g[idx(x, y)] === WATER); if (wet && run === null) run = y; if (!wet && run !== null) { lay(run, y - 1); run = null } } };
+  const bridgeH = (y, x0, x1) => { let a = -1, b = -1; for (let x = x0; x <= x1; x++) if (g[idx(x, y)] === WATER) { if (a < 0) a = x; b = x } if (a < 0) return;
+    for (let x = a - 1; x <= b + 1; x++) { o[idx(x, y)] = { t: 'bridge', d: 'h', side: 0, end: x === a - 1 ? 'a' : x === b + 1 ? 'b' : '' }; if (g[idx(x, y)] !== WATER) g[idx(x, y)] = DIRT } };
+  // the road down from Bethlehem
+  for (let y = 0; y < shoreY(34) - 1; y++) for (const x of [34, 35]) if (g[idx(x, y)] !== WATER) g[idx(x, y)] = DIRT;
   for (const x of [33, 36]) for (let y = 0; y < 3; y++) g[idx(x, y)] = DIRT;
-  // the dock: out from the beach into the bay, with a wider end
+  bridgeV([34, 35], 0, shoreY(34) - 2);
+  // smaller footbridges along the river and creek, with little trails to them
+  bridgeH(4, 8, 19); bridgeH(35, 13, 26); bridgeV([55], 19, 31); bridgeV([24], 5, 16);
+  // the dock: out from the beach into the bay, with a wider end, and Peter's boat tied up beside it
   const d0 = shoreY(30) - 2;
   for (let y = d0; y <= 48; y++) for (const x of [30, 31]) o[idx(x, y)] = { t: 'dock', end: y >= 47 };
   for (let x = 28; x <= 33; x++) for (const y of [47, 48]) o[idx(x, y)] = { t: 'dock', end: true };
   for (let x = 32; x <= 33; x++) g[idx(x, d0)] = DIRT;
+  for (let y = 47; y <= 49; y++) for (let x = 34; x <= 38; x++) { g[idx(x, y)] = WATER; o[idx(x, y)] = { t: 'part', ox: 34, oy: 49 } }
+  o[idx(34, 49)] = { t: 'fboat' };
   // Peter's hut on the beach
   const hutY = Math.min(shoreY(38), shoreY(39), shoreY(40)) - 3;
   for (let y = hutY - 2; y <= hutY + 1; y++) for (let x = 37; x <= 41; x++) if (g[idx(x, y)] === WATER) g[idx(x, y)] = DIRT;
   placeBld(38, hutY, 'houseD'); for (let x = 38; x <= 40; x++) g[idx(x, hutY + 1)] = DIRT;
-  JORDAN.hut = [39.5, hutY + 1.6]; JORDAN.dock = [32.5, d0 - .3];
-  // boats, ducks, signs
-  World.place(35, 45, { t: 'coracle' }); World.place(26, 46, { t: 'coracle', v: 2 });
-  for (const [x, y] of [[49, 12], [41, 18], [12, 15], [27, 33]]) if (g[idx(x, y)] === WATER) World.place(x, y, { t: 'duck', v: ri(0, 3) });
+  JORDAN.hut = [39.5, hutY + 1.6]; JORDAN.dock = [32.5, d0 - .3]; JORDAN.boat = [32.6, 47.6];
+  // little boats, ducks, signs
+  World.place(26, 46, { t: 'coracle', v: 2 }); World.place(45, 45, { t: 'coracle' });
+  for (const [x, y] of [[14, 2], [28, 11], [39, 18], [58, 26], [19, 33]]) if (g[idx(x, y)] === WATER && !o[idx(x, y)]) World.place(x, y, { t: 'duck', v: ri(0, 3) });
   World.place(36, 2, { t: 'sign', text: 'The Jordan River. Follow the road south to the beach and Galilee Bay. North leads back to Bethlehem.' });
-  World.place(29, d0 - 1, { t: 'sign', text: 'Peter’s dock. Big fish bite at the far end.' });
+  World.place(29, d0 - 1, { t: 'sign', text: 'Peter’s dock. Big fish bite at the far end, and his boat sails out to the deep sea.' });
   // reeds by the water, trees and tall grass on the banks, rocks and driftwood on the sand
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
     const i = idx(x, y); if (o[i] || g[i] === WATER) continue;
     const nearW = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => at(x + dx, y + dy) >= 0 && g[at(x + dx, y + dy)] === WATER), nearRoad = x >= 26 && x <= 37;
     if (g[i] === DIRT) { if (!nearRoad && y > 30 && R() < .03) o[i] = { t: 'rock' }; else if (!nearRoad && y > 30 && R() < .02) o[i] = { t: 'twig' }; continue }
-    if (nearW && R() < .45) o[i] = { t: 'deco', v: ri(0, 7) };
-    else if (!nearW && !nearRoad && R() < .07) o[i] = { t: 'wild', k: pick(['olive', 'olive', 'oak', 'tree2']), v: ri(0, 3) };
-    else if (!nearRoad && R() < .05) o[i] = { t: 'grass', v: ri(0, 3) };
+    if (nearW && R() < .4) o[i] = { t: 'deco', v: ri(0, 7) };
+    else if (!nearW && !(x >= 32 && x <= 37) && R() < .07) o[i] = { t: 'wild', k: pick(['olive', 'olive', 'oak', 'tree2']), v: ri(0, 3) };
+    else if (!(x >= 32 && x <= 37) && R() < .05) o[i] = { t: 'grass', v: ri(0, 3) };
   }
   fillBorder(R);
 }
+// the deep sea: open water all round, and Peter's boat to stand on
+const SEA = { x0: 27, x1: 35, y0: 24, y1: 27 };
+function genSea() {
+  World.ground = new Uint8Array(W * H).fill(WATER); World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
+  for (let y = SEA.y0; y <= SEA.y1; y++) for (let x = SEA.x0; x <= SEA.x1; x++) World.objs[idx(x, y)] = { t: 'deck' };
+  World.objs[idx(SEA.x0, SEA.y0)].main = 1;
+  World.objs[idx(31, 25)] = { t: 'mast' }; World.objs[idx(SEA.x0, 26)] = { t: 'helm' };
+}
 
 // ---------- fish ----------
-// where: pond (your farm), river, bay · diff 0 = junk (no reeling)
+// where: pond (your farm), river (the Jordan and its creek), shore (the bay, from the beach or dock), sea (from Peter's boat)
+// diff 0 = junk (no reeling) · lb = weight range in pounds
+const WHERE = { pond: 'your farm pond', river: 'the Jordan River', shore: 'the shore of Galilee Bay', sea: 'the deep sea' };
 const FISH = {
-  sardine: { n: 'Sardine', price: 18, diff: 1, where: ['bay'], w: 10, lb: [.1, .3], cm: [12, 20] },
-  carp: { n: 'Carp', price: 30, diff: 1, where: ['pond', 'river'], w: 10, lb: [2, 14], cm: [25, 60] },
-  perch: { n: 'Perch', price: 36, diff: 2, where: ['pond'], w: 6, lb: [.3, 1.6], cm: [15, 35] },
-  tilapia: { n: 'St. Peter’s Fish', price: 55, diff: 2, where: ['bay', 'river'], w: 6, lb: [.5, 3], cm: [20, 40] },
-  barbel: { n: 'Jordan Barbel', price: 48, diff: 2, where: ['river'], w: 7, lb: [1, 8], cm: [25, 55] },
-  catfish: { n: 'Catfish', price: 80, diff: 3, where: ['river', 'pond'], w: 5, night: true, lb: [3, 25], cm: [40, 110] },
-  mullet: { n: 'Mullet', price: 62, diff: 3, where: ['bay'], w: 5, lb: [1, 6], cm: [25, 50] },
-  bream: { n: 'Sea Bream', price: 95, diff: 4, where: ['bay'], w: 3, seasons: [1, 2], lb: [1, 5], cm: [25, 45] },
-  bigfish: { n: 'Great Fish', price: 600, diff: 5, where: ['bay'], w: 0, lb: [150, 400], cm: [180, 320] },
-  sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'bay'], w: 1.2, junk: 1 },
+  carp: { n: 'Carp', price: 30, diff: 1, where: ['pond'], w: 10, lb: [2, 14] },
+  perch: { n: 'Perch', price: 36, diff: 2, where: ['pond'], w: 7, lb: [.3, 1.6] },
+  catfish: { n: 'Catfish', price: 80, diff: 3, where: ['pond', 'river'], w: 5, night: true, lb: [3, 25] },
+  garra: { n: 'Jordan Garra', price: 24, diff: 1, where: ['river'], w: 10, lb: [.05, .3] },
+  barbel: { n: 'Jordan Barbel', price: 48, diff: 2, where: ['river'], w: 8, lb: [1, 8] },
+  eel: { n: 'River Eel', price: 70, diff: 3, where: ['river'], w: 4, lb: [1, 6] },
+  sardine: { n: 'Sardine', price: 18, diff: 1, where: ['shore'], w: 10, lb: [.1, .3] },
+  crab: { n: 'Blue Crab', price: 40, diff: 1, where: ['shore'], w: 5, lb: [.5, 2] },
+  tilapia: { n: 'St. Peter’s Fish', price: 55, diff: 2, where: ['shore'], w: 7, lb: [.5, 3] },
+  mullet: { n: 'Mullet', price: 62, diff: 3, where: ['shore'], w: 5, lb: [1, 6] },
+  bream: { n: 'Sea Bream', price: 95, diff: 3, where: ['shore'], w: 3, seasons: [1, 2], lb: [1, 5] },
+  snapper: { n: 'Red Snapper', price: 120, diff: 3, where: ['sea'], w: 9, lb: [2, 18] },
+  tuna: { n: 'Tuna', price: 150, diff: 3, where: ['sea'], w: 8, lb: [40, 250] },
+  grouper: { n: 'Grouper', price: 190, diff: 4, where: ['sea'], w: 5, lb: [10, 60] },
+  swordfish: { n: 'Swordfish', price: 320, diff: 5, where: ['sea'], w: 2.5, lb: [60, 400] },
+  bigfish: { n: 'Great Fish', price: 800, diff: 5, where: ['sea'], w: .35, lb: [900, 2000] },
+  sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'shore', 'sea'], w: 1, junk: 1 },
 };
+// rods: Peter sells the better ones · zone = extra width of the green catch zone · bite = how fast fish bite
+const RODS = [null, { n: 'Fishing Rod', zone: 0, bite: 1 }, { n: 'Sturdy Rod', zone: .05, bite: .85, price: 800, fiber: 30, d: 'Strong enough for the deep sea. A wider catch zone, too.' },
+  { n: 'Master Rod', zone: .1, bite: .7, price: 2500, fiber: 60, d: 'Fish bite faster and the catch zone is widest.' }];
+const rodLv = () => state.rodLv || 1;
 function fishItems() {
-  const o = { rod: { n: 'Fishing Rod', icon: 'ic_rod', tool: 'rod', d: 'Face the water and use it to cast. Wait for a bite, then reel the fish in.' } };
-  for (const k in FISH) { const f = FISH[k]; o['fish_' + k] = { n: f.n, icon: 'fish_' + k, price: f.price, d: f.junk ? 'Someone lost this a long time ago.' : `A fish from the ${f.where.map(w => ({ pond: 'farm pond', river: 'Jordan River', bay: 'bay' })[w]).join(' and ')}${f.night ? ', caught at night' : ''}. Sells for ₪${f.price}.` } }
+  const o = { rod: { n: 'Fishing Rod', icon: 'ic_rod', tool: 'rod', d: 'Face the water and use it to cast. Wait for a bite, then reel the fish in.' },
+    bait: { n: 'Bait Minnows', icon: 'fish_garra', price: 1, d: 'Little minnows. One is used each time you cast, and fish bite twice as fast.' } };
+  for (const k in FISH) { const f = FISH[k]; o['fish_' + k] = { n: f.n, icon: 'fish_' + k, price: f.price, d: f.junk ? 'Someone lost this a long time ago.' : `Caught in ${f.where.map(w => WHERE[w]).join(' and ')}${f.night ? ' at night' : ''}${f.seasons ? ' in ' + f.seasons.map(i => SEASONS[i]).join(' and ') : ''}. Sells for ₪${f.price}.` } }
   return o;
+}
+function setRodName() { const r = RODS[rodLv()]; ITEMS.rod.n = r.n; ITEMS.rod.d = r.d || ITEMS.rod.d }
+
+// ---------- Peter's tackle shop ----------
+function openTackle() { if (!shopOpen('tackle')) { say(closedMsg('tackle')); return } openShopModal('Peter’s Tackle', renderTackle) }
+function renderTackle() {
+  const b = $('#binM .mbody'), lv = rodLv();
+  let h = `<div class="binhead"><span>Rods and bait</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“A good rod makes all the difference out on the deep sea.” Your rod: <b>${RODS[lv].n}</b></p>`;
+  for (let k = 2; k < RODS.length; k++) {
+    const r = RODS[k], have = lv >= k, ready = lv === k - 1, ok = ready && state.money >= r.price && count('fiber') >= r.fiber;
+    h += `<div class="shoprow ${have || ready ? '' : 'off'}"><img src="${iconURL('ic_rod')}"><div class="si"><b>${r.n}</b><div class="muted">${r.d}</div>${have ? '<div class="req ok">You have this ✓</div>' : `<div class="req"><span class="${state.money >= r.price ? 'ok' : 'no'}">₪ ${r.price.toLocaleString()}</span> · <span class="${count('fiber') >= r.fiber ? 'ok' : 'no'}">${r.fiber} fiber</span>${ready ? '' : ' · needs the rod before it'}</div>`}</div>${have ? '' : `<div class="sb"><button class="btn" data-rod="${k}" ${ok ? '' : 'disabled'}>Buy</button></div>`}</div>`;
+  }
+  h += `<div class="shoprow"><img src="${iconURL('fish_garra')}"><div class="si"><b>Bait ×10</b><div class="muted">Fish bite twice as fast. One is used each cast. You have ${count('bait')}.</div></div><div class="sb"><span class="price">₪ 30</span><button class="btn alt" data-bait="1" ${state.money >= 30 ? '' : 'disabled'}>Buy</button></div></div>`;
+  b.innerHTML = h;
+  b.querySelectorAll('[data-rod]').forEach(el => el.onclick = () => { const k = +el.dataset.rod, r = RODS[k]; if (rodLv() !== k - 1 || state.money < r.price || count('fiber') < r.fiber) return;
+    state.money -= r.price; takeItem('fiber', r.fiber); state.rodLv = k; setRodName(); if (!count('rod')) addItem('rod', 1); sfx.pick(); toast(`You got the ${r.n}!`); renderTackle(); updateHUD(); save() });
+  b.querySelectorAll('[data-bait]').forEach(el => el.onclick = () => { if (state.money < 30) return; if (addItem('bait', 10)) { toast('Your bag is full.'); sfx.no(); return } state.money -= 30; sfx.pick(); renderTackle(); save() });
 }
 
 // ---------- fishing ----------
@@ -83,7 +133,7 @@ function lineSpot(side) {
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
   return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
 }
-function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'bay' : 'river') : 'river' }
+function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? 'sea' : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside()) { sfx.no(); return }
@@ -92,8 +142,11 @@ function startFishing() {
   let side = 0, c = null; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } }
   if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
   if (state.energy < 2) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
+  const where = fishWhere(c);
+  if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
   state.energy -= 2; player.side = side; player.dir = side < 0 ? 'l' : 'r';
-  fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, where: fishWhere(c) }; sfx.swish();
+  const bait = count('bait') > 0; if (bait) takeItem('bait', 1);
+  fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
 }
 function stopFishing() { fishing = null; for (const id of ['#fishgame', '#catchpop']) { const el = $(id); if (el) el.remove() } return true }
 function chooseFish() {
@@ -101,7 +154,6 @@ function chooseFish() {
   for (const k in FISH) {
     const d = FISH[k]; if (!d.where.includes(f.where)) continue;
     let w = d.w; if (d.night && !isNight()) w = 0; if (d.seasons && !d.seasons.includes(state.season)) w = 0;
-    if (k === 'bigfish') w = f.where === 'bay' ? (onDockEnd() ? .6 : .03) : 0;
     if (w > 0) pool.push([k, w]);
   }
   let r = Math.random() * pool.reduce((a, p) => a + p[1], 0); for (const [k, w] of pool) { r -= w; if (r <= 0) return k } return pool[0][0];
@@ -115,7 +167,7 @@ function fishAction() {
 }
 function updateFishing(dt) {
   const f = fishing; f.t += dt;
-  if (f.phase === 'cast') { if (f.t >= .72 && !f.splashed) { f.splashed = 1; sfx.splash(); ripple(f.tx, f.ty) } if (f.t >= 1) { f.phase = 'wait'; f.t = 0; f.biteAt = rnd(1.6, 5.5) } }
+  if (f.phase === 'cast') { if (f.t >= .72 && !f.splashed) { f.splashed = 1; sfx.splash(); ripple(f.tx, f.ty) } if (f.t >= 1) { f.phase = 'wait'; f.t = 0; f.biteAt = rnd(1.6, 5.5) * f.speed } }
   else if (f.phase === 'wait' && f.t >= f.biteAt) { f.phase = 'bite'; f.t = 0; sfx.pop(); ripple(f.tx, f.ty) }
   else if (f.phase === 'bite' && f.t >= .95) { toast('It got away…'); stopFishing() }
   else if (f.phase === 'game') { reelUpdate(dt); if (Math.random() < dt * 4) ripple(f.tx + rnd(-.2, .2), f.ty) }
@@ -126,7 +178,7 @@ function ripple(x, y) { for (let k = 0; k < 7; k++) parts.push({ x: x + rnd(-.2,
 // the reeling game: a hook swings along a bar; tap when it's over the green
 function startReel() {
   const f = fishing, d = FISH[f.fish].diff; f.phase = 'game'; f.t = 0;
-  f.game = { pos: 0, dir: 1, speed: .7 + d * .28, zone: Math.max(.12, .36 - d * .05), need: d <= 1 ? 1 : d <= 3 ? 2 : 3, hits: 0, miss: 0, zc: rnd(.25, .75) };
+  f.game = { pos: 0, dir: 1, speed: .7 + d * .28, zone: Math.max(.12, .36 - d * .05) + RODS[rodLv()].zone, need: d <= 1 ? 1 : d <= 3 ? 2 : 3, hits: 0, miss: 0, zc: rnd(.25, .75) };
   const el = document.createElement('div'); el.id = 'fishgame';
   el.innerHTML = `<div class="fg-card"><div class="fg-title">A bite! Reel it in!</div><div class="fg-bar"><div class="fg-zone"></div><div class="fg-needle"></div></div><div class="fg-pips">${'<i></i>'.repeat(f.game.need)}</div><div class="fg-hint">Tap when the hook is in the green</div></div>`;
   el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); reelTap() });
@@ -211,15 +263,63 @@ function drawFloorObj(g, o, x, y) {
     if (water(0, 1)) { g.fillStyle = ink; g.fillRect(X, Y + 15, 16, 1); for (const px of [X + 1, X + 12]) { g.fillStyle = ink; g.fillRect(px, Y + 15, 3, 4); g.fillStyle = '#6a4426'; g.fillRect(px + 1, Y + 15, 1, 3) } }
     if ((x === 28 || x === 33) && y === 47) { g.fillStyle = ink; g.fillRect(X + 6, Y - 4, 4, 7); g.fillStyle = '#8e5e36'; g.fillRect(X + 7, Y - 3, 2, 5) }     // mooring posts
   } else if (o.t === 'bridge') {
-    const side = o.side, onWater = World.ground[idx(x, y)] === WATER;
-    if (onWater) { g.fillStyle = 'rgba(20,40,60,.35)'; g.fillRect(side < 0 ? X - 3 : X + 16, Y, 3, 16) }          // shadow on the water beside it
-    for (let k = 0; k < 4; k++) { g.fillStyle = ink; g.fillRect(X, Y + k * 4 + 3, 16, 1); g.fillStyle = (k + y) % 2 ? '#b98352' : '#a87444'; g.fillRect(X, Y + k * 4, 16, 3); g.fillStyle = '#d09a62'; g.fillRect(X + (side < 0 ? 5 : 2) + ((k * 3 + y) % 5), Y + k * 4, 4, 1) }
-    // the railing on the outer edge: a beam with posts every half tile
-    const rx = side < 0 ? X : X + 12;
-    g.fillStyle = ink; g.fillRect(rx, Y, 4, 16); g.fillStyle = '#7a4a2a'; g.fillRect(rx + 1, Y, 2, 16); g.fillStyle = '#a06a3e'; g.fillRect(rx + 1, Y, 1, 16);
-    for (const py of [Y + 2, Y + 10]) { g.fillStyle = ink; g.fillRect(rx - 1, py - 1, 6, 4); g.fillStyle = '#8e5e36'; g.fillRect(rx, py, 4, 2); g.fillStyle = '#b07848'; g.fillRect(rx, py, 4, 1) }
-    if (o.end) { const ey = o.end === 'top' ? Y : Y + 15; g.fillStyle = ink; g.fillRect(X, ey, 16, 1) }
-  }
+    const v = o.d !== 'h', onWater = World.ground[idx(x, y)] === WATER;
+    // planks run across the direction of travel
+    for (let k = 0; k < 4; k++) { const c = (k + (v ? y : x)) % 2 ? '#b98352' : '#a87444';
+      if (v) { g.fillStyle = c; g.fillRect(X, Y + k * 4, 16, 3); g.fillStyle = ink; g.fillRect(X, Y + k * 4 + 3, 16, 1); g.fillStyle = '#d09a62'; g.fillRect(X + 3 + ((k * 3 + y) % 6), Y + k * 4, 4, 1) }
+      else { g.fillStyle = c; g.fillRect(X + k * 4, Y, 3, 16); g.fillStyle = ink; g.fillRect(X + k * 4 + 3, Y, 1, 16); g.fillStyle = '#d09a62'; g.fillRect(X + k * 4, Y + 3 + ((k * 3 + x) % 6), 1, 4) } }
+    // railings on the outer edges, with posts
+    const rail = (rx, ry, rw, rh) => { g.fillStyle = ink; g.fillRect(rx, ry, rw, rh); g.fillStyle = '#7a4a2a'; g.fillRect(rx + (v ? 1 : 0), ry + (v ? 0 : 1), v ? rw - 2 : rw, v ? rh : rh - 2); g.fillStyle = '#a06a3e'; g.fillRect(rx + (v ? 1 : 0), ry + (v ? 0 : 1), v ? 1 : rw, v ? rh : 1) };
+    const post = (px_, py_) => { g.fillStyle = ink; g.fillRect(px_ - 1, py_ - 1, 6, 5); g.fillStyle = '#8e5e36'; g.fillRect(px_, py_, 4, 3); g.fillStyle = '#b07848'; g.fillRect(px_, py_, 4, 1) };
+    const edges = o.side === 0 ? [-1, 1] : [o.side];
+    for (const e of edges) {
+      if (v) { const rx = e < 0 ? X : X + 12; if (onWater) { g.fillStyle = 'rgba(20,40,60,.35)'; g.fillRect(e < 0 ? X - 3 : X + 16, Y, 3, 16) } rail(rx, Y, 4, 16); post(rx, Y + 2); post(rx, Y + 10) }
+      else { const ry = e < 0 ? Y - 2 : Y + 12; if (onWater && e > 0) { g.fillStyle = 'rgba(20,40,60,.35)'; g.fillRect(X, Y + 16, 16, 3) } rail(X, ry, 16, 4); post(X + 2, ry); post(X + 10, ry) }
+    }
+    if (o.end) { g.fillStyle = ink; if (v) g.fillRect(X, o.end === 'a' ? Y : Y + 15, 16, 1); else g.fillRect(o.end === 'a' ? X : X + 15, Y, 1, 16) }
+  } else if (o.t === 'deck' && o.main) drawShip(g, SEA.x0 * 16, SEA.y0 * 16, (SEA.x1 - SEA.x0 + 1) * 16, (SEA.y1 - SEA.y0 + 1) * 16, true);
+}
+// a wooden fishing boat seen from above, bow to the right
+function drawShip(g, X, Y, w, h, big) {
+  const ink = '#2e1a0e', bow = big ? 22 : 14, rows = h + 8, top = Y - 4;
+  const rowW = r => { const t = Math.abs((r + .5) / rows - .5) * 2; return w + bow * Math.sqrt(Math.max(0, 1 - t * t)) };
+  const inset = r => { const t = Math.abs((r + .5) / rows - .5) * 2; return Math.round(t * t * (big ? 6 : 4)) };
+  g.fillStyle = 'rgba(10,30,50,.35)'; for (let r = 0; r < rows; r++) g.fillRect(X - 2 + inset(r), top + r + 4, rowW(r) - inset(r), 1);   // shadow
+  for (let r = 0; r < rows; r++) { const a = X + inset(r), b = X + rowW(r); g.fillStyle = ink; g.fillRect(a - 1, top + r, b - a + 2, 1) }
+  for (let r = 1; r < rows - 1; r++) { const a = X + inset(r), b = X + rowW(r) - 1; g.fillStyle = r < 3 || r > rows - 4 ? '#7a4524' : '#9a5a30'; g.fillRect(a, top + r, b - a, 1) }   // hull sides
+  for (let r = 4; r < rows - 4; r++) { const a = X + inset(r) + 3, b = X + rowW(r) - 5; g.fillStyle = (r >> 2) % 2 ? '#c99460' : '#bb8752'; g.fillRect(a, top + r, b - a, 1); if (r % 4 === 3) { g.fillStyle = '#8e5e36'; g.fillRect(a, top + r, b - a, 1) } }   // deck planks
+  g.fillStyle = '#e8d6a8'; for (let r = 3; r < rows - 3; r += rows - 7) g.fillRect(X + inset(r) + 2, top + r, rowW(r) - inset(r) - 6, 1);   // gunwale trim
+  g.fillStyle = '#5a3418'; for (let k = 0; k < 4; k++) g.fillRect(X + 10 + k * Math.floor((w - 16) / 3), top + 3, 2, 2);                  // oar locks
+  if (!big) { g.fillStyle = ink; g.fillRect(X + w / 2 - 2, top + 5, 5, 5); g.fillStyle = '#8e5e36'; g.fillRect(X + w / 2 - 1, top + 6, 3, 3); g.fillStyle = '#efe6cc'; g.fillRect(X + w / 2 - 12, top + 9, 26, 5); g.fillStyle = '#c9bc98'; g.fillRect(X + w / 2 - 12, top + 13, 26, 1) }   // mast stub, furled sail
+}
+function drawBoatObj(g, o, x, y, t) {
+  if (o.t === 'fboat') { const bob = Math.round(Math.sin(t * 1.6)); drawShip(g, x * 16, (y - 2) * 16 + 6 + bob, 72, 30, false); return }
+  if (o.t === 'mast') { const X = x * 16 + 7, B = y * 16 + 12, ink = '#2e1a0e', sway = Math.sin(t * 1.2) * 1.5;
+    g.fillStyle = ink; g.fillRect(X - 1, B - 62, 5, 64); g.fillStyle = '#8e5e36'; g.fillRect(X, B - 62, 3, 63); g.fillStyle = '#b07848'; g.fillRect(X, B - 62, 1, 63);
+    g.fillStyle = ink; g.fillRect(X - 22, B - 54, 48, 3); g.fillStyle = '#7a4a2a'; g.fillRect(X - 21, B - 53, 46, 1);           // yard
+    g.fillStyle = ink; g.beginPath(); g.moveTo(X - 22, B - 52); g.lineTo(X + 26, B - 52); g.lineTo(X + 24 + sway, B - 22); g.lineTo(X - 20 + sway, B - 22); g.closePath(); g.fill();
+    g.fillStyle = '#f2ead4'; g.beginPath(); g.moveTo(X - 20, B - 51); g.lineTo(X + 24, B - 51); g.lineTo(X + 22 + sway, B - 23); g.lineTo(X - 18 + sway, B - 23); g.closePath(); g.fill();
+    g.fillStyle = '#c9493a'; g.fillRect(X - 19, B - 40, 42, 3); g.fillStyle = '#d9cfb4'; g.fillRect(X - 18 + sway, B - 26, 40, 2);   // red stripe, sail shading
+    g.fillStyle = ink; g.fillRect(X - 3, B - 70, 9, 9); g.fillStyle = '#e2b04a'; g.fillRect(X - 2, B - 69, 7, 7); g.fillStyle = '#fff2a0'; g.fillRect(X, B - 67, 3, 3);   // lantern
+    return }
+  if (o.t === 'helm') { const X = x * 16 + 8, Y = y * 16 + 6, ink = '#2e1a0e', a = Math.sin(t * .8) * .3;
+    g.fillStyle = ink; g.fillRect(X - 1, Y, 3, 9); g.save(); g.translate(X, Y); g.rotate(a);
+    g.strokeStyle = ink; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.stroke(); g.strokeStyle = '#a06a3e'; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, 6, 0, 7); g.stroke();
+    for (let k = 0; k < 8; k++) { const r = k * Math.PI / 4; g.fillStyle = ink; g.fillRect(Math.round(Math.cos(r) * 8) - 1, Math.round(Math.sin(r) * 8) - 1, 3, 3) } g.fillStyle = '#e2b04a'; g.fillRect(-1, -1, 3, 3); g.restore() }
+}
+// sailing out and back
+async function boatAction(o) {
+  if (o.t === 'fboat') {
+    const v = await say('Peter’s fishing boat, the Galilee. He lets friends borrow it. Sail out to the deep sea?' + (rodLv() < 2 ? ' (Deep-sea fish need a Sturdy Rod from Peter.)' : ''), [['Set sail!', 1], ['Not now', 0]]);
+    if (v) { sfx.splash(); await travel('sea', 31.5, 26.6, 'r') }
+  } else if (o.t === 'helm') { const v = await say('Sail back to the dock?', [['Head home', 1], ['Keep fishing', 0]]); if (v) { sfx.splash(); await travel('jordan', JORDAN.boat[0], JORDAN.boat[1], 'l') } }
+  else if (o.t === 'mast') say('The sail fills with a good sea breeze. Fish from the edges of the deck.');
+}
+// the deep sea: darker water and glints of light
+function drawSeaWater(g, x0, y0, x1, y1, t) {
+  g.fillStyle = 'rgba(8,30,80,.32)'; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) { const h = hash(x, y); if (h > .82) { const k = (t * .5 + h * 10) % 3; if (k < 1) { g.fillStyle = `rgba(255,255,255,${.5 * (1 - Math.abs(k - .5) * 2)})`; g.fillRect(x * 16 + (h * 97 % 12 | 0), y * 16 + (h * 53 % 12 | 0), 4, 1) } } }
+
 }
 function drawWaterObj(g, o, x, y, t) {
   const X = x * 16 + 8, B = y * 16 + 14;

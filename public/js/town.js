@@ -27,7 +27,7 @@ const rowLen = id => [0, 1, 3, 5][toolLv(id)];
 function toolName(id) { const lv = toolLv(id); return (lv > 1 && UPG_TOOLS[id] ? TOOL_LV[lv] + ' ' : '') + ITEMS[id].n }
 
 // ---------- opening hours ----------
-const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'], carpenter: [9, 17, 'Carpenter'] };
+const HOURS = { market: [8, 18, 'Market'], smithy: [9, 17, 'Blacksmith'], inn: [8, 24, 'Inn'], carpenter: [9, 17, 'Carpenter'], tackle: [7, 19, 'Tackle shop'] };
 function shopOpen(k) { const [a, b] = HOURS[k]; if (k !== 'inn' && isSabbath()) return false; return state.time >= a * 60 && state.time < b * 60 }
 function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 'inn' ? `The ${n.toLowerCase()} is closed for the Sabbath. Come back tomorrow.` : `The ${n.toLowerCase()} is closed. Open ${a % 12 || 12}${a < 12 ? ' am' : ' pm'} to ${b % 12 || 12}${b < 12 || b === 24 ? (b === 24 ? ' midnight' : ' am') : ' pm'}.` }
 function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }

@@ -196,10 +196,36 @@ FISH_ART = {
     'bream': ((210, 170, 90), (245, 230, 190), (160, 110, 60), (230, 150, 60), None, (11, 9), 4),
     'bigfish': ((70, 110, 170), (190, 210, 230), (40, 60, 110), (240, 190, 70), 'spots', (14, 9), 2),
 }
+FISH_ART.update({
+    'garra': ((120, 130, 110), (200, 205, 180), (70, 80, 65), (110, 120, 100), 'spots', (9, 4), 3),
+    'tuna': ((60, 90, 140), (215, 225, 235), (30, 45, 85), (230, 200, 70), None, (14, 8), 3),
+    'snapper': ((220, 80, 70), (250, 190, 170), (160, 40, 40), (230, 110, 90), None, (12, 8), 4),
+    'grouper': ((140, 110, 80), (210, 190, 150), (90, 65, 45), (120, 95, 70), 'spots', (14, 9), 3),
+})
 for k, a in FISH_ART.items(): E["fish_" + k] = trim(fish_icon(*a))
 sd = Image.new('RGBA', (14, 12)); d = ImageDraw.Draw(sd)            # an old sandal
 d.rounded_rectangle([1, 3, 12, 9], 3, fill=(58, 34, 20, 255)); d.rounded_rectangle([2, 4, 11, 8], 2, fill=(160, 110, 60, 255)); d.line([(4, 3), (6, 8)], fill=(90, 55, 30, 255)); d.line([(8, 3), (6, 8)], fill=(90, 55, 30, 255))
 E['fish_sandal'] = sd
+def eel():
+    im = Image.new('RGBA', (20, 9)); P = im.load(); ink = (36, 30, 30, 255)
+    pts = [(x, 4 + round(1.6 * __import__('math').sin(x / 2.6))) for x in range(1, 19)]
+    for x, y in pts:
+        for dy in (-1, 0, 1): P[x, y + dy] = ink
+    for x, y in pts[1:-1]: P[x, y] = (90, 100, 70, 255); P[x, y - 1 if x % 3 else y] = (60, 70, 45, 255)
+    P[2, pts[1][1]] = (255, 255, 255, 255); return trim(im)
+def swordfish():
+    im = fish_icon((70, 100, 160), (210, 220, 235), (40, 60, 110), (60, 80, 130), None, (12, 7), 4); out = Image.new('RGBA', (im.width + 6, im.height)); out.alpha_composite(im, (6, 0))
+    cy = [y for y in range(im.height) if im.getpixel((7, y))[3]]; cy = (cy[0] + cy[-1]) // 2 if cy else 6
+    for x in range(0, 8): out.putpixel((x, cy - 1), (36, 30, 30, 255)); out.putpixel((x, cy), (150, 160, 180, 255)); out.putpixel((x, cy + 1), (36, 30, 30, 255))
+    return trim(out)
+def crab():
+    im = Image.new('RGBA', (16, 12)); d = ImageDraw.Draw(im); ink = (40, 26, 26, 255); b = (60, 120, 200, 255); hi = (120, 170, 230, 255)
+    for x in (2, 4, 11, 13): d.line([(x, 7), (x - (1 if x < 8 else -1), 10)], fill=ink)
+    d.ellipse([3, 4, 12, 10], fill=ink); d.ellipse([4, 5, 11, 9], fill=b); d.line([(5, 6), (9, 6)], fill=hi)
+    for cx in (1, 13): d.ellipse([cx - 1, 1, cx + 2, 4], fill=ink); d.point((cx, 2), fill=b); d.point((cx + 1, 2), fill=b)
+    d.line([(3, 4), (2, 3)], fill=ink); d.line([(12, 4), (13, 3)], fill=ink); d.point((6, 4), fill=ink); d.point((9, 4), fill=ink)
+    return trim(im)
+E['fish_eel'] = eel(); E['fish_swordfish'] = swordfish(); E['fish_crab'] = crab()
 
 # ---------- character layers ----------
 TAG = {}

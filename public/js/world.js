@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -17,7 +17,7 @@ const World = {
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
   owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') return { o: this.objs[idx(o.ox, o.oy)], x: o.ox, y: o.oy }; return o ? { o, x, y } : null },
-  solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge')); return !!(o && OBJ[o.t] && OBJ[o.t].solid) },
+  solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')); return !!(o && OBJ[o.t] && OBJ[o.t].solid) },
   place(x, y, o) { this.objs[idx(x, y)] = o },
   footprint(x, y, w, h, o) { for (let yy = y - h + 1; yy <= y; yy++) for (let xx = x - Math.floor(w / 2); xx <= x + Math.floor(w / 2); xx++) this.objs[idx(xx, yy)] = (xx === x && yy === y) ? o : { t: 'part', ox: x, oy: y } },
 };
@@ -200,7 +200,8 @@ function drawObject(g, o, x, y, t) {
     case 'anvil': shadow(6); spr(AT.anvil[0], 0); break;
     case 'ifurn': drawFurn(g, o, x, y, t); break;
     case 'coracle': case 'duck': drawWaterObj(g, o, x, y, t); break;
-    case 'dock': case 'bridge': break;
+    case 'dock': case 'bridge': case 'deck': break;
+    case 'fboat': case 'mast': case 'helm': drawBoatObj(g, o, x, y, t); break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;
     case 'barrel': shadow(6); spr(AT.barrel[0], 0); break;
     case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;

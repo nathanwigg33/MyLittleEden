@@ -256,4 +256,4 @@ button{font:inherit;cursor:pointer}
 @keyframes cppop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}@keyframes cpfade{0%{opacity:0}}
 @keyframes cpwig{0%,100%{transform:rotate(-6deg)}50%{transform:rotate(6deg)}}
 
-*{font-variant-ligatures:none;font-feature-settings:"liga" 0,"clig" 0}
+*{font-variant-ligatures:none!important;font-feature-settings:"liga" 0,"clig" 0!important}
