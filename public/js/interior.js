@@ -35,88 +35,125 @@ const isInside = () => !!ROOMS[World.cur];
 // pixel helper
 function px(g, c, x, y, w = 1, h = 1) { g.fillStyle = c; g.fillRect(x, y, w, h) }
 
-// white-and-gold palette
-const WG = { wall: '#f6f2e9', wallLine: '#e3dccd', wallShade: '#ddd5c3', gold: '#d9ad3c', goldHi: '#f3d474', goldLo: '#a77c22', white: '#fbf8f1', cream: '#eee6d4', marbleA: '#f3efe6', marbleB: '#e6dfcf', vein: '#d8cfbc', edge: '#bfb39a', dark: '#120c08' };
+// palette: white stone and gold, with royal blue, crimson and walnut wood
+const WG = {
+  ink: '#3a2414', dark: '#120c08',
+  wall: '#f4efe4', wallLine: '#ddd3c0', white: '#fbf8f1', cream: '#ece3cf',
+  gold: '#d9ad3c', goldHi: '#f6d878', goldLo: '#9c7020',
+  blue: '#2a4a9a', blueHi: '#4a6fc4', blueLo: '#1a2f6a',
+  red: '#a3283a', redHi: '#cc4456', redLo: '#6e1626',
+  wood: '#7a4a2a', woodHi: '#a06a3e', woodLo: '#52301a',
+  tileA: '#efe7d6', tileB: '#d9c9a8', tileEdge: '#c4b08a',
+};
+// pixel-perfect Star of David (9x9)
+const STAR = ['....#....', '...#.#...', '#########', '.#.....#.', '..#...#..', '.#.....#.', '#########', '...#.#...', '....#....'];
+function star(g, x, y, c) { for (let r = 0; r < 9; r++) for (let k = 0; k < 9; k++) if (STAR[r][k] === '#') px(g, c, x + k, y + r) }
+// a stained-glass arched window, 12 x 22
+function glassWindow(g, x, y) {
+  const P = [WG.blueHi, '#e2a93a', WG.redHi, '#5aa86a', WG.blue, '#f0d070'];
+  px(g, WG.ink, x, y + 2, 12, 20); px(g, WG.ink, x + 2, y, 8, 2); px(g, WG.ink, x + 1, y + 1, 10, 1);
+  px(g, WG.gold, x + 1, y + 3, 10, 18); px(g, WG.gold, x + 2, y + 1, 8, 2);
+  for (let r = 0; r < 4; r++) for (let c = 0; c < 2; c++) { const yy = y + 3 + r * 4, xx = x + 2 + c * 4; px(g, P[(r * 2 + c + (x >> 4)) % P.length], xx, yy, 4, 3) }
+  px(g, WG.redHi, x + 3, y + 2, 6, 1); px(g, '#f0d070', x + 5, y + 1, 2, 1);                // arch top
+  px(g, 'rgba(255,255,255,.45)', x + 2, y + 3, 1, 15);                                        // shine
+}
 function drawInterior(g, x0, y0, x1, y1, t) {
   const R = ROOMS[World.cur]; g.fillStyle = WG.dark; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
-  const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16;
-  // white marble floor in big squares with gold inlay at the corners
-  for (let y = T, r = 0; y < B; y += 16, r++) for (let x = L, c = 0; x < Rr; x += 16, c++) {
-    px(g, (r + c) % 2 ? WG.marbleB : WG.marbleA, x, y, 16, 16); px(g, WG.vein, x, y, 16, 1); px(g, WG.vein, x, y, 1, 16);
-    if (hash(x, y) > .55) { px(g, WG.vein, x + 3 + (hash(y, x) * 8 | 0), y + 4, 4, 1); px(g, WG.vein, x + 6 + (hash(y, x) * 6 | 0), y + 5, 3, 1) }
-    px(g, WG.gold, x - 1, y - 1, 2, 2);
-  }
-  // a gold-edged white runner from the door up to the ark
-  const cx = (R.door + .5) * 16; px(g, WG.gold, cx - 7, T + 52, 14, B - T - 52); px(g, WG.white, cx - 6, T + 53, 12, B - T - 53);
-  for (let y = T + 58; y < B - 3; y += 8) { px(g, WG.goldHi, cx - 1, y, 2, 2); px(g, WG.gold, cx - 3, y + 1, 1, 1); px(g, WG.gold, cx + 2, y + 1, 1, 1) }
-  // the far wall: white stone above, white panelling below, gold bands between
-  const WT = T - 40; px(g, WG.wall, L, WT, Rr - L, 40);
-  for (let y = WT; y < T - 14; y += 6) { px(g, WG.wallLine, L, y + 5, Rr - L, 1); for (let x = L + ((y / 6 | 0) % 2) * 7; x < Rr; x += 14) px(g, WG.wallLine, x, y, 1, 5) }
-  px(g, WG.goldLo, L, WT, Rr - L, 2); px(g, WG.gold, L, WT, Rr - L, 1);                          // gold cornice
-  px(g, WG.white, L, T - 13, Rr - L, 12); px(g, WG.gold, L, T - 14, Rr - L, 2); px(g, WG.goldHi, L, T - 14, Rr - L, 1);
-  for (let x = L + 4; x < Rr - 8; x += 12) { px(g, WG.wallShade, x, T - 11, 9, 8); px(g, WG.white, x + 1, T - 10, 7, 6) }   // panels
-  px(g, WG.goldLo, L, T - 1, Rr - L, 1);
-  // arched windows with gold frames
-  for (let x = L + 24; x < Rr - 20; x += 32) { if (Math.abs(x + 4 - cx) < 30) continue; px(g, WG.gold, x - 1, WT + 6, 12, 21); px(g, WG.gold, x + 1, WT + 4, 8, 2); px(g, '#9fd2ef', x, WT + 8, 10, 17); px(g, '#9fd2ef', x + 2, WT + 6, 6, 2); px(g, '#d5eefa', x + 1, WT + 9, 3, 12); px(g, WG.goldLo, x + 4, WT + 8, 1, 17); px(g, WG.goldLo, x, WT + 15, 10, 1) }
-  // side and front walls: white with gold edging
-  for (const [x, w] of [[L - 6, 6], [Rr, 6]]) { px(g, WG.edge, x, WT, w, B - WT + 6); px(g, WG.white, x + 1, WT, w - 2, B - WT + 5); px(g, WG.gold, x === L - 6 ? L - 2 : Rr + 1, WT, 1, B - WT + 2) }
-  px(g, WG.edge, L - 6, B, Rr - L + 12, 6); px(g, WG.white, L - 5, B + 1, Rr - L + 10, 4); px(g, WG.gold, L - 2, B + 1, Rr - L + 4, 1);
-  // the doorway and its mat
+  const L = R.x0 * 16, Rr = (R.x1 + 1) * 16, T = R.top * 16, B = (R.bot + 1) * 16, cx = (R.door + .5) * 16;
+  // floor: cream and sandstone tiles, a blue border band round the edge
+  for (let y = T, r = 0; y < B; y += 8, r++) for (let x = L, c = 0; x < Rr; x += 8, c++) { px(g, (r + c) % 2 ? WG.tileB : WG.tileA, x, y, 8, 8); px(g, WG.tileEdge, x, y + 7, 8, 1); px(g, WG.tileEdge, x + 7, y, 1, 8) }
+  px(g, WG.blueLo, L, T, Rr - L, 3); px(g, WG.blue, L, T, Rr - L, 2); px(g, WG.blueLo, L, B - 3, Rr - L, 3); px(g, WG.blue, L, B - 3, Rr - L, 2);
+  px(g, WG.blueLo, L, T, 3, B - T); px(g, WG.blue, L, T, 2, B - T); px(g, WG.blueLo, Rr - 3, T, 3, B - T); px(g, WG.blue, Rr - 2, T, 2, B - T);
+  for (let x = L + 6; x < Rr - 4; x += 8) { px(g, WG.gold, x, T + 1, 2, 1); px(g, WG.gold, x, B - 2, 2, 1) }
+  // crimson rug under the bimah
+  const bx = 31 * 16 - 6, by = 25 * 16 + 2, bw = 3 * 16 + 12, bh = 40;
+  px(g, WG.ink, bx - 1, by - 1, bw + 2, bh + 2); px(g, WG.gold, bx, by, bw, bh); px(g, WG.red, bx + 2, by + 2, bw - 4, bh - 4); px(g, WG.redLo, bx + 4, by + 4, bw - 8, bh - 8); px(g, WG.red, bx + 5, by + 5, bw - 10, bh - 10);
+  for (let x = bx + 8; x < bx + bw - 8; x += 6) { px(g, WG.gold, x, by + 3, 2, 1); px(g, WG.gold, x, by + bh - 4, 2, 1) }
+  // royal-blue runner with gold edges from the door to the bimah
+  px(g, WG.ink, cx - 8, by + bh, 16, B - by - bh); px(g, WG.gold, cx - 7, by + bh, 14, B - by - bh); px(g, WG.blue, cx - 5, by + bh, 10, B - by - bh);
+  for (let y = by + bh + 4; y < B - 4; y += 8) { px(g, WG.goldHi, cx - 1, y, 2, 1); px(g, WG.gold, cx - 2, y + 1, 4, 1); px(g, WG.goldHi, cx - 1, y + 2, 2, 1) }
+  // far wall: white stone, gold band, walnut panelling below
+  const WT = T - 40; px(g, WG.wall, L, WT, Rr - L, 28);
+  for (let y = WT + 3; y < T - 14; y += 6) { px(g, WG.wallLine, L, y + 5, Rr - L, 1); for (let x = L + ((y / 6 | 0) % 2) * 8; x < Rr; x += 16) px(g, WG.wallLine, x, y, 1, 5) }
+  px(g, WG.goldLo, L, WT, Rr - L, 3); px(g, WG.gold, L, WT, Rr - L, 2); px(g, WG.goldHi, L, WT, Rr - L, 1);           // cornice
+  px(g, WG.woodLo, L, T - 13, Rr - L, 13); px(g, WG.wood, L, T - 12, Rr - L, 11);
+  for (let x = L + 3; x < Rr - 10; x += 13) { px(g, WG.woodLo, x, T - 10, 10, 7); px(g, WG.woodHi, x + 1, T - 9, 8, 5); px(g, WG.wood, x + 2, T - 8, 6, 3) }
+  px(g, WG.goldLo, L, T - 14, Rr - L, 2); px(g, WG.gold, L, T - 14, Rr - L, 1); px(g, WG.ink, L, T - 1, Rr - L, 1);
+  for (let x = L + 22; x < Rr - 20; x += 32) { if (Math.abs(x + 6 - cx) < 44) continue; glassWindow(g, x, WT + 4) }
+  // blue banners hanging either side of the ark
+  for (const hx of [cx - 46, cx + 38]) { px(g, WG.ink, hx - 1, WT + 3, 10, 22); px(g, WG.blue, hx, WT + 4, 8, 19); px(g, WG.blueHi, hx, WT + 4, 1, 19); px(g, WG.gold, hx, WT + 4, 8, 1); px(g, WG.blue, hx + 1, WT + 23, 2, 2); px(g, WG.blue, hx + 5, WT + 23, 2, 2); px(g, WG.gold, hx, WT + 8, 8, 1); px(g, WG.white, hx, WT + 10, 8, 2); px(g, WG.gold, hx, WT + 13, 8, 1); px(g, WG.gold, hx, WT + 18, 8, 1) }
+  // side and front walls: white with gold and an ink outline
+  for (const [x, inner] of [[L - 6, L - 1], [Rr, Rr]]) { px(g, WG.ink, x, WT, 6, B - WT + 6); px(g, WG.white, x + 1, WT, 4, B - WT + 5); px(g, WG.gold, inner, WT, 1, B - WT + 1) }
+  px(g, WG.ink, L - 6, B, Rr - L + 12, 6); px(g, WG.white, L - 5, B + 1, Rr - L + 10, 4); px(g, WG.gold, L - 1, B, Rr - L + 2, 1);
+  // doorway and mat
   const dx = R.door * 16; px(g, WG.dark, dx, B, 16, 6); px(g, WG.gold, dx - 1, B, 1, 6); px(g, WG.gold, dx + 16, B, 1, 6);
-  px(g, WG.goldLo, dx + 2, B - 6, 12, 5); px(g, WG.gold, dx + 3, B - 5, 10, 3);
-  // sunbeams through the windows during the day
-  const [dark] = dayLight(); if (dark < .3) { g.save(); g.globalAlpha = .08 * (1 - dark * 3); g.fillStyle = '#fff3c4'; for (let x = L + 24; x < Rr - 20; x += 32) { if (Math.abs(x + 4 - cx) < 30) continue; g.beginPath(); g.moveTo(x, T - 12); g.lineTo(x + 10, T - 12); g.lineTo(x + 22, T + 40); g.lineTo(x + 8, T + 40); g.fill() } g.restore() }
+  px(g, WG.ink, dx + 1, B - 7, 14, 6); px(g, WG.red, dx + 2, B - 6, 12, 4); px(g, WG.gold, dx + 3, B - 5, 10, 1);
+  // warm light through the windows during the day
+  const [dark] = dayLight(); if (dark < .3) { g.save(); g.globalAlpha = .06 * (1 - dark * 3); g.fillStyle = '#ffe9b0'; for (let x = L + 22; x < Rr - 20; x += 32) { if (Math.abs(x + 6 - cx) < 44) continue; g.beginPath(); g.moveTo(x, T - 12); g.lineTo(x + 12, T - 12); g.lineTo(x + 24, T + 40); g.lineTo(x + 10, T + 40); g.fill() } g.restore() }
 }
 
 function drawFurn(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, B = Y + 16, w = (o.w || 1) * 16;
-  const shadow = (cx, wd) => { g.fillStyle = 'rgba(90,70,30,.18)'; g.beginPath(); g.ellipse(cx, B - 1, wd, 3, 0, 0, 7); g.fill() };
+  const shadow = (sx, sw) => px(g, 'rgba(60,35,15,.22)', sx, B - 2, sw, 2);
   switch (o.k) {
-    case 'pew': {   // white benches with gold edges
-      shadow(X + w / 2, w / 2);
-      px(g, WG.edge, X + 1, Y + 2, w - 2, 7); px(g, WG.white, X + 2, Y + 3, w - 4, 5); px(g, WG.gold, X + 2, Y + 3, w - 4, 1);
-      px(g, WG.edge, X + 1, Y + 9, w - 2, 5); px(g, WG.cream, X + 2, Y + 9, w - 4, 3); px(g, WG.white, X + 2, Y + 9, w - 4, 1);
-      for (const lx of [X + 2, X + w - 4, X + w / 2 - 1]) px(g, WG.gold, lx, Y + 14, 2, 2);
+    case 'pew': {   // walnut benches, gold caps, crimson cushions
+      shadow(X + 2, w - 4);
+      px(g, WG.ink, X + 1, Y + 1, w - 2, 15);
+      px(g, WG.wood, X + 2, Y + 2, w - 4, 6); px(g, WG.woodHi, X + 2, Y + 2, w - 4, 1); px(g, WG.woodLo, X + 2, Y + 7, w - 4, 1);
+      px(g, WG.gold, X + 1, Y + 1, 2, 2); px(g, WG.gold, X + w - 3, Y + 1, 2, 2);
+      px(g, WG.redLo, X + 2, Y + 8, w - 4, 4); px(g, WG.red, X + 2, Y + 8, w - 4, 3); px(g, WG.redHi, X + 3, Y + 8, w - 6, 1);
+      px(g, WG.woodLo, X + 2, Y + 12, w - 4, 2); for (const lx of [X + 2, X + w - 4, X + w / 2 - 1]) px(g, WG.woodLo, lx, Y + 14, 2, 2);
       break;
     }
     case 'bimah': {
-      shadow(X + w / 2, w / 2 + 2);
-      px(g, WG.edge, X, Y - 2, w, 18); px(g, WG.white, X + 1, Y - 1, w - 2, 16); px(g, WG.gold, X + 1, Y - 1, w - 2, 2); px(g, WG.gold, X + 1, Y + 13, w - 2, 1);
-      for (let i = 0; i < 6; i++) { px(g, WG.gold, X + 4 + i * 7, Y + 5, 2, 8); px(g, WG.goldHi, X + 4 + i * 7, Y + 5, 1, 8) }
-      px(g, WG.goldLo, X + 2, Y + 4, w - 4, 2); px(g, WG.goldHi, X + 2, Y + 4, w - 4, 1);
-      px(g, WG.goldLo, X + 14, Y - 12, 20, 10); px(g, WG.white, X + 15, Y - 11, 18, 8); px(g, WG.gold, X + 15, Y - 11, 18, 1);   // reading table
-      px(g, '#f6ecd0', X + 17, Y - 15, 14, 5); px(g, '#e2d3ad', X + 17, Y - 11, 14, 1); px(g, WG.gold, X + 15, Y - 16, 3, 7); px(g, WG.gold, X + 30, Y - 16, 3, 7);
-      for (let i = 0; i < 3; i++) px(g, '#9b8a6a', X + 19 + i * 3, Y - 14, 2, 1);
+      shadow(X, w);
+      px(g, WG.ink, X - 1, Y - 3, w + 2, 19); px(g, WG.wood, X, Y - 2, w, 17); px(g, WG.woodHi, X, Y - 2, w, 2); px(g, WG.woodLo, X, Y + 13, w, 2);
+      for (let i = 0; i < 7; i++) { px(g, WG.gold, X + 2 + i * 7, Y + 4, 2, 8); px(g, WG.goldHi, X + 2 + i * 7, Y + 4, 1, 8) }
+      px(g, WG.goldLo, X, Y + 3, w, 2); px(g, WG.goldHi, X, Y + 3, w, 1);
+      // reading table with a crimson cloth and an open scroll
+      px(g, WG.ink, X + 13, Y - 13, 22, 12); px(g, WG.red, X + 14, Y - 12, 20, 10); px(g, WG.redHi, X + 14, Y - 12, 20, 1); px(g, WG.gold, X + 14, Y - 4, 20, 1);
+      for (let i = 0; i < 10; i++) px(g, WG.gold, X + 14 + i * 2, Y - 3, 1, 2);
+      px(g, WG.ink, X + 16, Y - 17, 16, 6); px(g, '#f8f0d8', X + 18, Y - 16, 12, 4); px(g, WG.woodLo, X + 16, Y - 17, 2, 6); px(g, WG.woodLo, X + 30, Y - 17, 2, 6);
+      for (let i = 0; i < 3; i++) px(g, '#9b8a6a', X + 19 + i * 3, Y - 15, 2, 1), px(g, '#9b8a6a', X + 19 + i * 3, Y - 13, 2, 1);
       break;
     }
     case 'ark': {
-      const cx = X + w / 2; shadow(cx, 20);
-      px(g, WG.goldLo, X + 4, Y - 26, w - 8, 42); px(g, WG.gold, X + 5, Y - 25, w - 10, 40); px(g, WG.goldHi, X + 5, Y - 25, w - 10, 2);
-      px(g, WG.white, X + 9, Y - 19, w - 18, 31); px(g, WG.cream, X + 10, Y - 19, 3, 31); px(g, WG.cream, X + w - 13, Y - 19, 3, 31);   // white curtain
-      px(g, WG.gold, X + 9, Y - 19, w - 18, 2); px(g, WG.gold, X + 9, Y + 8, w - 18, 1); for (let i = 0; i < w - 18; i += 2) px(g, WG.gold, X + 9 + i, Y + 12, 1, 2);
-      { const sy = Y - 6; g.strokeStyle = WG.gold; g.lineWidth = 1; for (const d of [1, -1]) { g.beginPath(); g.moveTo(cx, sy - 5 * d); g.lineTo(cx + 4.5, sy + 2.5 * d); g.lineTo(cx - 4.5, sy + 2.5 * d); g.closePath(); g.stroke() } }   // Star of David
-      for (const s of [-1, 1]) { const tx = cx + (s < 0 ? -11 : 1); px(g, '#9a958a', tx, Y - 38, 10, 13); px(g, '#ece8de', tx + 1, Y - 37, 8, 11); px(g, '#ece8de', tx + 2, Y - 39, 6, 1); for (let i = 0; i < 4; i++) px(g, WG.gold, tx + 2, Y - 35 + i * 2, 6, 1) }
-      const f = .6 + Math.sin(t * 5) * .15; px(g, WG.goldLo, cx, Y - 50, 1, 8); px(g, WG.gold, cx - 2, Y - 42, 5, 3); g.fillStyle = `rgba(255,120,40,${f})`; g.fillRect(cx - 1, Y - 44, 3, 2);
+      const ax = X + w / 2;
+      shadow(X + 4, w - 8);
+      px(g, WG.ink, X + 3, Y - 27, w - 6, 44); px(g, WG.gold, X + 4, Y - 26, w - 8, 42); px(g, WG.goldHi, X + 4, Y - 26, w - 8, 1); px(g, WG.goldLo, X + 4, Y + 14, w - 8, 2);
+      px(g, WG.goldLo, X + 7, Y - 22, w - 14, 34);                                           // recess
+      px(g, WG.blueLo, X + 8, Y - 21, w - 16, 33); px(g, WG.blue, X + 9, Y - 21, w - 18, 32);  // royal-blue velvet curtain
+      for (let i = 0; i < 4; i++) px(g, WG.blueHi, X + 11 + i * 8, Y - 18, 1, 28);            // folds
+      px(g, WG.gold, X + 8, Y - 21, w - 16, 2); px(g, WG.gold, X + 8, Y + 8, w - 16, 1); for (let i = 0; i < w - 16; i += 2) px(g, WG.goldHi, X + 8 + i, Y + 9, 1, 2);
+      star(g, ax - 4, Y - 12, WG.goldHi);
+      // the two stone tablets on top
+      for (const s of [-1, 1]) { const tx = ax + (s < 0 ? -12 : 1); px(g, WG.ink, tx, Y - 41, 11, 15); px(g, '#e9e4d8', tx + 1, Y - 40, 9, 13); px(g, '#cfc8b8', tx + 1, Y - 28, 9, 1); px(g, WG.ink, tx + 1, Y - 41, 1, 1); px(g, WG.ink, tx + 9, Y - 41, 1, 1); for (let i = 0; i < 5; i++) px(g, '#8f877a', tx + 3, Y - 38 + i * 2, 5, 1) }
+      // the eternal lamp
+      const f = Math.sin(t * 5) > 0 ? WG.redHi : '#ff8a3a'; px(g, WG.goldLo, ax, Y - 54, 1, 8); px(g, WG.ink, ax - 3, Y - 46, 7, 4); px(g, WG.gold, ax - 2, Y - 46, 5, 3); px(g, f, ax - 1, Y - 48, 3, 2);
       break;
     }
     case 'menorah': {
-      const cx = X + 8; shadow(cx, 6);
-      px(g, WG.goldLo, cx - 4, B - 3, 9, 2); px(g, WG.gold, cx - 3, B - 4, 7, 1); px(g, WG.gold, cx, Y - 10, 1, 24);
-      for (let i = 1; i <= 3; i++) { px(g, WG.gold, cx - i * 2, Y - 10 + (4 - i) * 2 + 4, 1, 12 - (4 - i) * 2); px(g, WG.gold, cx + i * 2, Y - 10 + (4 - i) * 2 + 4, 1, 12 - (4 - i) * 2) }
-      px(g, WG.gold, cx - 6, Y + 6, 13, 1);
-      for (let i = -3; i <= 3; i++) { const fl = Math.sin(t * 9 + i * 1.7) > .2 ? 2 : 1; px(g, '#ffd36b', cx + i * 2, Y - 12 - fl, 1, fl + 1); px(g, '#fff4c2', cx + i * 2, Y - 12, 1, 1) }
+      const c = X + 8; shadow(c - 4, 9);
+      px(g, WG.ink, c - 5, B - 4, 11, 3); px(g, WG.goldLo, c - 4, B - 3, 9, 1); px(g, WG.gold, c - 3, B - 4, 7, 1);
+      px(g, WG.gold, c, Y - 8, 1, 21); px(g, WG.goldLo, c + 1, Y - 6, 1, 19);
+      for (let i = 1; i <= 3; i++) { const top = Y - 8, d = i * 2; px(g, WG.gold, c - d, top, 1, 3 + i * 2); px(g, WG.gold, c + d, top, 1, 3 + i * 2); px(g, WG.gold, c - d, top + 2 + i * 2, d, 1); px(g, WG.gold, c + 1, top + 2 + i * 2, d, 1) }
+      for (let i = -3; i <= 3; i++) { const fl = Math.sin(t * 9 + i * 1.7) > .2; px(g, WG.goldLo, c + i * 2, Y - 9, 1, 1); px(g, fl ? '#ffb340' : '#ffd36b', c + i * 2, Y - 11, 1, 2); if (fl) px(g, '#fff4c2', c + i * 2, Y - 12, 1, 1) }
       break;
     }
-    case 'shelf': {
-      shadow(X + w / 2, w / 2 - 2);
-      px(g, WG.edge, X + 2, Y - 14, w - 4, 30); px(g, WG.white, X + 3, Y - 13, w - 6, 28); px(g, WG.gold, X + 2, Y - 14, w - 4, 1);
-      for (let r = 0; r < 3; r++) { const yy = Y - 11 + r * 9; px(g, WG.gold, X + 3, yy + 7, w - 6, 1); for (let i = 0; i < 5; i++) { const sx = X + 5 + i * 5; px(g, WG.goldLo, sx, yy + 2, 4, 5); px(g, '#f6ecd0', sx + 1, yy + 2, 2, 5) } }
+    case 'shelf': {   // walnut shelves of scrolls in coloured covers
+      shadow(X + 3, w - 6);
+      px(g, WG.ink, X + 1, Y - 15, w - 2, 31); px(g, WG.wood, X + 2, Y - 14, w - 4, 29); px(g, WG.woodHi, X + 2, Y - 14, w - 4, 1);
+      const C = [WG.blue, WG.red, '#3f7a4a', WG.blue, '#c08a2a'];
+      for (let r = 0; r < 3; r++) { const yy = Y - 12 + r * 9; px(g, WG.woodLo, X + 3, yy, w - 6, 7); px(g, WG.woodHi, X + 3, yy + 7, w - 6, 1);
+        for (let i = 0; i < 5; i++) { const sx = X + 4 + i * 5; px(g, C[(i + r) % 5], sx, yy + 1, 4, 6); px(g, WG.gold, sx, yy + 1, 4, 1); px(g, WG.goldHi, sx + 1, yy, 2, 1) } }
       break;
     }
-    case 'plant': { shadow(X + 8, 6); px(g, WG.goldLo, X + 4, Y + 7, 8, 8); px(g, WG.gold, X + 4, Y + 7, 8, 2); px(g, WG.goldHi, X + 5, Y + 9, 1, 5); const leaf = ['#3f8a3a', '#5aa84a', '#2f6e2e']; for (let i = 0; i < 9; i++) px(g, leaf[i % 3], X + 2 + (i * 5) % 12, Y - 2 + (i * 7) % 9, 3, 2); break }
+    case 'plant': { shadow(X + 3, 10); px(g, WG.ink, X + 3, Y + 6, 10, 10); px(g, WG.blue, X + 4, Y + 7, 8, 8); px(g, WG.gold, X + 4, Y + 7, 8, 1); px(g, WG.gold, X + 4, Y + 11, 8, 1); px(g, WG.blueHi, X + 5, Y + 8, 1, 6);
+      const leaf = [[6, -3], [9, -2], [3, 0], [11, 1], [7, 1], [4, 3], [10, 4], [7, 4], [2, 4], [12, 3]]; for (const [lx, ly] of leaf) { px(g, '#2f6e2e', X + lx, Y + ly + 1, 3, 2); px(g, '#5aa84a', X + lx, Y + ly, 3, 2); px(g, '#8fd06a', X + lx, Y + ly, 1, 1) } break }
     case 'lamp': {
-      shadow(X + 8, 4); px(g, WG.gold, X + 7, Y - 4, 2, 19); px(g, WG.goldLo, X + 4, B - 2, 8, 2);
-      px(g, WG.gold, X + 4, Y - 7, 8, 3); px(g, WG.goldHi, X + 4, Y - 7, 8, 1); const f = Math.sin(t * 8) > 0 ? 3 : 2; px(g, '#ffd36b', X + 7, Y - 7 - f, 2, f); px(g, '#fff4c2', X + 7, Y - 8, 2, 1);
+      shadow(X + 4, 8); px(g, WG.ink, X + 6, Y - 5, 4, 21); px(g, WG.gold, X + 7, Y - 4, 2, 19); px(g, WG.ink, X + 3, B - 3, 10, 3); px(g, WG.gold, X + 4, B - 2, 8, 1);
+      px(g, WG.ink, X + 3, Y - 8, 10, 4); px(g, WG.gold, X + 4, Y - 7, 8, 2); px(g, WG.goldHi, X + 4, Y - 7, 8, 1);
+      const f = Math.sin(t * 8) > 0; px(g, f ? '#ffb340' : '#ffd36b', X + 7, Y - 11, 2, 3); px(g, '#fff4c2', X + 7, Y - 10, 2, 1);
       break;
     }
   }
