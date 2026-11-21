@@ -26,7 +26,7 @@ function genSinai() {
   for (const [x, y] of [[11, 39], [20, 40], [12, 45], [19, 45], [16, 37]]) if (g[idx(x, y)] === GRASS) o[idx(x, y)] = { t: 'wild', k: 'tree2', v: ri(0, 3) };
   for (const [x, y] of [[9, 42], [22, 43], [14, 47]]) if (g[idx(x, y)] === GRASS) o[idx(x, y)] = { t: 'bush', v: 0 };
   // Bezalel's camp at the foot of the mountain
-  o[idx(39, 32)] = { t: 'campfire' }; o[idx(41, 31)] = { t: 'crate', camp: 1 }; o[idx(40, 31)] = { t: 'barrel' };
+  World.footprint(41, 31, 5, 2, { t: 'bezstall' }); World.footprint(45, 32, 3, 1, { t: 'bezcart' }); o[idx(38, 34)] = { t: 'campfire' };
   // wilderness: rocks and boulders to break, dry shrubs and a few acacias
   for (let y = 29; y < H; y++) for (let x = 0; x < W; x++) {
     const i = idx(x, y); if (o[i] || road.has(i) || g[i] !== DIRT) continue;
@@ -34,6 +34,8 @@ function genSinai() {
     if (nearRoad) continue; const r = R();
     if (r < .045) o[i] = { t: 'rock', v: ri(0, 1) }; else if (r < .06) o[i] = { t: 'boulder' }; else if (r < .085) o[i] = { t: 'bush', v: 0 }; else if (r < .1) o[i] = { t: 'wild', k: 'tree2', v: ri(0, 3) };
   }
+  // keep the ground in front of Bezalel's workshop clear
+  for (let y = 32; y <= 35; y++) for (let x = 38; x <= 46; x++) { const i = idx(x, y); if (o[i] && ['rock', 'boulder', 'bush', 'wild', 'part'].includes(o[i].t) && !(o[i].t === 'part' && o[i].ox >= 0)) o[i] = null }
   World.place(33, 50, { t: 'sign', text: 'Mount Sinai. “And mount Sinai was altogether on a smoke, because the LORD descended upon it in fire.” (Exodus 19:18)' });
   World.place(37, 29, { t: 'sign', text: 'The road climbs the mountain to the Sinai Mines. Bring your pickaxe and plenty to eat!' });
   World.place(34, 12, { t: 'sign', text: 'Sinai Mines. Copper and stone near the top. Iron, silver, gold and precious stones further down.' });
@@ -293,3 +295,83 @@ async function decorAction(r) {
 function signText(cur) { let t = null; try { t = prompt('What should your sign say?', cur) } catch (e) {} return (t === null ? cur : String(t)).slice(0, 120) }
 BEZALEL.shop = 'workshop';
 BEZALEL.lines.push('Bring me gems and bars and I’ll craft you something fine for your farm: lampstands, lanterns, fountains…');
+
+// ---------- Bezalel's workshop: a canopy stall in the colors of the Tabernacle, and his handcart ----------
+const bezOpen = () => shopOpen('workshop') && villagersOut();
+function drawBezStall(g, cx, by, t) {
+  const P = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(cx + a), Math.round(by + b), w, h) };
+  const INK = '#2a1e18', WD = ['#5a3020', '#8a5232', '#b8784a', '#e0a870'], BL = ['#1e2e6a', '#2c4a9a', '#5a82d0'], PU = ['#3a1a4a', '#6a3a8a', '#9a62b8'],
+    RD = ['#6a1a1a', '#b02a2a', '#e05a4a'], LN = ['#c8b894', '#e8dcc0', '#fbf3e0'], GD = ['#9a6a10', '#e0b030', '#fff0a0'], FE = ['#2e2e36', '#55555f', '#8a8a96', '#c0c0cc'];
+  const open = bezOpen();
+  g.fillStyle = 'rgba(30,20,10,.28)'; g.beginPath(); g.ellipse(cx, by - 3, 43, 8, 0, 0, 7); g.fill();
+  // back curtain of woven linen, with a blue, purple and scarlet band
+  P(INK, -37, -47, 74, 36); P(LN[1], -36, -46, 72, 34);
+  for (let x = -33; x < 36; x += 6) P(LN[0], x, -46, 1, 34);
+  P(BL[1], -36, -22, 72, 2); P(PU[1], -36, -20, 72, 2); P(RD[1], -36, -18, 72, 2); P(GD[1], -36, -16, 72, 1);
+  // tool board on the left: hammer, chisel, saw and tongs
+  P(INK, -33, -43, 24, 15); P(WD[1], -32, -42, 22, 13); P(WD[2], -32, -42, 22, 1); P(WD[0], -32, -30, 22, 1);
+  P(INK, -31, -41, 5, 3); P(FE[2], -30, -40, 3, 1); P(INK, -29, -38, 2, 7); P(WD[3], -29, -38, 1, 6);              // hammer
+  P(INK, -25, -41, 2, 10); P(FE[3], -25, -41, 1, 5); P(WD[3], -25, -36, 1, 4);                                        // chisel
+  P(INK, -22, -41, 3, 4); P(WD[3], -21, -40, 1, 2); P(INK, -20, -40, 7, 9); P(FE[2], -19, -39, 5, 7); P(FE[3], -19, -39, 5, 1); for (let y = -38; y < -32; y += 2) P(FE[0], -15, y, 1, 1);   // saw
+  P(FE[1], -12, -41, 1, 9); P(FE[1], -10, -41, 1, 9); P(FE[2], -11, -37, 1, 1);                                       // tongs
+  // gem shelves on the right
+  for (const y of [-40, -31]) { P(INK, 9, y, 25, 3); P(WD[2], 10, y + 1, 23, 1) }
+  const gems = [['#2ec46a', '#9af0b8'], ['#3a6ae8', '#a8c4ff'], ['#e03a4a', '#ffb0b0'], ['#9a4ae0', '#d8b0ff'], ['#f0c020', '#fff4a0'], ['#20c0d0', '#b0f4ff']];
+  gems.forEach(([c, hi], i) => { const x = 12 + (i % 3) * 7, y = (i < 3 ? -40 : -31) - 4; P(INK, x - 1, y - 1, 5, 5); P(c, x, y, 3, 3); P(hi, x, y, 1, 1); if (Math.sin(t * 3 + i * 1.7) > .85) { P('#ffffff', x + 1, y - 3, 1, 2); P('#ffffff', x, y - 2, 3, 1) } });
+  // posts
+  for (const x of [-40, 37]) { P(INK, x, -50, 4, 50); P(WD[1], x + 1, -49, 2, 49); P(WD[2], x + 1, -49, 1, 49) }
+  // striped canopy: blue, linen, purple, linen, scarlet…
+  const stripe = [BL, LN, PU, LN, RD, LN];
+  for (let i = 0; i < 12; i++) { const half = 38 + Math.round(i * .55), y = -60 + i;
+    for (let x = -half; x < half; x++) { const s = stripe[Math.floor((x + 48) / 8) % 6]; P(i === 0 ? INK : s[i < 3 ? 2 : 1], x, y, 1, 1) }
+    P(INK, -half - 1, y, 1, 1); P(INK, half, y, 1, 1) }
+  for (let x = -44; x < 44; x += 8) { const s = stripe[Math.floor((x + 48) / 8) % 6]; P(INK, x, -48, 8, 3); P(s[1], x + 1, -48, 6, 2); P(INK, x + 2, -45, 4, 1); P(s[0], x + 2, -46, 4, 1); P(GD[1], x + 7, -46, 1, 3) }   // scalloped edge with gold tassels
+  P(INK, -40, -62, 80, 3); P(WD[2], -39, -61, 78, 1);                                                                   // ridge pole
+  // hanging oil lamp
+  P(FE[1], 0, -44, 1, 4); P(INK, -3, -40, 7, 4); P(GD[1], -2, -39, 5, 2); P(GD[2], -2, -39, 2, 1);
+  if (open || state.time >= 18 * 60) { const f = Math.sin(t * 9) > 0 ? 1 : 0; P('#ffb030', 0, -43 - f, 1, 2); P('#fff4c0', 0, -42, 1, 1) }
+  // anvil on a stump at the left
+  P(INK, -36, -7, 9, 7); P(WD[1], -35, -6, 7, 6); P(WD[3], -35, -6, 7, 1);
+  P(INK, -38, -13, 13, 6); P(FE[1], -37, -12, 11, 4); P(FE[3], -37, -12, 11, 1); P(INK, -34, -9, 5, 3); P(FE[0], -33, -8, 3, 1);
+  // cut stone blocks at the right
+  for (const [x, y] of [[29, -6], [33, -6], [31, -11]]) { P(INK, x - 1, y - 1, 6, 6); P('#b4ac9f', x, y, 4, 4); P('#d4ccbe', x, y, 4, 1); P('#8e867c', x, y + 3, 4, 1) }
+  // the counter
+  P(INK, -26, -18, 53, 18); P(WD[1], -25, -15, 51, 15); for (let x = -21; x < 26; x += 6) P(WD[0], x, -14, 1, 14);
+  P(INK, -27, -19, 55, 4); P(WD[3], -26, -18, 53, 1); P(WD[2], -26, -17, 53, 1);
+  P(RD[1], -22, -14, 45, 7); P(RD[0], -22, -8, 45, 1); for (let x = -21; x < 23; x += 4) P(GD[1], x, -7, 2, 1); P(GD[1], -22, -14, 45, 1);   // scarlet cloth with gold fringe
+  P(GD[1], -1, -12, 3, 3); P(GD[2], 0, -12, 1, 1);                                                                       // gold emblem
+  if (open) {
+    // a golden lampstand with seven lamps
+    P(INK, -14, -21, 11, 2); P(GD[1], -13, -20, 9, 1); P(INK, -9, -32, 3, 12); P(GD[1], -8, -31, 1, 11);
+    for (const d of [2, 4]) { P(GD[0], -8 - d, -27 + d / 2, d, 1); P(GD[0], -7, -27 + d / 2, d, 1); P(GD[1], -8 - d, -32, 1, 5 + d / 2); P(GD[1], -8 + d, -32, 1, 5 + d / 2) }
+    for (const x of [-12, -10, -8, -6, -4]) { P(GD[2], x, -33, 1, 1); if (Math.sin(t * 7 + x) > 0) P('#ffb030', x, -34, 1, 1) }
+    // a little bronze lamb
+    P(INK, 4, -26, 9, 6); P('#c8743a', 5, -25, 7, 4); P('#f0a868', 5, -25, 3, 1); P(INK, 11, -28, 4, 4); P('#c8743a', 12, -27, 2, 2); P(INK, 5, -21, 1, 2); P(INK, 10, -21, 1, 2);
+    // loose gems and a chisel on the counter
+    for (const [x, c] of [[-22, '#2ec46a'], [-19, '#e03a4a'], [17, '#3a6ae8']]) { P(INK, x - 1, -22, 4, 3); P(c, x, -21, 2, 1) }
+    P(FE[2], 20, -20, 5, 1); P(WD[3], 25, -20, 3, 1);
+  } else {
+    // closed: a linen cloth over the counter
+    P(INK, -27, -24, 55, 7); P(LN[2], -26, -23, 53, 5); P(LN[0], -26, -19, 53, 1); P(BL[1], -26, -21, 53, 1);
+    for (const x of [-12, 6]) { P(INK, x, -27, 8, 4); P(LN[2], x + 1, -26, 6, 3) }
+  }
+}
+function drawBezCart(g, cx, by, t) {
+  const P = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(cx + a), Math.round(by + b), w, h) };
+  const INK = '#2a1e18', WD = ['#5a3020', '#8a5232', '#b8784a', '#e0a870'];
+  g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(cx, by - 2, 22, 4, 0, 0, 7); g.fill();
+  // handles resting on the ground to the right, and a prop leg at the left
+  P(INK, 12, -12, 14, 3); P(WD[2], 13, -11, 12, 1); P(INK, 24, -10, 3, 10); P(WD[1], 25, -9, 1, 9);
+  P(INK, -18, -9, 3, 9); P(WD[1], -17, -8, 1, 8);
+  // load: cut stone, acacia beams and a sack
+  for (const [x, y] of [[-16, -22], [-11, -22], [-14, -27]]) { P(INK, x - 1, y - 1, 7, 7); P('#b4ac9f', x, y, 5, 5); P('#d4ccbe', x, y, 5, 1); P('#8e867c', x, y + 4, 5, 1) }
+  P(INK, -5, -21, 16, 5); P(WD[2], -4, -20, 14, 1); P(WD[1], -4, -19, 14, 2); P(WD[0], 9, -20, 1, 3); P(INK, -3, -25, 14, 5); P(WD[3], -2, -24, 12, 1); P(WD[2], -2, -23, 12, 2);
+  P(INK, 4, -31, 8, 7); P('#d8c49a', 5, -30, 6, 5); P('#b8a070', 5, -26, 6, 1); P(INK, 7, -32, 2, 2);
+  // the cart bed
+  P(INK, -20, -17, 34, 9); P(WD[1], -19, -16, 32, 7); P(WD[2], -19, -16, 32, 1); for (const x of [-12, -4, 4]) P(WD[0], x, -15, 1, 6);
+  // one big spoked wheel
+  const wx = -3, wy = -8, r = 8; g.fillStyle = INK; g.beginPath(); g.arc(cx + wx, by + wy, r + 1, 0, 7); g.fill(); g.fillStyle = WD[1]; g.beginPath(); g.arc(cx + wx, by + wy, r, 0, 7); g.fill();
+  g.fillStyle = INK; g.beginPath(); g.arc(cx + wx, by + wy, r - 2, 0, 7); g.fill(); g.fillStyle = 'rgba(0,0,0,0)';
+  for (let k = 0; k < 6; k++) { const a = k / 6 * Math.PI; for (let s = -r + 2; s <= r - 2; s++) P(WD[2], wx + Math.cos(a) * s, wy + Math.sin(a) * s, 1, 1) }
+  P(INK, wx - 1, wy - 1, 3, 3); P(WD[3], wx, wy, 1, 1);
+}

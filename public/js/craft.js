@@ -271,6 +271,8 @@ function removePath() {
 async function craftInteract(r) {
   const o = r.o;
   if (o.t === 'bench') { openCraft(); return true }
+  if (o.t === 'bezstall') { openWorkshop(); return true }
+  if (o.t === 'bezcart') { say('Bezalel’s handcart, loaded with cut stone, acacia beams and a sack of tools.'); return true }
   if (o.t === 'gate') {
     if (o.open && Math.floor(player.x) === r.x && Math.floor(player.y) === r.y) return true;
     o.open = !o.open; tone(o.open ? 300 : 220, .07, 'square', .03); save(); return true;

@@ -78,7 +78,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate', 'bezstall', 'bezcart'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -457,9 +457,9 @@ function dayLight() { // returns [darkness 0..1, sunset warmth 0..1]
 }
 // name boards on the main buildings: [label, height above the building's base in world px]
 const SIGNS = { synagogue: ['Church', 26], smithy: ['Blacksmith', 47], inn: ['Inn', 30], carpenter: ['Carpenter', 22] };
-function signFor(o) { if (o.t !== 'bld') return null; if (o.shop === 'market') return o.k === 'stall_blue' ? ['Market', 41] : null; return SIGNS[o.k] || null }
+function signFor(o) { if (o.t === 'bezstall') return ['Bezalel’s Workshop', 66]; if (o.t !== 'bld') return null; if (o.shop === 'market') return o.k === 'stall_blue' ? ['Market', 41] : null; return SIGNS[o.k] || null }
 function drawSign(g, label, wx, wy, cxf, cyf) {
-  const S = SC, fs = Math.round(8.5 * S); g.font = `700 ${fs}px 'Pixelify Sans', monospace`;
+  const S = SC, fs = Math.round(8.5 * S); g.font = `800 ${fs}px Nunito, sans-serif`;
   const tw = Math.ceil(g.measureText(label).width), w = tw + Math.round(10 * S), h = Math.round(13 * S);
   const x = Math.round((wx - cxf) * S - w / 2), y = Math.round((wy - cyf) * S - h / 2), u = Math.max(1, Math.round(S));
   g.fillStyle = 'rgba(30,15,5,.35)'; g.fillRect(x + u, y + u * 2, w, h);                          // shadow
@@ -500,7 +500,7 @@ function render() {
   const py = showPlayer ? player.y : -1e9, signsBack = [], signsFront = [];
   for (const d of D) {
     const g = d[0] <= py ? bx : bx2;
-    if (d[1] === 0) { drawObject(g, d[2], d[3], d[4], GT); const L = d[2].t === 'bld' && signFor(d[2]); if (L) (g === bx ? signsBack : signsFront).push([L[0], d[3] * 16 + BLD[d[2].k][1] * 8, d[4] * 16 + 16 - L[1]]) }
+    if (d[1] === 0) { drawObject(g, d[2], d[3], d[4], GT); const L = signFor(d[2]); if (L) (g === bx ? signsBack : signsFront).push([L[0], d[3] * 16 + (d[2].t === 'bld' ? BLD[d[2].k][1] * 8 : 8), d[4] * 16 + 16 - L[1]]) }
     else if (d[1] === 4) drawCrop(g, d[2], d[3], d[4], GT);
     else if (d[1] === 5) drawVillager(g, d[2]);
     else if (d[1] === 6) drawRowboat(g, d[2].x * 16, d[2].y * 16 + 2, d[2].dir, GT, false);
@@ -523,7 +523,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = World.cur === 'mine' ? `rgba(10,6,4,${dark})` : `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'bezstall' && (bezOpen() || state.time >= 18 * 60)) lamp(x + .5, y - 1.6, 70, .95); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
     if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 120 : 34, World.cur === 'mine' ? .97 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);

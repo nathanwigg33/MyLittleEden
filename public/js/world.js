@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, bezstall: { solid: 1 }, bezcart: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -216,6 +216,8 @@ function drawObject(g, o, x, y, t) {
     case 'torch': spr(AT.torch[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9 + x) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - 22 - f.height + 6)) } break;
     case 'cart': spr(CART, 2); break;
     case 'sign': shadow(6); spr(SIGN, 0); break;
+    case 'bezstall': drawBezStall(g, cx, by, t); break;
+    case 'bezcart': drawBezCart(g, cx, by, t); break;
     case 'bench': case 'mach': case 'chest2': case 'fwell': case 'fence': case 'sfence': case 'gate': drawCraftObj(g, o, x, y, t); break;
   }
   if (o.shake) o.shake = Math.max(0, o.shake - 1 / 60);
