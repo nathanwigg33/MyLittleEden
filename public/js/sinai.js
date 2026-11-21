@@ -115,10 +115,10 @@ function updateSinai(dt) {
 }
 
 // ---------- the mines ----------
-const ORES = {   // node type: hit points, what it drops, sell price of the drop
-  stone: { hp: 3, item: 'stone' }, copper: { hp: 4, item: 'ore_copper' }, coal: { hp: 4, item: 'ore_coal' }, iron: { hp: 5, item: 'ore_iron' },
-  silver: { hp: 6, item: 'ore_silver' }, gold: { hp: 7, item: 'ore_gold' }, amethyst: { hp: 6, item: 'ore_amethyst' }, emerald: { hp: 7, item: 'ore_emerald' },
-  ruby: { hp: 8, item: 'ore_ruby' }, sapphire: { hp: 8, item: 'ore_sapphire' },
+const ORES = {   // node type: hit points (by size: ore rocks are rock-sized, gem crystals are taller), what it drops
+  stone: { hp: 3, item: 'stone' }, copper: { hp: 3, item: 'ore_copper' }, coal: { hp: 3, item: 'ore_coal' }, iron: { hp: 3, item: 'ore_iron' },
+  silver: { hp: 3, item: 'ore_silver' }, gold: { hp: 3, item: 'ore_gold' }, amethyst: { hp: 4, item: 'ore_amethyst' }, emerald: { hp: 4, item: 'ore_emerald' },
+  ruby: { hp: 4, item: 'ore_ruby' }, sapphire: { hp: 4, item: 'ore_sapphire' },
 };
 const MINE_ITEMS = { ore_coal: ['Coal', 15], ore_copper: ['Copper Ore', 20], ore_iron: ['Iron Ore', 35], ore_silver: ['Silver Ore', 60], ore_gold: ['Gold Ore', 110],
   ore_amethyst: ['Amethyst', 120], ore_emerald: ['Emerald', 200], ore_ruby: ['Ruby', 260], ore_sapphire: ['Sapphire', 320] };

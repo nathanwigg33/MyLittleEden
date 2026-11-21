@@ -7,7 +7,7 @@ const idx = (x, y) => y * W + x, inb = (x, y) => x >= 0 && y >= 0 && x < W && y 
 const OBJ = {
   oak: { tool: 'axe', hp: 6, solid: 1, tree: 1 }, olive: { tool: 'axe', hp: 6, solid: 1, tree: 1 },
   stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
-  rock: { tool: 'pick', hp: 2, solid: 1 }, boulder: { tool: 'pick', hp: 5, solid: 1 },
+  rock: { tool: 'pick', hp: 3, solid: 1 }, boulder: { tool: 'pick', hp: 6, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
   wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, bezstall: { solid: 1 }, bezcart: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
 };
@@ -67,8 +67,8 @@ function genFarm(seed) {
     let nearWater = false; for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) if (g[idx(x + dx, y + dy)] === WATER) nearWater = true;
     const woods = noise(x + 9, y + 3, 6), r = R();
     if ((woods > .56 && r < .42 || r > .975) && !nearWater) o[i] = { t: R() < .55 ? 'oak' : 'olive', hp: 6, v: ri(0, 3) };
-    else if (r < .06) o[i] = { t: 'rock', hp: 2, v: ri(0, 1) };
-    else if (r < .08 && !nearWater) o[i] = { t: 'boulder', hp: 5 };
+    else if (r < .06) o[i] = { t: 'rock', v: ri(0, 1) };
+    else if (r < .08 && !nearWater) o[i] = { t: 'boulder' };
     else if (r < .12) o[i] = { t: 'twig', hp: 1 };
     else if (r < .145) o[i] = { t: 'stump', hp: 3 };
     else if (r < .38) o[i] = { t: 'weed', hp: 1, v: ri(0, 3) };
@@ -120,9 +120,10 @@ function bakeTerrain() {
     });
   }
 }
-// how many hits something takes with a basic tool: the bigger the rock, the more hits, everywhere in the game
+// how many hits something takes with a basic tool goes by how big it is, everywhere in the game:
+// pebble 2 · rock or ore rock 3 · tall gem crystal 4 · stump 3 · boulder 6 · tree 6
 function objHp(o) {
-  if (o.t === 'rock') return o.v ? 3 : 2;            // small stone / medium rock
+  if (o.t === 'rock') return o.v ? 2 : 3;            // v1 is the little pebble, v0 the bigger rock
   if (o.t === 'boulder') return 6;
   if (o.t === 'node') return (ORES[o.k] || ORES.stone).hp;
   return (OBJ[o.t] && OBJ[o.t].hp) || 1;

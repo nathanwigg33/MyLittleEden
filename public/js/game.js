@@ -145,7 +145,7 @@ function damage(r, dmg) {
     case 'oak': case 'olive': World.place(x, y, { t: 'stump', hp: 3 }); falling.push({ o, x, y, t: 0, side: player.x < cx ? 1 : -1 }); sfx.fall(); state.stats.chopped++; break;
     case 'stump': drop('wood', ri(2, 3), cx, cy); break;
     case 'twig': drop('wood', 1, cx, cy); break;
-    case 'rock': drop('stone', ri(1, 2), cx, cy); state.stats.rocks++; break;
+    case 'rock': drop('stone', o.v ? 1 : ri(2, 3), cx, cy); state.stats.rocks++; break;
     case 'boulder': drop('stone', ri(5, 8), cx, cy); state.stats.rocks++; break;
     case 'node': nodeDrop(o, cx, cy); state.stats.rocks++; break;
     case 'weed': if (Math.random() < .6) drop('fiber', 1, cx, cy); state.stats.weeds++; break;
