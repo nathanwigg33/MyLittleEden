@@ -312,9 +312,22 @@ for key, tag in ANIMS:
         E[f'ch_{name}_{key}'] = [im.crop(bb) for im in L]
     # feet position: bottom of the body in idle-s frame 0, relative to crop
     CH[key] = {'ox': bb[0], 'oy': bb[1]}
+# front- and back-facing tool swings (the pack only has side ones): see ns_anims.py
+import ns_anims
+NS_COUNTS = {}
+for key, (layers, n) in ns_anims.build(ASE, fr, TAG).items():
+    bb = None
+    for L in layers.values():
+        for im in L:
+            b = im.getbbox()
+            if b: bb = b if bb is None else (min(bb[0], b[0]), min(bb[1], b[1]), max(bb[2], b[2]), max(bb[3], b[3]))
+    for name, L in layers.items():
+        if not any(im.getbbox() for im in L): continue
+        E[f'ch_{name}_{key}'] = [im.crop(bb) for im in L]
+    CH[key] = {'ox': bb[0], 'oy': bb[1]}; NS_COUNTS[key] = n
 fb = fr(TAG['idle-s'][1], ('base',)).getbbox()
 META['char'] = {'feetX': (fb[0]+fb[2])/2, 'feetY': fb[3], 'anims': CH, 'hairs': [h.split()[0] for h in HAIRS],
-                'counts': {k: TAG[t][2]-TAG[t][1]+1 for k, t in ANIMS}}
+                'counts': dict({k: TAG[t][2]-TAG[t][1]+1 for k, t in ANIMS}, **NS_COUNTS)}
 
 # ---------- pack ----------
 items = []
