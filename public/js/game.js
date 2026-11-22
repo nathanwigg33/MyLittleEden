@@ -70,7 +70,8 @@ function findTarget(tool) {
   let best = null, bd = 1.45; const [dx, dy] = faceVec();
   for (let y = Math.floor(player.y) - 2; y <= Math.floor(player.y) + 1; y++) for (let x = Math.floor(player.x) - 2; x <= Math.floor(player.x) + 2; x++) {
     const r = ok(x, y); if (!r) continue; const vx = x + .5 - player.x, vy = y + .55 - player.y, d = Math.hypot(vx, vy);
-    const ahead = (vx * dx + vy * dy) / (d || 1); const score = d - ahead * .45; if (d < 1.6 && score < bd) { bd = score; best = r }
+    const ahead = (vx * dx + vy * dy) / (d || 1); if (ahead < .3) continue;   // only things in front of you
+    const score = d - ahead * .45; if (d < 1.6 && score < bd) { bd = score; best = r }
   }
   return best;
 }
@@ -114,9 +115,8 @@ async function action() {
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
   if (tool === 'rod') { startFishing(); return }
   let cell = null, cost = TOOL_COST[tool];
-  if (tool === 'hoe' || tool === 'can') { cell = toolCell(item); if (cell) faceToward(cell.x, cell.y); if (tool === 'can' && cell && isWater(cell.x, cell.y)) cost = 0 }
+  if (tool === 'hoe' || tool === 'can') { cell = toolCell(item); if (tool === 'can' && cell && isWater(cell.x, cell.y)) cost = 0 }
   if (state.energy < cost) { toast('Too tired… go to your tent and sleep.'); sfx.no(); return }
-  if (tool !== 'hoe' && tool !== 'can') { const tgt = findTarget(tool); if (tgt) faceToward(tgt.x, tgt.y) }
   if (player.dir === 'l' || player.dir === 'r') player.side = player.dir === 'l' ? -1 : 1;
   const anim = TOOL_ANIM[tool], n = ATMETA.char.counts[anim];
   player.act = { anim, t: 0, dur: n / (TOOL_SPEED[anim] || 16), hitAt: tool === 'scythe' ? .3 : tool === 'can' ? .4 : .55, hit: false, tool, cell };
@@ -140,11 +140,12 @@ function damage(r, dmg) {
   if (OBJ[o.t].tree) { sfx.chop(); leaves(cx, cy - 1.2, 6) } else if (o.t === 'stump' || o.t === 'twig') { sfx.chop(); chips(cx, cy, '#a0703f', 4) }
   else if (o.t === 'rock' || o.t === 'boulder') { sfx.rock(); chips(cx, cy, '#9a978f', 5) } else if (o.t === 'node') { sfx.rock(); chips(cx, cy, NODE_CHIP[o.k], 6) } else { chips(cx, cy, '#5aa83a', 6) }
   if (o.hp > 0) return;
-  World.place(x, y, null);
+  World.place(x, y, null); markBare(x, y);
   switch (o.t) {
     case 'oak': case 'olive': World.place(x, y, { t: 'stump', hp: 3 }); falling.push({ o, x, y, t: 0, side: player.x < cx ? 1 : -1 }); sfx.fall(); state.stats.chopped++; break;
     case 'stump': drop('wood', ri(2, 3), cx, cy); break;
     case 'twig': drop('wood', 1, cx, cy); break;
+    case 'sapling': if ((o.g || 0) >= 3) drop('wood', 1, cx, cy); break;
     case 'rock': drop('stone', o.v ? 1 : ri(2, 3), cx, cy); state.stats.rocks++; break;
     case 'boulder': drop('stone', ri(5, 8), cx, cy); state.stats.rocks++; break;
     case 'node': nodeDrop(o, cx, cy); state.stats.rocks++; break;
@@ -186,9 +187,7 @@ function newDay(passed) {
   const late = state.time; state.totalDay++; state.day++; let newSeason = false; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; newSeason = true; if (state.season === 0) state.year++ }
   state.withered = growNight(newSeason); craftNight();
   state.time = 360; minuteAcc = 0; state.energy = passed ? Math.round(state.maxE / 2) : (late > 24 * 60 ? Math.round(state.maxE * .8) : state.maxE); state.stats.days++;
-  // a little regrowth overnight: weeds and grass creep back in
-  const R = Math.random; let n = ri(3, 6);
-  for (let k = 0; k < 200 && n > 0; k++) { const x = ri(3, W - 4), y = ri(3, H - 4), i = idx(x, y); if (World.objs[i] || World.ground[i] === WATER || World.soil[i] || (state.paths && state.paths[i])) continue; if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4) continue; World.objs[i] = R() < .5 ? { t: 'weed', hp: 1, v: ri(0, 3) } : { t: 'grass', hp: 1, v: ri(0, 7) }; n-- }
+  regrowFarm();
   player.x = World.TENT.x + .5; player.y = World.TENT.y + 1.7; player.dir = 's'; drops.forEach(d => { d.x = player.x; d.y = player.y });
   save();
 }
@@ -534,6 +533,7 @@ function render() {
 function drawPlayer(g) {
   const p = player, fx = p.x * 16, fy = p.y * 16, inB = state && state.inBoat;
   if (!inB) { g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill() }
+  if (!inB && !fishing && p.act && (p.dir === 'n' || p.dir === 's')) { drawSwingNS(g, p, fx, fy); drawFishing(g); return }
   let anim, fr = 0, flip = false;
   if (fishing) { [anim, fr] = fishAnim(); flip = p.side < 0 }
   else if (p.act) { anim = p.act.anim; fr = Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim]); flip = p.side < 0 }
@@ -579,3 +579,41 @@ async function boot() {
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };
 }
 boot();
+
+// ---------- swinging a tool while facing up or down ----------
+// The art pack only has sideways tool animations, so facing up or down we draw your body facing that way and swing
+// the tool in an arc over your head: chop down in front of you, or up and away when facing up.
+const SWING_KIND = { axe: 'chop', pick: 'chop', hoe: 'chop', scythe: 'sweep', can: 'pour' };
+function drawSwingNS(g, p, fx, fy) {
+  const a = p.act, f = Math.min(1, a.t / a.dur), h = a.hitAt, up = p.dir === 'n', kind = SWING_KIND[a.tool] || 'chop';
+  const it = selItem(), key = it && ITEMS[it.id] && ITEMS[it.id].tool === a.tool ? ITEMS[it.id].icon : 'ic_' + a.tool, spr = AT[key] && AT[key][0];
+  const ease = k => k * k * (3 - 2 * k), lerp = (x, y, k) => x + (y - x) * Math.max(0, Math.min(1, k));
+  const w = h * .62, hold = h + .12;
+  // path of the tool: [angle the tool head points (0 = up, clockwise), hand x, hand y]
+  const KEYS = {
+    chop: up ? [[2.6, 2, -9], [1.35, 3, -11], [-.05, 1, -16]] : [[2.3, 2, -8], [-.3, 1, -16], [Math.PI - .35, 4, -5]],
+    sweep: up ? [[2.4, 2, -9], [-1.9, -2, -11], [1.9, 2, -11]] : [[2.3, 1, -8], [4.4, -2, -8], [1.9, 2, -7]],
+  };
+  let th = 0, hx = 0, hy = -8, tilt = 0;
+  if (kind === 'pour') { tilt = f < .3 ? ease(f / .3) * .75 : f < .8 ? .75 : lerp(.75, 0, (f - .8) / .2); hx = up ? 5 : 4; hy = up ? -15 : -6 }
+  else {
+    const [r, s, e] = KEYS[kind], at = (A, B, k) => [lerp(A[0], B[0], k), lerp(A[1], B[1], k), lerp(A[2], B[2], k)];
+    const v = f < w ? at(r, s, ease(f / w)) : f < h ? at(s, e, Math.pow((f - w) / (h - w), 1.6)) : f < hold ? e : at(e, r, ease((f - hold) / (1 - hold)));
+    [th, hx, hy] = v;
+  }
+  const bob = f >= h && f < hold ? 1 : 0, px = Math.round(fx + hx), py = Math.round(fy + hy + bob);
+  const tool = () => {
+    if (!spr) return; g.save(); g.translate(px, py);
+    if (kind === 'pour') { g.rotate(up ? -tilt : tilt); g.drawImage(spr, -Math.round(spr.width / 2), -Math.round(spr.height / 2)) }
+    else { g.rotate(th - Math.PI / 4); g.drawImage(spr, -2, -spr.height + 2) }
+    g.restore();
+  };
+  const spray = () => { if (kind !== 'pour' || tilt < .5) return; g.fillStyle = '#9ad4ff';
+    for (let i = 0; i < 4; i++) { const k = (GT * 3 + i / 4) % 1, x = px + (up ? 7 : 8) + (i % 2), y = up ? py - 4 + k * 6 : py + 2 + k * 9; g.fillRect(Math.round(x), Math.round(y), 1, 2) } };
+  const L = state.look || DEFAULT_LOOK, skin = LOOK.skins[L.skin][0], shirt = LOOK.shirts[L.shirt][1], col = c => `rgb(${c[0]},${c[1]},${c[2]})`;
+  const arms = () => { for (const sx of [-3, 3]) { const x0 = fx + sx, y0 = fy - 12 + bob, n = Math.max(Math.abs(px - x0), Math.abs(py - y0)) || 1;
+    g.fillStyle = col(shirt); for (let k = 0; k <= n; k++) g.fillRect(Math.round(x0 + (px - x0) * k / n), Math.round(y0 + (py - y0) * k / n), 2, 2) }
+    g.fillStyle = col(skin); g.fillRect(px - 1, py - 1, 3, 3) };
+  if (up) { tool(); spray(); drawChar(g, look, 'idle_n', 0, fx, fy + bob, false, true); if (py < fy - 19) { g.fillStyle = col(skin); g.fillRect(px - 1, py - 1, 3, 2) } }
+  else { drawChar(g, look, 'idle_s', 0, fx, fy + bob, false, true); arms(); tool(); spray() }
+}

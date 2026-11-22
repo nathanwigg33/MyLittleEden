@@ -6,7 +6,7 @@ const idx = (x, y) => y * W + x, inb = (x, y) => x >= 0 && y >= 0 && x < W && y 
 // object types: hp = hits to clear, tool = which tool clears it, solid = blocks walking
 const OBJ = {
   oak: { tool: 'axe', hp: 6, solid: 1, tree: 1 }, olive: { tool: 'axe', hp: 6, solid: 1, tree: 1 },
-  stump: { tool: 'axe', hp: 3, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
+  stump: { tool: 'axe', hp: 3, solid: 1 }, sapling: { tool: 'axe', hp: 1, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 3, solid: 1 }, boulder: { tool: 'pick', hp: 6, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
   wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, bezstall: { solid: 1 }, bezcart: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
@@ -122,6 +122,8 @@ function bakeTerrain() {
 }
 // how many hits something takes with a basic tool goes by how big it is, everywhere in the game:
 // pebble 2 · rock or ore rock 3 · tall gem crystal 4 · stump 3 · boulder 6 · tree 6
+const BARE = {};   // cells you've cleared on the other maps, so no decoration pops up there
+const bareSet = () => (BARE[World.cur] = BARE[World.cur] || {}), markBare = (x, y) => { bareSet()[idx(x, y)] = 1 }, isBare = (x, y) => !!bareSet()[idx(x, y)];
 function objHp(o) {
   if (o.t === 'rock') return o.v ? 2 : 3;            // v1 is the little pebble, v0 the bigger rock
   if (o.t === 'boulder') return 6;
@@ -145,9 +147,9 @@ function drawTerrain(g, x0, y0, x1, y1, t) {
     const mg = Gr(x, y) | (Gr(x + 1, y) << 1) | (Gr(x, y + 1) << 2) | (Gr(x + 1, y + 1) << 3);
     if (mg) g.drawImage(TB.grass[mg][hash(x * 7, y * 3) < .7 ? v % 2 : 2 + v % 2], x * 16 + 8, y * 16 + 8);
   }
-  // flat ground decoration (flowers, little plants)
-  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
-    if (World.ground[idx(x, y)] !== GRASS || World.objs[idx(x, y)]) continue; const h = hash(x * 11 + 5, y * 17 + 3);
+  // flat ground decoration (flowers, little plants): never on your farm, and never where you've cleared something away
+  if (World.cur !== 'farm') for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+    if (World.ground[idx(x, y)] !== GRASS || World.objs[idx(x, y)] || isBare(x, y)) continue; const h = hash(x * 11 + 5, y * 17 + 3);
     if (h < .05) { const s = AT.flower[Math.floor(h * 60) % AT.flower.length]; g.drawImage(s, x * 16 + 4 + Math.floor(h * 100) % 6, y * 16 + 4) }
     else if (h < .09) { const s = AT.tuft[Math.floor(h * 99) % AT.tuft.length]; g.drawImage(s, x * 16 + 8 - s.width / 2, y * 16 + 8 - s.height / 2) }
   }
@@ -195,6 +197,7 @@ function drawObject(g, o, x, y, t) {
     case 'wild': { const s = treeSprite(o, t, x, y); shadow(10, -1); g.drawImage(s, Math.round(cx - s.width / 2 + (hash(x, y) - .5) * 6), Math.round(by - s.height + 3 + (hash(y, x) - .5) * 4)); break }
     case 'stump': shadow(7); spr(AT.stump[0], 1); break;
     case 'twig': spr(AT.ic_wood[0], -2); break;
+    case 'sapling': drawSapling(g, x * 16 + 8, y * 16 + 15, o.g || 0, t); break;
     case 'rock': shadow(6); spr(o.v ? AT.rock_m[0] : AT.stone[0], -1); break;
     case 'boulder': shadow(9); spr(AT.boulder[0], 0); break;
     case 'weed': spr([AT.weed, AT.weed2, AT.weed3, AT.weed4][o.v || 0][0], -1); break;

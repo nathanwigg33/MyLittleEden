@@ -45,7 +45,8 @@ function findCell(ok) {
   let best = null, bd = 1.3; const [dx, dy] = faceVec();
   for (let y = Math.floor(player.y) - 2; y <= Math.floor(player.y) + 1; y++) for (let x = Math.floor(player.x) - 2; x <= Math.floor(player.x) + 2; x++) {
     if (!ok(x, y)) continue; const vx = x + .5 - player.x, vy = y + .55 - player.y, d = Math.hypot(vx, vy);
-    const ahead = (vx * dx + vy * dy) / (d || 1), score = d - ahead * .45; if (d < 1.5 && score < bd) { bd = score; best = { x, y } }
+    const ahead = (vx * dx + vy * dy) / (d || 1); if (ahead < .3) continue;
+    const score = d - ahead * .45; if (d < 1.5 && score < bd) { bd = score; best = { x, y } }
   }
   return best;
 }
@@ -82,6 +83,8 @@ function growNight(seasonChanged) {
   for (const i in World.soil) {
     const s = World.soil[i];
     if (s.c && !s.c.dead) { if (seasonChanged && !CROPS[s.c.id].seasons.includes(state.season)) { s.c.dead = 1; died++ } else if (s.w) { s.c.g++; if (s.f) { s.fp = (s.fp || 0) + (s.f === 2 ? .5 : .34); if (s.fp >= 1) { s.fp -= 1; if (s.c.g < CROPS[s.c.id].days) s.c.g++ } } } }
+    // empty soil you don't plant or water goes back to grass after a couple of nights
+    if (!s.c) { s.idle = s.w ? 0 : (s.idle || 0) + 1; if (s.idle >= 2 && Math.random() < .4) { delete World.soil[i]; continue } } else delete s.idle;
     s.w = 0;
   }
   return died;
@@ -174,4 +177,46 @@ function removeCart() {
   const cells = []; World.objs.forEach((o, i) => { if (o && o.t === 'cart') cells.push(i) });
   for (const i of cells) { const x = i % W, y = Math.floor(i / W); for (let xx = x - 1; xx <= x + 1; xx++) if (inb(xx, y)) World.objs[idx(xx, y)] = null }
   return true;
+}
+
+// ---------- the land grows back if you don't keep up with it ----------
+// Every night on the farm: weeds and grass creep in (mostly next to weeds that are already there), a rock or two
+// turns up, now and then a twig, and sometimes a young tree sprouts near the woods. Saplings grow into full trees
+// in about a week if you leave them. Winter is quieter. Nothing grows on paths, soil, or right next to your things.
+const KEEP_CLEAR = ['bench', 'mach', 'chest2', 'fwell', 'fence', 'sfence', 'gate', 'decor', 'bin', 'tent', 'bld', 'sign', 'cart', 'crate', 'campfire', 'part', 'barrel', 'torch'];
+const CLUTTER = ['weed', 'grass', 'rock', 'twig', 'boulder', 'sapling', 'oak', 'olive', 'stump'];
+function regrowFarm() {
+  const O = World.objs, winter = state.season === 3, R = Math.random;
+  // saplings grow up first
+  O.forEach((o, i) => { if (o && o.t === 'sapling') { o.g = (o.g || 0) + (winter ? 0 : 1); if (o.g >= 8) O[i] = { t: R() < .55 ? 'oak' : 'olive', v: ri(0, 3) } } });
+  let clutter = 0; for (const o of O) if (o && CLUTTER.includes(o.t)) clutter++;
+  if (clutter > 1500) return;   // already very overgrown: let it be
+  const free = (x, y) => {
+    if (x < 2 || y < 2 || x > W - 3 || y > H - 3) return false; const i = idx(x, y);
+    if (O[i] || World.ground[i] !== GRASS || World.soil[i] || (state.paths && state.paths[i])) return false;
+    if (Math.hypot(x - World.TENT.x, y - World.TENT.y) < 4.5 || Math.hypot(x - World.EXIT.x, y - World.EXIT.y) < 3) return false;
+    for (let yy = y - 1; yy <= y + 1; yy++) for (let xx = x - 1; xx <= x + 1; xx++) { const o = World.get(xx, yy); if (o && KEEP_CLEAR.includes(o.t)) return false }
+    return true;
+  };
+  const randomCell = () => { for (let k = 0; k < 60; k++) { const x = ri(2, W - 3), y = ri(2, H - 3); if (free(x, y)) return [x, y] } return null };
+  const nextTo = kinds => {   // a free cell beside something of this kind, so things spread naturally
+    for (let k = 0; k < 80; k++) { const i = ri(0, O.length - 1), o = O[i]; if (!o || !kinds.includes(o.t)) continue;
+      const x = i % W + ri(-1, 1), y = Math.floor(i / W) + ri(-1, 1); if (free(x, y)) return [x, y] } return null };
+  const put = (c, o) => { if (c) O[idx(c[0], c[1])] = o };
+  const weeds = winter ? ri(1, 3) : ri(6, 10);
+  for (let k = 0; k < weeds; k++) put(R() < .6 ? nextTo(['weed', 'grass']) || randomCell() : randomCell(), R() < .5 ? { t: 'weed', v: ri(0, 3) } : { t: 'grass', v: ri(0, 7) });
+  for (let k = ri(1, 2); k > 0; k--) { const r = R(); put(randomCell(), r < .6 ? { t: 'rock', v: 1 } : r < .95 ? { t: 'rock', v: 0 } : { t: 'boulder' }) }
+  if (R() < .5) put(randomCell(), { t: 'twig' });
+  if (!winter && R() < .35) put(nextTo(['oak', 'olive']) || randomCell(), { t: 'sapling', g: 0 });
+}
+// a young tree: a little sprout, then a sapling, then (after about a week) a full tree
+function drawSapling(g, cx, by, gr, t) {
+  const P = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(cx + a), Math.round(by + b), w, h) }, sway = Math.round(Math.sin(t * 1.6 + cx) * .6);
+  const ink = '#1e3a1e', L = ['#2f6a2a', '#4a9a3a', '#7ac458', '#a8e070'];
+  g.fillStyle = 'rgba(30,20,10,.2)'; g.beginPath(); g.ellipse(cx, by, gr < 3 ? 3 : 5, 1.5, 0, 0, 7); g.fill();
+  if (gr < 3) { P(ink, -1, -6, 3, 6); P(L[1], 0, -6, 1, 6); P(ink, -4 + sway, -8, 4, 3); P(L[2], -3 + sway, -7, 3, 1); P(ink, 1 + sway, -9, 4, 3); P(L[2], 1 + sway, -8, 3, 1); P(L[3], 2 + sway, -8, 1, 1); return }
+  P('#3a2418', -1, -9, 3, 9); P('#8a5a3a', 0, -9, 1, 9);
+  for (const [x, y, w, h] of [[-5, -18, 11, 8], [-6, -15, 13, 5], [-3, -20, 7, 3]]) P(ink, x + sway, y, w, h);
+  for (const [x, y, w, h] of [[-4, -17, 9, 6], [-5, -14, 11, 3], [-2, -19, 5, 2]]) P(L[1], x + sway, y, w, h);
+  P(L[2], -3 + sway, -17, 4, 2); P(L[2], -4 + sway, -14, 3, 1); P(L[3], -2 + sway, -17, 2, 1); P(L[0], 1 + sway, -12, 4, 1);
 }
