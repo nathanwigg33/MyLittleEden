@@ -207,20 +207,30 @@ function lineSpot(side) {
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
   return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
 }
+// facing up or down: the bobber lands a couple of tiles straight ahead
+function lineSpotNS(dir) {
+  for (const d of dir === 's' ? [2, 1.6, 2.5] : [2.5, 2.1, 3]) {
+    const wx = player.x + .05, wy = player.y + (dir === 's' ? d : -d), x = Math.floor(wx), y = Math.floor(wy);
+    if (!inb(x, y)) continue; const o = World.objs[idx(x, y)];
+    if (World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge'))) return { x, y, wx, wy };
+  }
+  return null;
+}
 function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside() || World.cur === 'mine') { sfx.no(); return }
-  // cast to the side you face; facing up or down, try the side you last faced, then the other
-  const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)];
-  let side = 0, c = null; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } }
+  // cast the way you face: straight ahead when facing up or down (or to either side if there's no water ahead)
+  const ns = player.dir === 'n' || player.dir === 's' ? player.dir : null;
+  let side = 0, c = ns ? lineSpotNS(ns) : null, dir = c ? ns : null;
+  if (!c) { const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)]; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } } }
   if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
   if (state.energy < 2) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
   const where = fishWhere(c);
   if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here in the deep sea. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
-  state.energy -= 2; player.side = side; player.dir = side < 0 ? 'l' : 'r';
+  state.energy -= 2; if (!dir) { player.side = side; player.dir = side < 0 ? 'l' : 'r' }
   const bait = count('bait') > 0; if (bait) takeItem('bait', 1);
-  fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
+  fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, dir, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
 }
 function stopFishing() { fishing = null; for (const id of ['#fishgame', '#catchpop']) { const el = $(id); if (el) el.remove() } return true }
 function chooseFish() {
@@ -301,6 +311,14 @@ function closeCatch() { sfx.tap(); stopFishing() }
 // float, splashes, the fish leaping out on the yank, and the "!" (world pixels, drawn with the player)
 function drawFishing(g) {
   const f = fishing; if (!f) return; const p = player, bx = f.tx * 16, by = f.ty * 16;
+  if (f.dir) {   // facing up or down the line is drawn here, from the rod tip to the bobber
+    const tip = ATMETA.char.rodtip[f.dir], x0 = p.x * 16 + tip[0], y0 = p.y * 16 + tip[1];
+    let x1 = bx, y1 = by, show = ['wait', 'bite', 'game'].includes(f.phase);
+    if (f.phase === 'cast') { const k = clamp((f.t - .45) / .55, 0, 1); show = k > 0; x1 = x0 + (bx - x0) * k; y1 = y0 + (by - y0) * k - Math.sin(k * Math.PI) * 10;
+      if (show && k < 1) { g.fillStyle = '#2a1a10'; g.fillRect(Math.round(x1) - 1, Math.round(y1) - 1, 3, 3); g.fillStyle = '#e8402a'; g.fillRect(Math.round(x1), Math.round(y1) - 1, 1, 2) } }
+    if (show) { g.fillStyle = 'rgba(245,245,245,.85)'; const n = Math.max(4, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+      for (let i = 0; i <= n; i++) { const k = i / n, sag = Math.sin(k * Math.PI) * (f.phase === 'game' ? 1 : 4); g.fillRect(Math.round(x0 + (x1 - x0) * k), Math.round(y0 + (y1 - y0) * k + sag), 1, 1) } }
+  }
   const float = (dip) => { const y = Math.round(by + dip), x = Math.round(bx); g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(x, y + 1, 3.5 + Math.sin(GT * 3) * .6, 1.3, 0, 0, 7); g.fill(); g.fillStyle = '#2a1a10'; g.fillRect(x - 2, y - 4, 4, 5); g.fillStyle = '#e8392a'; g.fillRect(x - 1, y - 4, 2, 2); g.fillStyle = '#fff'; g.fillRect(x - 1, y - 2, 2, 2) };
   if (f.phase === 'wait') float(Math.sin(GT * 3) * .7);
   if (f.phase === 'bite') float(2 + Math.sin(GT * 30));
@@ -319,11 +337,12 @@ function drawFishing(g) {
 }
 function fishAnim() {
   const f = fishing;
-  if (f.phase === 'cast') return ['casting', Math.min(14, Math.floor(f.t * 15))];
-  if (f.phase === 'game') return ['reeling', Math.floor(GT * 12)];
-  if (f.phase === 'caught') return ['caught', Math.min(8, Math.floor(f.t / .95 * 9))];
-  if (f.phase === 'show') return ['caught', 8];
-  return ['waiting', Math.floor(GT * 8)];
+  const d = f.dir ? '_' + f.dir : '';
+  if (f.phase === 'cast') return ['casting' + d, Math.min(14, Math.floor(f.t * 15))];
+  if (f.phase === 'game') return ['reeling' + d, Math.floor(GT * 12)];
+  if (f.phase === 'caught') return ['caught' + d, Math.min(8, Math.floor(f.t / .95 * 9))];
+  if (f.phase === 'show') return ['caught' + d, 8];
+  return ['waiting' + d, Math.floor(GT * 8)];
 }
 
 // ---------- drawing the dock, bridge, boats and ducks ----------

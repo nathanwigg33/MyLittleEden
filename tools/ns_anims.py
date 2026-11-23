@@ -168,4 +168,48 @@ def build(ASE, fr, TAG):
                 L['body'].append(b); L['tool'].append(f_); L['toolr'].append(r_)
                 for h in HAIRS: L['hair_' + h].append(hs[h])
             out[f'{anim}_{d}'] = (L, len(poses))
+    # ---- fishing, facing down or up: rod raised overhead, flicked forward, then held out over the water ----
+    rod = fr(294, ('tools', 'tools rear'))
+    px = rod.load()
+    for y in range(rod.height):
+        for x in range(rod.width):
+            r, g, b_, al = px[x, y]
+            if al and r > 170 and g < 110 and b_ < 110: px[x, y] = (0, 0, 0, 0)      # take the red bobber off
+    ROD = biggest_part(rod.crop(rod.getbbox()))
+    rod_up, rod_dn = ROD, ROD.transpose(Image.FLIP_TOP_BOTTOM)
+    rod_side = ROD.transpose(Image.ROTATE_270)
+    def far_pixel(spr, anchor, at, pick):   # the rod tip, in canvas coordinates
+        pts = [(x, y) for y in range(spr.height) for x in range(spr.width) if spr.getpixel((x, y))[3]]
+        x, y = pick(pts); return (at[0] - anchor[0] + x, at[1] - anchor[1] + y)
+    OUT_S, OUT_N = (50, 35), (49, 25)
+    tips = {'s': far_pixel(rod_dn, hand_anchor(rod_dn), OUT_S, lambda P: max(P, key=lambda q: q[1])),
+            'n': far_pixel(rod_up, hand_anchor(rod_up), OUT_N, lambda P: min(P, key=lambda q: q[1]))}
+    def fish_frame(d, pose, i):
+        front, rear = Image.new('RGBA', (W, H)), Image.new('RGBA', (W, H))
+        body = bs_free if d == 's' else bn_free; hairs = hair_s if d == 's' else hair_n
+        bob = 1 if pose == 'reel' and i % 2 else 0
+        if d == 's':
+            if pose == 'wind': stamp(front, rod_up, hand_anchor(rod_up), (48, 24))
+            elif pose == 'swing': arc(front, 49, 29, 12, -10, 150, 2); stamp(front, rod_side, hand_anchor(rod_side), (51, 31))
+            elif pose in ('out', 'reel'): stamp(front, rod_dn, hand_anchor(rod_dn), (OUT_S[0], OUT_S[1] + bob))
+            elif pose == 'yank': stamp(front, rod_up, hand_anchor(rod_up), (49, 25))
+        else:
+            if pose == 'wind': stamp(front, rod_dn, hand_anchor(rod_dn), (48, 22))
+            elif pose == 'swing': arc(rear, 48, 22, 12, 110, -10, 2); stamp(rear, rod_side, hand_anchor(rod_side), (50, 21)); hand(front, 48, 22)
+            elif pose in ('out', 'reel'): stamp(rear, rod_up, hand_anchor(rod_up), (OUT_N[0], OUT_N[1] + bob)); hand(front, 48, 23 + bob)
+            elif pose == 'yank': stamp(front, rod_dn, hand_anchor(rod_dn), (48, 21))
+        shift = lambda im: (lambda o: (o.paste(im, (0, bob)), o)[1])(Image.new('RGBA', (W, H))) if bob else im
+        return shift(body), {h: shift(hairs[h]) for h in HAIRS}, front, rear
+    FSEQ = {'casting': ['wind'] * 5 + ['swing'] * 2 + ['out'] * 8, 'waiting': ['out'] * 9,
+            'reeling': ['reel'] * 13, 'caught': ['out'] * 3 + ['yank'] * 7}
+    for anim, poses in FSEQ.items():
+        for d in ('s', 'n'):
+            L = {'body': [], 'tool': [], 'toolr': []}
+            for h in HAIRS: L['hair_' + h] = []
+            for i, pose in enumerate(poses):
+                b, hs, f_, r_ = fish_frame(d, pose, i)
+                L['body'].append(b); L['tool'].append(f_); L['toolr'].append(r_)
+                for h in HAIRS: L['hair_' + h].append(hs[h])
+            out[f'{anim}_{d}'] = (L, len(poses))
+    out['_rodtip'] = tips
     return out

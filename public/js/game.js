@@ -20,7 +20,7 @@ const keys = {};
 G.state = null;
 
 function freshState(lk, seed) {
-  const inv = new Array(INV_SIZE).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 }; inv[3] = { id: 'hoe', n: 1 }; inv[4] = { id: 'can', n: 1 };
+  const inv = new Array(BAGS[0].slots).fill(null); inv[0] = { id: 'axe', n: 1 }; inv[1] = { id: 'pick', n: 1 }; inv[2] = { id: 'scythe', n: 1 }; inv[3] = { id: 'hoe', n: 1 }; inv[4] = { id: 'can', n: 1 };
   const chest = new Array(INV_SIZE).fill(null); chest[0] = { id: 'seed_wheat', n: 15 };
   return { v: 1, look: lk, day: 1, season: 0, year: 1, time: 360, money: 500, energy: 150, maxE: 150, bin: [], chest, can: CAN_MAX, farmStart: 1, inv, sel: 0, seed, px: World.TENT.x + .5, py: World.TENT.y + 1.7, opts: { sound: true }, stats: { days: 0, chopped: 0, rocks: 0, weeds: 0 }, totalDay: 1 };
 }
@@ -258,6 +258,7 @@ function load() {
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
     fillBorder(Math.random); World.objs.forEach((o, i) => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) World.objs[i] = null }); placeRoadSign(W - 6, World.EXIT.y - 1, FARM_SIGN); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
+    const bagMoved = fitBag(); if (bagMoved) setTimeout(() => say(`Your backpack now holds 2 rows. ${bagMoved} stack${bagMoved > 1 ? 's' : ''} that didn’t fit went into your storage chest by the tent. Tobiah sells bigger bags at the market in Bethlehem.`), 1900);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
 }
@@ -534,7 +535,7 @@ function drawPlayer(g) {
   const p = player, fx = p.x * 16, fy = p.y * 16, inB = state && state.inBoat;
   if (!inB) { g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill() }
   let anim, fr = 0, flip = false;
-  if (fishing) { [anim, fr] = fishAnim(); flip = p.side < 0 }
+  if (fishing) { [anim, fr] = fishAnim(); flip = fishing.dir ? false : p.side < 0 }
   else if (p.act) {   // facing up or down, tools use their own front/back swings; otherwise the side ones
     anim = p.act.anim; const ns = (p.dir === 'n' || p.dir === 's') && ATMETA.char.counts[anim + '_' + p.dir];
     if (ns) anim += '_' + p.dir; fr = Math.min(ATMETA.char.counts[anim] - 1, Math.floor(p.act.t / p.act.dur * ATMETA.char.counts[anim])); flip = ns ? false : p.side < 0 }

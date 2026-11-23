@@ -599,6 +599,16 @@ function craftIcons() {
   mk('ic_linen', R => { R(INK, 1, 5, 14, 10); R('#f4efe2', 2, 6, 12, 3); R('#d6ccb6', 2, 9, 12, 1); R('#f4efe2', 2, 10, 12, 3); R('#d6ccb6', 2, 13, 12, 1); R('#5a8ad0', 2, 7, 12, 1); R('#5a8ad0', 2, 11, 12, 1) });
   mk('ic_fert1', R => { sack(R, '#9a6a3e', '#7a5030'); R('#5aa83a', 6, 7, 3, 3); R('#8ad05a', 6, 7, 1, 1); R('#3f8a3a', 8, 10, 1, 2) });
   mk('ic_fert2', R => { sack(R, '#4a5a3a', '#34422a'); R('#7fd0a0', 5, 7, 2, 2); R('#7fd0a0', 9, 9, 1, 1); R('#ffe080', 8, 6, 1, 1); R('#ffe080', 6, 11, 1, 1) });
+  // backpacks sold at the market: a leather satchel, a bigger satchel, a traveler's pack, a merchant's pack
+  const bag = (R, body, dark, light, strap, big) => {
+    R(INK, 4, 1, 8, 3); R(strap, 5, 2, 6, 1);                                   // handle
+    R(INK, 1, 4, 14, 12); R(body, 2, 5, 12, 10); R(light, 2, 5, 12, 1); R(dark, 2, 14, 12, 1);
+    R(INK, 2, 7, 12, 1); R(dark, 2, 8, 12, 1); R(INK, 7, 7, 2, 4); R(AU[1], 7, 8, 2, 2);   // flap and gold clasp
+    if (big) { R(INK, 1, 10, 3, 5); R(dark, 2, 11, 1, 3); R(INK, 12, 10, 3, 5); R(dark, 13, 11, 1, 3) }   // side pockets
+  };
+  mk('ic_bag1', R => bag(R, '#b86f50', '#733e39', '#e4a672', '#733e39', 0));
+  mk('ic_bag2', R => { bag(R, '#4a7ab8', '#2c4a7a', '#8ab0e0', '#733e39', 1) });
+  mk('ic_bag3', R => { bag(R, '#8a3a6a', '#5a1a44', '#c87aa8', '#b07a16', 1); R(AU[1], 2, 12, 12, 1) });
   mk('ic_ropeladder', R => { for (const x of [3, 11]) { R(INK, x, 0, 3, 16); R('#d8b070', x + 1, 0, 1, 16) } for (let y = 2; y < 16; y += 4) { R(INK, 4, y, 9, 3); R('#b8864a', 5, y + 1, 7, 1) } });
   mk('ic_barley_loaf', R => { R(INK, 2, 6, 12, 8); R(INK, 3, 5, 10, 10); R('#c08a48', 3, 6, 10, 7); R('#dca868', 4, 6, 8, 2); R('#9a6a30', 3, 12, 10, 1); R('#f0d098', 5, 7, 1, 1); for (const x of [5, 8, 11]) R('#9a6a30', x, 9, 1, 2) });
   mk('ic_veg_roast', R => { R(INK, 0, 9, 16, 5); R('#e8e0cc', 1, 10, 14, 3); R('#c8c0ac', 2, 12, 12, 1); R(INK, 3, 6, 7, 4); R('#f08a30', 4, 7, 5, 2); R('#3f8a3a', 2, 6, 2, 2); R(INK, 9, 6, 5, 5); R('#e8d8a8', 10, 7, 3, 3); R('#b89868', 11, 8, 1, 1); R('#5a3a20', 6, 8, 1, 1) });

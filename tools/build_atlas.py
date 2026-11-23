@@ -315,7 +315,8 @@ for key, tag in ANIMS:
 # front- and back-facing tool swings (the pack only has side ones): see ns_anims.py
 import ns_anims
 NS_COUNTS = {}
-for key, (layers, n) in ns_anims.build(ASE, fr, TAG).items():
+NS = ns_anims.build(ASE, fr, TAG); RODTIP = NS.pop('_rodtip')
+for key, (layers, n) in NS.items():
     bb = None
     for L in layers.values():
         for im in L:
@@ -327,7 +328,8 @@ for key, (layers, n) in ns_anims.build(ASE, fr, TAG).items():
     CH[key] = {'ox': bb[0], 'oy': bb[1]}; NS_COUNTS[key] = n
 fb = fr(TAG['idle-s'][1], ('base',)).getbbox()
 META['char'] = {'feetX': (fb[0]+fb[2])/2, 'feetY': fb[3], 'anims': CH, 'hairs': [h.split()[0] for h in HAIRS],
-                'counts': dict({k: TAG[t][2]-TAG[t][1]+1 for k, t in ANIMS}, **NS_COUNTS)}
+                'counts': dict({k: TAG[t][2]-TAG[t][1]+1 for k, t in ANIMS}, **NS_COUNTS),
+                'rodtip': {d: [x - (fb[0]+fb[2])/2, y - fb[3]] for d, (x, y) in RODTIP.items()}}
 
 # ---------- pack ----------
 items = []

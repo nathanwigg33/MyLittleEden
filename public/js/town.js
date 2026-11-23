@@ -37,6 +37,27 @@ function shopOpen(k) { const [a, b] = HOURS[k]; if (k !== 'inn' && isSabbath()) 
 function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 'inn' ? `The ${n.toLowerCase()} is closed for the Sabbath. Come back tomorrow.` : `The ${n.toLowerCase()} is closed. Open ${a % 12 || 12}${a < 12 ? ' am' : ' pm'} to ${b % 12 || 12}${b < 12 || b === 24 ? (b === 24 ? ' midnight' : ' am') : ' pm'}.` }
 function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }
 let townRender = null, marketTab = 'buy';
+// backpacks: you start with 2 rows, and Tobiah sells bigger ones
+const BAGS = [{ n: 'Small Satchel', slots: 12 }, { n: 'Large Satchel', slots: 18, price: 1000 }, { n: 'Traveler’s Pack', slots: 24, price: 4000 }, { n: 'Merchant’s Pack', slots: 30, price: 12000 }];
+const bagLv = () => state.bag || 0;
+function buyBag(k) {
+  const B = BAGS[k]; if (k !== bagLv() + 1 || state.money < B.price) return;
+  state.money -= B.price; state.bag = k; while (state.inv.length < B.slots) state.inv.push(null);
+  sfx.pick(); tone(660, .1, 'triangle', .04); tone(990, .14, 'triangle', .04, .1); toast(`Your new ${B.n} holds ${B.slots / 6} rows!`); updateHUD(); save(); renderMarket();
+}
+// older saves had a 4-row bag: shrink it to the bag you own, moving anything extra into the storage chest
+function fitBag() {
+  if (state.bag === undefined) state.bag = 0;
+  const size = BAGS[bagLv()].slots; if (state.inv.length <= size) { while (state.inv.length < size) state.inv.push(null); return 0 }
+  let moved = 0; const extra = state.inv.splice(size).filter(Boolean);
+  for (const s of extra) {
+    const here = !ITEMS[s.id].tool && state.inv.find(q => q && q.id === s.id); if (here) { here.n += s.n; continue }
+    const e = state.inv.indexOf(null); if (e >= 0) { state.inv[e] = s; continue }
+    const c = !ITEMS[s.id].tool && state.chest.find(q => q && q.id === s.id); if (c) { c.n += s.n; moved++; continue }
+    const ce = state.chest.indexOf(null); if (ce >= 0) state.chest[ce] = s; else state.chest.push(s); moved++;
+  }
+  return moved;
+}
 const money = () => `<b>₪ ${state.money.toLocaleString()}</b>`;
 const tabsHTML = (cur, list) => `<div class="stabs">${list.map(([k, l]) => `<button class="stab ${k === cur ? 'on' : ''}" data-tab="${k}">${l}</button>`).join('')}</div>`;
 
@@ -46,13 +67,21 @@ function openMarket() {
 }
 function renderMarket() {
   const b = $('#binM .mbody');
-  let h = `<div class="binhead"><span>Tobiah’s stalls</span>${money()}</div>` + tabsHTML(marketTab, [['buy', 'Buy seeds'], ['sell', 'Sell']]);
+  let h = `<div class="binhead"><span>Tobiah’s stalls</span>${money()}</div>` + tabsHTML(marketTab, [['buy', 'Buy seeds'], ['bags', 'Bags'], ['sell', 'Sell']]);
   if (marketTab === 'buy') {
     const order = Object.keys(CROPS).sort((p, q) => (CROPS[q].seasons.includes(state.season) - CROPS[p].seasons.includes(state.season)) || CROPS[p].seed - CROPS[q].seed);
     for (const k of order) {
       const c = CROPS[k], inS = c.seasons.includes(state.season), id = 'seed_' + k;
       h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
     }
+  } else if (marketTab === 'bags') {
+    const cur = BAGS[bagLv()];
+    h += `<p class="muted" style="margin:2px 2px 8px">Your bag: <b>${cur.n}</b>, ${cur.slots} slots (${cur.slots / 6} rows). A bigger bag lets you carry more from the fields, the river and the mines.</p>`;
+    BAGS.forEach((B, k) => {
+      if (k === 0) return; const owned = k <= bagLv(), next = k === bagLv() + 1;
+      h += `<div class="shoprow ${owned || next ? '' : 'off'}"><img class="bimg" src="${iconURL('ic_bag' + k)}"><div class="si"><b>${B.n}</b><div class="muted">${B.slots} slots · ${B.slots / 6} rows${owned || next ? '' : `<br>Buy the ${BAGS[k - 1].n} first`}</div></div>
+        <div class="sb">${owned ? '<span class="pr">Owned</span>' : next ? `<span class="pr">₪ ${B.price.toLocaleString()}</span><button class="btn" data-bag="${k}" ${state.money < B.price ? 'disabled' : ''}>Buy</button>` : `<span class="pr">₪ ${B.price.toLocaleString()}</span>`}</div></div>`;
+    });
   } else {
     const rows = state.inv.map((s, i) => [s, i]).filter(([s]) => s && ITEMS[s.id].price && !ITEMS[s.id].tool);
     if (!rows.length) h += '<p class="muted">Nothing to sell. Tobiah buys crops, wood, stone and fiber at the same price as your shipping bin, but pays right away.</p>';
@@ -60,6 +89,7 @@ function renderMarket() {
   }
   b.innerHTML = h;
   b.querySelectorAll('.stab').forEach(el => el.onclick = () => { marketTab = el.dataset.tab; sfx.tap(); renderMarket() });
+  b.querySelectorAll('[data-bag]').forEach(el => el.onclick = () => buyBag(+el.dataset.bag));
   b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n, cost = CROPS[k].seed * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
   b.querySelectorAll('[data-sell]').forEach(el => el.onclick = () => { const i = +el.dataset.sell, s = state.inv[i]; if (!s) return; const n = Math.min(+el.dataset.n, s.n); state.money += n * ITEMS[s.id].price; state.stats.earned = (state.stats.earned || 0) + n * ITEMS[s.id].price; s.n -= n; if (s.n <= 0) state.inv[i] = null; tone(988, .06, 'square', .025); tone(1318, .08, 'square', .02, .06); renderMarket() });
 }
