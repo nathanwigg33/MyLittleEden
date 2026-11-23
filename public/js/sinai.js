@@ -288,6 +288,7 @@ function placeDecor(slot) {
   World.place(x, y, o); it.n--; if (it.n <= 0) state.inv[slot] = null; sfx.plant(); chips(x + .5, y + .5, '#d4ccbe', 6); updateHUD(); save();
 }
 async function decorAction(r) {
+  if (r.o.k === 'bench') { sitOn(r); return }
   if (r.o.k === 'sign') { const v = await say(r.o.text || 'The sign is blank.', [['Write on it', 2], ['Pick up', 1], ['OK', 0]]); if (v === 2) { r.o.text = signText(r.o.text || ''); save() } if (v !== 1) return }
   else { const v = await say(`Your ${DECOR[r.o.k].n}. Pick it up?`, [['Pick up', 1], ['Leave it', 0]]); if (!v) return }
   if (addItem('decor_' + r.o.k, 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(r.x, r.y, null); sfx.pick(); updateHUD(); save();

@@ -65,6 +65,7 @@ function craftItems() {
     fert1: { n: 'Fertilizer', icon: 'ic_fert1', fert: 1, price: 2, d: 'Spread it on tilled soil. Crops there grow about a third faster. Lasts until harvest.' },
     fert2: { n: 'Rich Compost', icon: 'ic_fert2', fert: 2, price: 5, d: 'Spread it on tilled soil. Crops there grow about half again as fast. Lasts until harvest.' },
     ropeladder: { n: 'Rope Ladder', icon: 'ic_ropeladder', rope: 1, price: 10, d: 'Use it in the Sinai Mines to climb straight down to the next floor.' },
+    workbench: { n: 'Workbench', icon: 'ic_workbench', put: { t: 'bench' }, d: 'Your crafting workbench. Place it anywhere on your farm.' },
     chest: { n: 'Chest', icon: 'chest', put: { t: 'chest2' }, d: 'Extra storage. Place it, then tap it to put things in.' },
     farmwell: { n: 'Well', icon: 'well', put: { t: 'fwell' }, d: 'Fill your watering can right where you need it.' },
     fence_wood: { n: 'Wood Fence', icon: 'ic_fence_wood', put: { t: 'fence' }, d: 'Fences join up with their neighbors. Chop with your axe to pick one back up.' },
@@ -345,10 +346,10 @@ function renderFarmChest() {
 
 // the workbench: Joseph leaves one beside your tent
 function ensureBench() {
-  const F = World.maps.farm; if (!F || F.objs.some(o => o && o.t === 'bench')) return false; const T = World.TENT;
+  const F = World.maps.farm; if (!F || state.benchGiven) return false; if (F.objs.some(o => o && o.t === 'bench')) { state.benchGiven = 1; return false } const T = World.TENT;
   for (const [dx, dy] of [[-3, 2], [-4, 2], [-2, 3], [-5, 1], [-4, 3], [4, 2], [5, 1], [-1, 4], [1, 4]]) {
     const x = T.x + dx, y = T.y + dy, i = idx(x, y);
-    if (inb(x, y) && !F.objs[i] && F.ground[i] !== WATER && !F.soil[i]) { F.objs[i] = { t: 'bench' }; if (state.paths) delete state.paths[i]; return true }
+    if (inb(x, y) && !F.objs[i] && F.ground[i] !== WATER && !F.soil[i]) { F.objs[i] = { t: 'bench' }; state.benchGiven = 1; if (state.paths) delete state.paths[i]; return true }
   }
   return false;
 }
@@ -397,24 +398,24 @@ function drawCraftObj(g, o, x, y, t) {
     case 'mach': shadow(8); drawMach(g, o.k, cx, by, t, o); if (machReady(o) && !MACH[o.k].reach) drawBubble(g, cx, by - machH(o.k) - 4, MACH[o.k].hive ? 'honey' : o.out, t); break;
     case 'chest2': shadow(7); spr(AT.chest[0], 0); break;
     case 'fwell': shadow(10); spr(AT.well[0], 1); if (AT.bucket) g.drawImage(AT.bucket[0], cx + 5, by - 12); break;
-    case 'fence': case 'gate': {
+    case 'fence': case 'gate': case 'sfence': if (typeof player !== 'undefined' && Math.abs(player.x - x - .5) < 1.2 && player.y > y - .95 && player.y < y + .35) g.globalAlpha = .45;
+      if (o.t === 'sfence') { drawWall(); g.globalAlpha = 1; break } {
       const L = fenceAt(x - 1, y, 'fence', 'gate'), Rt = fenceAt(x + 1, y, 'fence', 'gate'), D = fenceAt(x, y + 1, 'fence', 'gate'), U = fenceAt(x, y - 1, 'fence', 'gate');
-      if (o.t === 'fence') {
-        if (Rt) for (const yy of [-11, -6]) { P(INK, 1, yy - 1, 15, 3); P(WD[1], 1, yy, 15, 1) }
-        if (D) { P(INK, -2, -3, 4, 16); P(WD[1], -1, -3, 2, 15) }
-        P('rgba(30,20,10,.25)', -3, -1, 7, 2); P(INK, -3, -15, 6, 15); P(WD[1], -2, -14, 4, 13); P(WD[2], -2, -14, 1, 13); P(WD[3], -2, -14, 4, 1); P(WD[0], 1, -13, 1, 12);
+      if (o.t === 'fence') {   // slim posts and thin rails, so the ground still shows through
+        if (Rt) for (const yy of [-9, -5]) { P(INK, 1, yy - 1, 15, 3); P(WD[2], 1, yy, 15, 1) }
+        if (D) { P(INK, -1, -2, 3, 15); P(WD[1], 0, -2, 1, 14) }
+        P('rgba(30,20,10,.22)', -2, -1, 5, 2); P(INK, -2, -12, 5, 12); P(WD[1], -1, -11, 3, 11); P(WD[2], -1, -11, 1, 11); P(WD[3], -1, -12, 3, 1);
       } else drawGate(P, o.open, !(L || Rt) && (U || D), t);
-      break;
+      g.globalAlpha = 1; break;
     }
-    case 'sfence': {
+  }
+  function drawWall() {
       const Rt = fenceAt(x + 1, y, 'sfence'), Lf = fenceAt(x - 1, y, 'sfence'), D = fenceAt(x, y + 1, 'sfence');
-      const a = Lf ? -8 : -5, b = Rt ? 8 : 5;
-      P('rgba(30,20,10,.25)', a, -1, b - a, 2); P(INK, a, -11, b - a, 11); P(ST[1], a + (Lf ? 0 : 1), -10, b - a - (Lf ? 0 : 1) - (Rt ? 0 : 1), 9);
-      for (const [yy, off] of [[-10, 0], [-7, 3], [-4, 0]]) { P(ST[3], a + 1, yy, b - a - 2, 1); for (let xx = a + 2 + off; xx < b - 1; xx += 6) P(ST[0], xx, yy + 1, 1, 2) }
-      P(ST[0], a + 1, -2, b - a - 2, 1); P(INK, a, -12, b - a, 2); P(ST[2], a + 1, -12, b - a - 2, 1);
-      if (D) { P(INK, -4, -2, 8, 14); P(ST[1], -3, -2, 6, 13); P(ST[3], -3, -2, 6, 1) }
-      break;
-    }
+      const a = Lf ? -8 : -5, b = Rt ? 8 : 5;   // a low wall: knee height, so the tile behind it stays in view
+      P('rgba(30,20,10,.25)', a, -1, b - a, 2); P(INK, a, -7, b - a, 7); P(ST[1], a + (Lf ? 0 : 1), -6, b - a - (Lf ? 0 : 1) - (Rt ? 0 : 1), 5);
+      for (const [yy, off] of [[-6, 0], [-3, 3]]) { P(ST[3], a + 1, yy, b - a - 2, 1); for (let xx = a + 2 + off; xx < b - 1; xx += 6) P(ST[0], xx, yy + 1, 1, 2) }
+      P(ST[0], a + 1, -2, b - a - 2, 1); P(INK, a, -9, b - a, 3); P(ST[2], a + 1, -8, b - a - 2, 1);
+      if (D) { P(INK, -4, -2, 8, 13); P(ST[1], -3, -2, 6, 12); P(ST[3], -3, -2, 6, 1) }
   }
 }
 function drawGate(P, open, vertical, t) {
@@ -536,11 +537,20 @@ function drawCraftDecor(g, k, cx, by, t) {
     case 'campfire': spr(AT.campfire[0], 0); if (AT.fire) { const f = AT.fire[Math.floor(t * 9) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)) } break;
     case 'barrel': spr(AT.barrel[0], 0); break;
     case 'sign': spr(SIGN, 0); break;
-    case 'bench':
-      for (const a of [-8, 6]) { P(INK, a, -8, 3, 8); P(WD[1], a + 1, -8, 1, 7) }
-      P(INK, -10, -10, 20, 4); P(WD[2], -9, -9, 18, 1); P(WD[1], -9, -8, 18, 1);
-      for (const a of [-8, 6]) { P(INK, a, -18, 3, 9); P(WD[1], a + 1, -17, 1, 8) }
-      for (const yy of [-17, -13]) { P(INK, -10, yy - 1, 20, 3); P(WD[2], -9, yy, 18, 1) } break;
+    case 'bench': {   // a garden bench: slatted back, plank seat, armrests — and you can sit on it
+      const sit = typeof player !== 'undefined' && player && player.sit && cx === player.sit.x * 16 + 8 && by === player.sit.y * 16 + 15;
+      for (const a of [-11, 9]) { P(INK, a, -20, 3, 14); P(WD[0], a + 1, -19, 1, 13) }                              // back posts
+      P(INK, -12, -21, 24, 4); P(WD[2], -11, -20, 22, 1); P(WD[1], -11, -19, 22, 1);                                // top rail
+      for (const a of [-7, -3, 1, 5]) { P(INK, a - 1, -17, 4, 8); P(WD[1], a, -17, 2, 7); P(WD[2], a, -17, 1, 7) } // back slats
+      P(INK, -12, -11, 24, 3); P(WD[1], -11, -10, 22, 1);                                                             // lower back rail
+      P(INK, -13, -9, 26, 5); P(WD[3], -12, -8, 24, 1); P(WD[2], -12, -7, 24, 2); for (const a of [-6, 0, 6]) P(WD[1], a, -8, 1, 3);   // seat planks
+      if (sit) drawChar(g, look, 'idle_s', 0, cx, by - 4, false, true);
+      P(INK, -13, -5, 26, 3); P(WD[1], -12, -4, 24, 1);                                                              // seat front edge
+      for (const a of [-12, 9]) { P(INK, a, -3, 4, 3); P(WD[0], a + 1, -3, 2, 3) }                                    // front legs
+      for (const a of [-14, 11]) { P(INK, a, -14, 4, 10); P(WD[1], a + 1, -13, 2, 8); P(INK, a - 1, -15, 6, 3); P(WD[2], a, -14, 4, 1) }   // armrests
+      if (sit && Math.sin(GT * 1.4) > .6) { g.fillStyle = 'rgba(255,255,255,.85)'; g.font = '700 6px Nunito, sans-serif'; g.fillText('z', cx + 7, by - 26 - (GT * 6 % 4)) }
+      break;
+    }
     case 'table':
       for (const a of [-13, 10]) { P(INK, a, -7, 5, 7); P(WD[0], a + 1, -6, 3, 6); P(INK, a - 1, -9, 7, 3); P(WD[2], a, -8, 5, 1) }   // stools
       for (const a of [-7, 5]) { P(INK, a, -10, 3, 10); P(WD[1], a + 1, -10, 1, 9) }
@@ -626,6 +636,7 @@ function craftIcons() {
   // machines and crafted decorations: drawn with the real art, then trimmed
   const big = (key, f) => { const c = mkc(40, 48), g = c.getContext('2d'); f(g); AT[key] = [trimCanvas(c)] };
   for (const k in MACH) big('mach_' + k, g => drawMach(g, k, 20, 47, 0, null));
+  big('ic_workbench', g => drawWorkbench(g, 20, 47, 0));
   for (const k in CDECOR) big('decor_' + k, g => drawCraftDecor(g, k, 20, 47, 0));
   // preserves jars, juice and smoked fish: one icon per crop or fish
   const avg = s => { const d = s.getContext ? s.getContext('2d').getImageData(0, 0, s.width, s.height).data : null; if (!d) return '#c04a6a'; let r = 0, gg = 0, b = 0, n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] + d[i + 1] + d[i + 2] > 120) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; n++ } return n ? `rgb(${r / n | 0},${gg / n | 0},${b / n | 0})` : '#c04a6a' };
@@ -640,4 +651,40 @@ function craftIcons() {
     g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(110,55,20,.55)'; g.fillRect(0, 0, 16, 16); g.globalCompositeOperation = 'source-over';
     R('rgba(230,230,235,.8)', 3, 1, 1, 2); R('rgba(230,230,235,.8)', 4, 0, 1, 1); R('rgba(230,230,235,.7)', 11, 2, 1, 2);
   });
+}
+
+// ---------- sitting on a garden bench ----------
+function sitOn(r) {
+  player.sit = { x: r.x, y: r.y }; player.act = null; player.moving = false; player.dir = 's'; player.x = r.x + .5; player.y = r.y + .95; sfx.tap();
+  if (!state.satOnce) { state.satOnce = 1; toast('You sit down to rest and get a little energy back. Move to stand up.') }
+}
+function standUp() {
+  const s = player.sit; if (!s) return; player.sit = null;
+  for (const [dx, dy] of [[0, 1], [1, 0], [-1, 0], [0, -1]]) { const x = s.x + dx, y = s.y + dy; if (inb(x, y) && !World.solid(x, y) && World.ground[idx(x, y)] !== WATER) { player.x = x + .5; player.y = y + .55; player.dir = dy > 0 ? 's' : dy < 0 ? 'n' : dx > 0 ? 'r' : 'l'; return } }
+}
+function sitTick(dt, mx, my) {
+  const s = player.sit, o = World.get(s.x, s.y); player.moving = false;
+  if (World.cur !== 'farm' || !o || o.t !== 'decor' || o.k !== 'bench') { player.sit = null; return }
+  if (mx || my) { standUp(); return }
+  state.energy = Math.min(state.maxE, state.energy + dt * 1.5);
+}
+
+// ---------- picking up what you've placed by swinging a pickaxe, axe or hoe at it ----------
+const MOVABLE = { decor: o => 'decor_' + o.k, mach: o => 'm_' + o.k, chest2: () => 'chest', fwell: () => 'farmwell', fence: () => 'fence_wood', sfence: () => 'fence_stone', gate: () => 'gate', bench: () => 'workbench' };
+let toolAim = null;
+// which tool wins over tapping: pickaxe, axe or hoe on something you placed (but open full chests and busy machines; the workbench needs the pickaxe)
+function toolWins(it) {
+  const s = selItem(), tl = s && ITEMS[s.id].tool, o = it.o;
+  if (!['pick', 'axe', 'hoe'].includes(tl) || World.cur !== 'farm' || !MOVABLE[o.t]) return false;
+  if (o.t === 'chest2' && o.items.some(Boolean)) return false; if (o.t === 'mach' && o.out) return false; if (o.t === 'bench' && tl !== 'pick') return false;
+  return true;
+}
+function toolPickUp() {
+  if (World.cur !== 'farm') return false; const [x, y] = toolAim ? [toolAim.x, toolAim.y] : facingCell(), o = World.get(x, y); toolAim = null; if (!o || !MOVABLE[o.t]) return false;
+  if (o.t === 'bench' && !(selItem() && ITEMS[selItem().id].tool === 'pick')) return false;
+  if (o.t === 'mach' && o.out) { toast(machReady(o) ? 'Take out what’s inside first.' : 'It’s still working. Let it finish first.'); sfx.no(); return true }
+  if (o.t === 'chest2' && o.items.some(Boolean)) { toast('Empty the chest first.'); sfx.no(); return true }
+  if (player.sit && player.sit.x === x && player.sit.y === y) return true;
+  World.place(x, y, null); drop(MOVABLE[o.t](o), 1, x + .5, y + .5);
+  sfx.chop(); chips(x + .5, y + .6, o.t === 'sfence' || o.t === 'fwell' ? '#b4ac9f' : '#b86f50', 7); save(); return true;
 }

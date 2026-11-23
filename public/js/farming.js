@@ -56,7 +56,7 @@ function toolCell(it) {
   if (!it) return null;
   if (it.seed) return findCell(canPlant);
   if (it.fert) return findCell((x, y) => { const s = soilAt(x, y); return s && (s.f || 0) < it.fert });
-  if (it.tool === 'hoe') return findCell(canTill);
+  if (it.tool === 'hoe') { const [fx, fy] = facingCell(); if (state.paths && state.paths[idx(fx, fy)]) return null; return findCell(canTill) }   // a path right in front: lift it instead
   if (it.tool === 'can') return findCell(needsWater) || (state.can < canMax() ? findCell(isWater) : null);
   return null;
 }

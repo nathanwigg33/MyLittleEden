@@ -83,12 +83,14 @@ function interactTarget() {
   return null;
 }
 async function action() {
+  if (player.sit) { standUp(); return }
   if (player.act || dlgOpen || sleeping || paused) return;
   if (fishing) { fishAction(); return }
   if (state.inBoat) { boatAction(); return }
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   if (boatAction()) return;
-  const it = interactTarget();
+  let it = interactTarget(); toolAim = null;
+  if (it && toolWins(it)) { toolAim = { x: it.x, y: it.y }; it = null }   // holding a pickaxe, axe or hoe: knock it loose instead
   if (it) {
     if (await craftInteract(it)) return;
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
@@ -124,7 +126,8 @@ async function action() {
 }
 function hit(tool, act) {
   const [rdx, rdy] = faceVec(), row = c => Array.from({ length: rowLen(tool) }, (_, k) => ({ x: c.x + rdx * k, y: c.y + rdy * k }));
-  if (tool === 'hoe') { if (!act.cell) { sfx.miss(); return } let n = 0; for (const c of row(act.cell)) if (canTill(c.x, c.y)) { till(c); n++ } else break; if (!n) sfx.miss(); return }
+  if ((tool === 'pick' || tool === 'axe' || tool === 'hoe') && toolPickUp()) return;
+  if (tool === 'hoe') { if (!act.cell) { if (!removePath()) sfx.miss(); return } let n = 0; for (const c of row(act.cell)) if (canTill(c.x, c.y)) { till(c); n++ } else break; if (!n) sfx.miss(); return }
   if (tool === 'can') { if (!act.cell) { sfx.miss(); return } if (isWater(act.cell.x, act.cell.y)) { water(act.cell); return } for (const c of row(act.cell)) if (soilAt(c.x, c.y)) water(c); return }
   if (tool === 'scythe') {
     sfx.swish(); const [dx, dy] = faceVec(), [fx, fy] = facingCell(); const cells = [[fx, fy], [fx + dy, fy + dx], [fx - dy, fy - dx], [Math.floor(player.x), Math.floor(player.y)]];
@@ -132,7 +135,7 @@ function hit(tool, act) {
     for (const [x, y] of cells) { const r = World.owner(x, y); if (r && OBJ[r.o.t] && OBJ[r.o.t].tool === 'scythe') damage(r, 1) }
     return;
   }
-  const r = findTarget(tool); if (!r) { if (!(tool === 'pick' && removePath())) sfx.miss(); return } damage(r, toolLv(tool));
+  const r = findTarget(tool); if (!r) { if (!((tool === 'pick' || tool === 'axe') && removePath())) sfx.miss(); return } damage(r, toolLv(tool));
 }
 function damage(r, dmg) {
   const { o, x, y } = r; if (!o.hit) { o.hp = objHp(o); o.hit = 1 } o.hp -= dmg; o.shake = .25;   // the same toughness everywhere in the game
@@ -404,6 +407,7 @@ function update(dt) {
   if (joy && Math.hypot(joy.dx, joy.dy) > .18) { mx = joy.dx; my = joy.dy }
   const act = player.act;
   if (fishing && !((mx || my) && ['cast', 'wait', 'bite'].includes(fishing.phase) && stopFishing())) { updateFishing(dt); player.moving = false }
+  else if (player.sit) sitTick(dt, mx, my);
   else if (state.inBoat && !act) boatMove(dt, mx, my);
   else if (act) {
     act.t += dt; if (!act.hit && act.t >= act.dur * act.hitAt) { act.hit = true; hit(act.tool, act) } if (act.t >= act.dur) player.act = null;
@@ -532,6 +536,7 @@ function render() {
   if (World.cur === 'sinai' && SINAI.flash > 0) { ctx.fillStyle = `rgba(232,238,255,${SINAI.flash * .55})`; ctx.fillRect(0, 0, cv.width, cv.height) }
 }
 function drawPlayer(g) {
+  if (player.sit) return;   // sitting on a bench: the bench draws you
   const p = player, fx = p.x * 16, fy = p.y * 16, inB = state && state.inBoat;
   if (!inB) { g.fillStyle = 'rgba(30,20,10,.25)'; g.beginPath(); g.ellipse(fx, fy, 5, 2, 0, 0, 7); g.fill() }
   let anim, fr = 0, flip = false;
