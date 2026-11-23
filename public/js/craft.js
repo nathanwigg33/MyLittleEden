@@ -405,7 +405,7 @@ function drawCraftObj(g, o, x, y, t) {
         if (Rt) for (const yy of [-9, -5]) { P(INK, 1, yy - 1, 15, 3); P(WD[2], 1, yy, 15, 1) }
         if (D) { P(INK, -1, -2, 3, 15); P(WD[1], 0, -2, 1, 14) }
         P('rgba(30,20,10,.22)', -2, -1, 5, 2); P(INK, -2, -12, 5, 12); P(WD[1], -1, -11, 3, 11); P(WD[2], -1, -11, 1, 11); P(WD[3], -1, -12, 3, 1);
-      } else drawGate(P, o.open, !(L || Rt) && (U || D), t);
+      } else drawGate(P, o.open, !(L || Rt) && (U || D), t, Rt, D);
       g.globalAlpha = 1; break;
     }
   }
@@ -418,16 +418,30 @@ function drawCraftObj(g, o, x, y, t) {
       if (D) { P(INK, -4, -2, 8, 13); P(ST[1], -3, -2, 6, 12); P(ST[3], -3, -2, 6, 1) }
   }
 }
-function drawGate(P, open, vertical, t) {
-  if (vertical) { // a gate in a fence that runs up and down
-    if (open) { P(INK, -2, -15, 4, 15); P(WD[1], -1, -14, 2, 13) } else { P(INK, -2, -15, 4, 26); P(WD[1], -1, -14, 2, 24); P(WD[2], -1, -14, 1, 24); for (const yy of [-12, -2, 7]) P(WD[0], -1, yy, 2, 1) }
+// a gate matches the fence: same posts and rail heights, a picket leaf with a diagonal brace, and it links to the fences beside it
+function drawGate(P, open, vertical, t, Rt, D) {
+  const post = (x, y = 0) => { P(INK, x - 2, y - 12, 5, 12); P(WD[1], x - 1, y - 11, 3, 11); P(WD[2], x - 1, y - 11, 1, 11); P(WD[3], x - 1, y - 12, 3, 1) };
+  if (vertical) {   // in a fence that runs up and down
+    if (D) { P(INK, -1, -2, 3, 15); P(WD[1], 0, -2, 1, 14) }
+    if (open) {   // swung aside: the picket leaf shows flat beside the gap
+      post(0, -8);
+      for (const yy of [-17, -13]) { P(INK, 1, yy - 1, 12, 3); P(WD[2], 1, yy, 12, 1) }
+      for (const xx of [4, 8]) { P(INK, xx - 1, -19, 3, 9); P(WD[3], xx, -18, 1, 7) }
+      return;
+    }
+    post(0, -8); P(INK, -3, -11, 7, 15); P(WD[3], -2, -10, 5, 13); P(WD[2], 1, -10, 2, 13); for (const yy of [-8, -3, 1]) P(WD[0], -2, yy, 5, 1); P(AU[1], 2, -6, 1, 2);
     return;
   }
-  for (const xx of [-8, 6]) { P(INK, xx, -16, 3, 16); P(WD[1], xx + 1, -15, 1, 14); P(WD[3], xx, -16, 3, 1) }   // two posts
-  if (open) { P(INK, -6, -14, 3, 12); P(WD[2], -5, -13, 1, 10); P(WD[1], -4, -13, 1, 10); return }   // swung back against the left post
-  for (const yy of [-12, -6]) { P(INK, -5, yy - 1, 11, 3); P(WD[1], -5, yy, 11, 1) }
-  for (const xx of [-4, -1, 2]) { P(INK, xx, -13, 2, 10); P(WD[2], xx, -12, 1, 8) }
-  for (let k = 0; k < 8; k++) P(WD[0], -4 + k, -5 - k, 1, 1);    // diagonal brace
+  post(-6); post(6);                                                                 // hinge post and latch post, like the fence posts
+  if (Rt) for (const yy of [-9, -5]) { P(INK, 8, yy - 1, 8, 3); P(WD[2], 8, yy, 8, 1) }   // rails on to the next fence post
+  if (open) {   // swung toward you, hanging off the hinge post
+    P(INK, -5, -11, 4, 15); P(WD[2], -4, -10, 2, 13); P(WD[3], -4, -10, 1, 13); for (const yy of [-7, -1]) P(WD[0], -4, yy, 2, 1);
+    return;
+  }
+  for (const yy of [-10, -4]) { P(INK, -4, yy - 1, 9, 3); P(WD[2], -4, yy, 9, 1) }       // top and bottom rails of the leaf
+  for (const xx of [-2, 1]) { P(INK, xx - 1, -12, 3, 11); P(WD[3], xx, -11, 1, 9) }     // pickets
+  for (let k = 0; k < 6; k++) P(WD[0], -3 + k, -4 - k, 1, 1);                         // diagonal brace
+  P(AU[1], 3, -8, 1, 2);                                                              // latch
 }
 // the "ready" bubble over a machine
 function drawBubble(g, cx, y, id, t) {
@@ -631,7 +645,7 @@ function craftIcons() {
   mk('ic_loaves', R => { R(INK, 1, 8, 14, 7); R('#b8864a', 2, 9, 12, 5); for (let x = 2; x < 14; x += 2) R('#8a5a2a', x, 10, 1, 4); R(INK, 2, 3, 6, 6); R('#d9963e', 3, 4, 4, 4); R('#f0bd6a', 3, 4, 3, 1); R(INK, 7, 4, 7, 4); R('#a8b8c8', 8, 5, 4, 2); R('#d8e4f0', 8, 5, 2, 1); R(INK, 13, 3, 2, 2); R(INK, 9, 5, 1, 1) });
   mk('ic_fence_wood', R => { for (const yy of [5, 10]) { R(INK, 0, yy - 1, 16, 3); R(WD[1], 0, yy, 16, 1) } for (const x of [2, 11]) { R(INK, x, 1, 4, 15); R(WD[1], x + 1, 2, 2, 13); R(WD[2], x + 1, 2, 1, 13); R(WD[3], x + 1, 2, 2, 1) } });
   mk('ic_fence_stone', R => { R(INK, 0, 4, 16, 12); R(ST[1], 1, 5, 14, 10); for (const [yy, off] of [[5, 0], [9, 3], [13, 0]]) { R(ST[3], 1, yy, 14, 1); for (let xx = 3 + off; xx < 15; xx += 6) R(ST[0], xx, yy + 1, 1, 3) } R(INK, 0, 3, 16, 2); R(ST[2], 1, 3, 14, 1) });
-  mk('ic_gate', R => { const P = (c, a, b, w = 1, h = 1) => R(c, a + 8, b + 16, w, h); drawGate(P, false, false, 0) });
+  mk('ic_gate', R => { const P = (c, a, b, w = 1, h = 1) => R(c, a + 8, b + 15, w, h); drawGate(P, false, false, 0) });
   for (const k in PATHS) mk('ic_path_' + k, (R, g) => { pathTile(g, k, 0, 0, 3, 5); g.strokeStyle = 'rgba(50,30,15,.6)'; g.strokeRect(.5, .5, 15, 15) });
   // machines and crafted decorations: drawn with the real art, then trimmed
   const big = (key, f) => { const c = mkc(40, 48), g = c.getContext('2d'); f(g); AT[key] = [trimCanvas(c)] };
