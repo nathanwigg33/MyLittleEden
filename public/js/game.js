@@ -365,7 +365,7 @@ function setupInput() {
   let holdA = null;
   $('#btnA').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); $('#btnA').classList.add('dn'); action(); clearInterval(holdA); holdA = setInterval(() => { if (!interactTarget() && !villagerNear()) action() }, 120) });
   const upA = () => { $('#btnA').classList.remove('dn'); clearInterval(holdA) }; $('#btnA').addEventListener('pointerup', upA); $('#btnA').addEventListener('pointercancel', upA); $('#btnA').addEventListener('pointerleave', upA);
-  $('#btnB').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); let i = state.sel; for (let k = 0; k < HOTBAR; k++) { i = (i + 1) % HOTBAR; if (state.inv[i] && ITEMS[state.inv[i].id].tool) break } state.sel = i; sfx.tap(); renderHotbar() });
+  $('#btnB').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); ensureAudio(); cycleItem(); sfx.tap(); renderHotbar() });
   $('#btnMap').addEventListener('pointerdown', e => { e.stopPropagation(); ensureAudio(); sfx.tap(); openMenu('map') });
   $('#btnMenu').onclick = () => { ensureAudio(); sfx.tap(); openMenu('bag') };
   $('#binM .x').onclick = closeBin; $('#binM').addEventListener('pointerdown', e => { if (e.target.id === 'binM') closeBin() });
@@ -581,3 +581,13 @@ async function boot() {
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };
 }
 boot();
+
+// the switch button steps through everything in your bag (not just tools) and shows what you picked
+function cycleItem() {
+  const n = state.inv.length; let i = state.sel == null ? -1 : state.sel;
+  for (let k = 0; k < n; k++) { i = (i + 1) % n; if (state.inv[i]) break }
+  state.sel = i; const s = state.inv[i]; if (!s) return;
+  let el = $('#selname'); if (!el) { el = document.createElement('div'); el.id = 'selname'; document.body.appendChild(el) }
+  el.innerHTML = `<img src="${iconURL(ITEMS[s.id].icon)}">${ITEMS[s.id].n}${s.n > 1 ? ` <small>×${s.n}</small>` : ''}`;
+  el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(cycleItem.t); cycleItem.t = setTimeout(() => el.classList.remove('on'), 1300);
+}

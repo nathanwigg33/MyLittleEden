@@ -93,6 +93,8 @@ def build(ASE, fr, TAG):
     def tool_up(k): s = TOOLS[k]; return s, hand_anchor(s)
     def tool_down(k):
         s = TOOLS[k].transpose(Image.FLIP_TOP_BOTTOM); return s, hand_anchor(s)
+    def short_up(k, h):   # the top of the upright tool: its head and a little handle (foreshortened)
+        s = TOOLS[k]; return s.crop((0, 0, s.width, min(h, s.height))), None
     def tool_side(k, right=True):   # lying sideways, head pointing out
         s = TOOLS[k].transpose(Image.ROTATE_270 if right else Image.ROTATE_90); return s, hand_anchor(s)
 
@@ -117,14 +119,14 @@ def build(ASE, fr, TAG):
                 elif pose == 'recover': s, a = tool_down(K); stamp(front, s, a, (50, 33))
             else:
                 if pose == 'rest': pass
-                elif pose == 'wind1': s, a = tool_down(K); stamp(front, s, a, (48, 23))
-                elif pose == 'wind2': s, a = tool_down(K); stamp(front, s, a, (48, 21))
-                elif pose == 'swing': arc(rear, 48, 22, 13, 110, -10, 3); s, a = tool_side(K, True); stamp(rear, s, a, (50, 21)); hand(front, 48, 22)
-                elif pose in ('strike', 'hold'):
-                    s, a = tool_up(K); stamp(rear, s, a, (48, 24)); hand(front, 48, 23); top = 24 - a[1] + 3
-                    if pose == 'strike': star(rear, 48, max(2, top), True)
-                    else: star(rear, 50, max(2, top - 1), False)
-                elif pose == 'recover': s, a = tool_up(K); stamp(rear, s, a, (50, 27))
+                elif pose == 'wind1': s, a = tool_up(K); stamp(rear, s, a, (48, 22)); hand(front, 48, 23)
+                elif pose == 'wind2': s, a = tool_up(K); stamp(rear, s, a, (48, 20)); hand(front, 48, 22)
+                elif pose == 'swing': arc(rear, 48, 18, 11, -20, 60, 3); s, a = short_up(K, 13); stamp(rear, s, (s.width // 2, s.height - 1), (49, 23)); hand(front, 48, 23)
+                elif pose in ('strike', 'hold'):   # pointing away from you, so you only see the head of the tool past your head
+                    s, a = short_up(K, 9); stamp(rear, s, (s.width // 2, s.height - 1), (48, 24)); hand(front, 48, 23)
+                    if pose == 'strike': star(rear, 48, 24 - s.height, True)
+                    else: star(rear, 50, 23 - s.height, False)
+                elif pose == 'recover': s, a = short_up(K, 12); stamp(rear, s, (s.width // 2, s.height - 1), (49, 25))
         elif kind == 'sweep':
             if dir_ == 's':
                 if pose == 'rest': s, a = tool_down(K); stamp(front, s, a, (52, 34))
@@ -177,22 +179,36 @@ def build(ASE, fr, TAG):
             if al and r > 170 and g < 110 and b_ < 110: px[x, y] = (0, 0, 0, 0)      # take the red bobber off
     ROD = biggest_part(rod.crop(rod.getbbox()))
     rod_up, rod_dn = ROD, ROD.transpose(Image.FLIP_TOP_BOTTOM)
+    sr = fr(265, ('tools', 'tools rear')); spx = sr.load()
+    for y in range(sr.height):
+        for x in range(sr.width):
+            r, g, b_, al = spx[x, y]
+            if al and r > 215 and g > 215 and b_ > 215: spx[x, y] = (0, 0, 0, 0)       # take the fishing line off
+    SROD = biggest_part(sr.crop(sr.getbbox()))
+    rod_hold, rod_low = SROD, SROD.transpose(Image.FLIP_TOP_BOTTOM)     # up over the shoulder / angled down toward the water
     rod_side = ROD.transpose(Image.ROTATE_270)
     def far_pixel(spr, anchor, at, pick):   # the rod tip, in canvas coordinates
         pts = [(x, y) for y in range(spr.height) for x in range(spr.width) if spr.getpixel((x, y))[3]]
         x, y = pick(pts); return (at[0] - anchor[0] + x, at[1] - anchor[1] + y)
-    OUT_S, OUT_N = (50, 35), (49, 25)
-    tips = {'s': far_pixel(rod_dn, hand_anchor(rod_dn), OUT_S, lambda P: max(P, key=lambda q: q[1])),
+    OUT_S, OUT_N = (51, 34), (49, 25)
+    ROD_C, ROD_L, REEL = (190, 74, 47, 255), (215, 118, 67, 255), [(0, 149, 233, 255), (44, 232, 245, 255)]
+    def rod_line(img, x0, y0, x1, y1):   # a hand-drawn rod: outlined, light along the top, reel near your hands
+        n = max(abs(x1 - x0), abs(y1 - y0)); pts = [(round(x0 + (x1 - x0) * k / n), round(y0 + (y1 - y0) * k / n)) for k in range(n + 1)]
+        for x, y in pts:
+            for dx, dy in ((0, 1), (1, 0), (-1, 0), (0, -1)): img.putpixel((x + dx, y + dy), O)
+        for i, (x, y) in enumerate(pts): img.putpixel((x, y), ROD_L if i > n * .35 else ROD_C)
+        rx, ry = pts[2]; img.putpixel((rx, ry + 1), REEL[0]); img.putpixel((rx + 1, ry + 1), REEL[1]); img.putpixel((rx, ry + 2), O); img.putpixel((rx + 1, ry + 2), O)
+        hand(img, x0, y0); return pts[-1]
+    ROD_S = {'wind': (50, 31, 58, 17), 'swing': (50, 32, 62, 27), 'out': (49, 34, 61, 41), 'yank': (49, 31, 54, 15)}
+    tips = {'s': (ROD_S['out'][2], ROD_S['out'][3]),
             'n': far_pixel(rod_up, hand_anchor(rod_up), OUT_N, lambda P: min(P, key=lambda q: q[1]))}
     def fish_frame(d, pose, i):
         front, rear = Image.new('RGBA', (W, H)), Image.new('RGBA', (W, H))
         body = bs_free if d == 's' else bn_free; hairs = hair_s if d == 's' else hair_n
         bob = 1 if pose == 'reel' and i % 2 else 0
         if d == 's':
-            if pose == 'wind': stamp(front, rod_up, hand_anchor(rod_up), (48, 24))
-            elif pose == 'swing': arc(front, 49, 29, 12, -10, 150, 2); stamp(front, rod_side, hand_anchor(rod_side), (51, 31))
-            elif pose in ('out', 'reel'): stamp(front, rod_dn, hand_anchor(rod_dn), (OUT_S[0], OUT_S[1] + bob))
-            elif pose == 'yank': stamp(front, rod_up, hand_anchor(rod_up), (49, 25))
+            if pose == 'swing': arc(front, 50, 30, 13, 10, 150, 2)
+            x0, y0, x1, y1 = ROD_S['out' if pose == 'reel' else pose]; rod_line(front, x0, y0 + bob, x1, y1 + bob)
         else:
             if pose == 'wind': stamp(front, rod_dn, hand_anchor(rod_dn), (48, 22))
             elif pose == 'swing': arc(rear, 48, 22, 12, 110, -10, 2); stamp(rear, rod_side, hand_anchor(rod_side), (50, 21)); hand(front, 48, 22)
