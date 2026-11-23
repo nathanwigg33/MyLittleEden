@@ -102,10 +102,10 @@ def build(ASE, fr, TAG):
     def frame(dir_, pose, kind, t=0):
         """one frame → (body, hair dict, front tool layer, rear tool layer)"""
         front, rear = Image.new('RGBA', (W, H)), Image.new('RGBA', (W, H))
-        free = pose not in ('rest',)
+        free = pose not in ('rest',) or kind == 'dig'
         body = (bs_free if free else body_s) if dir_ == 's' else (bn_free if free else body_n)
         hairs = hair_s if dir_ == 's' else hair_n
-        bob = 1 if pose in ('strike', 'hold') else -1 if pose == 'wind2' else 0
+        bob = 1 if pose in ('strike', 'hold', 'thrust') else -1 if pose == 'wind2' else 0
         if kind == 'chop':
             if dir_ == 's':
                 if pose == 'rest': s, a = tool_down(K); stamp(front, s, a, (52, 34))
@@ -127,6 +127,28 @@ def build(ASE, fr, TAG):
                     if pose == 'strike': star(rear, 48, 24 - s.height, True)
                     else: star(rear, 50, 23 - s.height, False)
                 elif pose == 'recover': s, a = short_up(K, 12); stamp(rear, s, (s.width // 2, s.height - 1), (49, 25))
+        elif kind == 'dig':   # a shovel: held upright, lifted, driven into the ground, then a scoop of dirt
+            DIRT = [(92, 56, 40, 255), (138, 88, 58, 255), (170, 116, 74, 255)]
+            def clod(img, x, y, n):
+                for i in range(n):
+                    cx, cy = x + (i * 3) % 6 - 3, y - (i * 2) % 5
+                    for dx in (0, 1):
+                        for dy in (0, 1):
+                            if 0 <= cx + dx < W and 0 <= cy + dy < H: img.putpixel((cx + dx, cy + dy), DIRT[(i + dx) % 3] if not (dx and dy) else DIRT[0])
+            sd = tool_down(K)[0]; ha = hand_anchor(sd)
+            shaft = sd.crop((0, ha[1] + 2, sd.width, sd.height))       # handle and blade, without the arm
+            top = (ha[0], 0)
+            if dir_ == 's':
+                hy = {'rest': 35, 'lift': 33, 'thrust': 37, 'scoop': 34}[pose]
+                stamp(front, shaft, top, (49, hy)); hand(front, 49, hy); blade = hy + shaft.height
+                if pose == 'thrust': clod(front, 45, min(H - 3, blade), 3); clod(front, 54, min(H - 3, blade), 3)
+                if pose == 'scoop': clod(front, 49, min(H - 3, blade - 4), 4); clod(front, 57, blade - 10 - (t % 3) * 2, 3)
+            else:
+                # the shovel stands on the tile ahead of you: blade in the ground just past your head, handle above
+                hy = {'rest': 9, 'lift': 6, 'thrust': 11, 'scoop': 8}[pose]
+                stamp(rear, shaft, top, (50, hy)); blade = hy + shaft.height
+                if pose == 'thrust': clod(rear, 45, blade - 1, 3); clod(rear, 55, blade - 1, 3)
+                if pose == 'scoop': clod(rear, 47 + (t % 3), hy - 1 - (t % 2) * 2, 5)
         elif kind == 'sweep':
             if dir_ == 's':
                 if pose == 'rest': s, a = tool_down(K); stamp(front, s, a, (52, 34))
@@ -155,7 +177,7 @@ def build(ASE, fr, TAG):
     SEQ = {   # side anim → kind, pose per frame (same frame count as the side animation)
         'axe': ('chop', ['rest', 'wind1', 'wind1', 'wind2', 'swing', 'strike', 'hold', 'hold', 'recover', 'rest']),
         'mining': ('chop', ['rest', 'wind1', 'wind1', 'wind2', 'swing', 'strike', 'hold', 'hold', 'recover', 'rest']),
-        'dig': ('chop', ['rest', 'rest', 'wind1', 'wind1', 'wind2', 'wind2', 'swing', 'strike', 'hold', 'hold', 'recover', 'recover', 'rest']),
+        'dig': ('dig', ['rest', 'rest', 'lift', 'lift', 'lift', 'lift', 'thrust', 'thrust', 'thrust', 'scoop', 'scoop', 'scoop', 'rest']),
         'attack': ('sweep', ['rest', 'wind1', 'wind1', 'swing', 'strike', 'strike', 'recover', 'recover', 'rest', 'rest']),
         'watering': ('pour', ['rest', 'pour', 'pour', 'pour', 'rest']),
     }
