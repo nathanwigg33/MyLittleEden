@@ -500,7 +500,8 @@ function render() {
   if (!World.ground) return;
   bx.translate(-cx, -cy); bx2.translate(-cx, -cy);
   const x0 = Math.floor(cx / 16) - 1, y0 = Math.floor(cy / 16) - 1, x1 = Math.ceil((cx + bw) / 16) + 1, y1 = Math.ceil((cy + bh) / 16) + 2;
-  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else if (World.cur === 'mine') drawMine(bx, x0, y0, x1, y1, GT); else { drawTerrain(bx, x0, y0, x1, y1, GT); if (World.cur === 'sea') drawSeaWater(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawPaths(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1); drawFert(bx, x0, y0, x1, y1); if (World.cur === 'sinai') drawMountain(bx, x0, y0, x1, y1, GT);
+  if (isInside()) drawInterior(bx, x0, y0, x1, y1, GT); else if (World.cur === 'mine') { drawMine(bx, x0, y0, x1, y1, GT);   // bridges, fords and the chasm lie flat on the ground
+    for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && CAVE_FLAT.includes(o.t)) drawCaveObj(bx, o, x, y, GT) } } else { drawTerrain(bx, x0, y0, x1, y1, GT); if (World.cur === 'sea') drawSeaWater(bx, x0, y0, x1, y1, GT); drawPave(bx, x0, y0, x1, y1); drawPaths(bx, x0, y0, x1, y1); drawSoil(bx, x0, y0, x1, y1); drawFert(bx, x0, y0, x1, y1); if (World.cur === 'sinai') drawMountain(bx, x0, y0, x1, y1, GT);
     for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const o = World.objs[idx(x, y)]; if (o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')) drawFloorObj(bx, o, x, y) } }
   const showPlayer = player && mode === 'play';
   if (showPlayer && !player.act && !dlgOpen) {
@@ -509,7 +510,7 @@ function render() {
   }
   // y-sorted sprites: everything behind the player goes in the back buffer, everything in front in the front buffer
   const D = [];
-  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part' && o.t !== 'dock' && o.t !== 'bridge' && o.t !== 'deck') D.push([y + (o.t === 'grass' ? .4 : o.t === 'duck' || o.t === 'coracle' ? .1 : o.t === 'fboat' ? -1 : .9), 0, o, x, y]) }
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 2); y++) for (let x = Math.max(0, x0 - 1); x <= Math.min(W - 1, x1 + 1); x++) { const o = World.objs[idx(x, y)]; if (o && o.t !== 'part' && o.t !== 'dock' && o.t !== 'bridge' && o.t !== 'deck' && !CAVE_FLAT.includes(o.t)) D.push([y + (o.t === 'grass' ? .4 : o.t === 'duck' || o.t === 'coracle' ? .1 : o.t === 'fboat' ? -1 : .9), 0, o, x, y]) }
   for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1 + 1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) { const so = World.soil[idx(x, y)]; if (so && so.c) D.push([y + .7, 4, so, x, y]) }
   for (const d of drops) D.push([d.y, 1, d]);
   for (const n of npcs) if (n.map === World.cur) D.push([n.y, 5, n]);

@@ -6,6 +6,7 @@
 'use strict';
 const CAVE = { sec: 1, river: new Set(), seen: null, seenSec: 0 };
 const CAVE_CACHE = {};
+const CAVE_FLAT = ['cbridge', 'bridge_broken', 'ford', 'rbridge', 'chasm'];   // drawn flat on the floor, under you
 // rooms: [x, y, rx, ry] · links: a ↔ b, tunnel width w, optional bends, optional obstacle (rubble, chasm, bridge, boards, ford)
 const CAVES = [null,
   { n: 'Upper Tunnels', pal: 0, ores: { stone: 60, copper: 16, coal: 12 },
@@ -91,9 +92,19 @@ function genCave(sec) {
     let at = Math.floor(pts.length / 2);
     if (L.ob === 'boards') { at = pts.findIndex(([x, y]) => !inRoom(S, x, y, 1.25)); at = Math.min(pts.length - 1, Math.max(0, at) + 6) }
     if (L.ob === 'bridge' || L.ford) {   // where the tunnel meets the river
+      // one straight span, two planks wide, where the tunnel meets the river, with open bank at both ends
       const wet = pts.filter(([x, y]) => CAVE.river.has(idx(Math.floor(x), Math.floor(y))));
-      for (const [x, y] of wet) for (const dx of [0, 1]) { const i = idx(Math.floor(x) + dx, Math.floor(y)); if (!CAVE.river.has(i)) continue; reserved.add(i);
-        if (L.ford) { g[i] = DIRT; CAVE.river.delete(i); o[i] = { t: 'ford' } } else o[i] = C.fixed[id] ? { t: 'cbridge' } : { t: 'bridge_broken', ob: id } }
+      if (wet.length) {
+        const bx = Math.round(wet.reduce((a, p) => a + p[0], 0) / wet.length - .5), ys = wet.map(p => Math.floor(p[1]));
+        let y0 = Math.min(...ys) - 3, y1 = Math.max(...ys) + 3;
+        const rows = []; for (let y = y0; y <= y1; y++) if (CAVE.river.has(idx(bx, y)) || CAVE.river.has(idx(bx + 1, y))) rows.push(y);
+        const top = Math.min(...rows), bot = Math.max(...rows);
+        for (const y of [top - 1, top - 2, bot + 1, bot + 2]) for (const dx of [-1, 0, 1, 2]) { const i = idx(bx + dx, y); if (!CAVE.river.has(i)) g[i] = DIRT }
+        for (let y = top; y <= bot; y++) for (const dx of [0, 1]) { const i = idx(bx + dx, y); reserved.add(i); const side = dx ? 'r' : 'l';
+          if (L.ford) { g[i] = DIRT; CAVE.river.delete(i); o[i] = { t: 'ford', side } }
+          else { g[i] = WATER; CAVE.river.add(i); o[i] = C.fixed[id] ? { t: 'cbridge', side } : { t: 'bridge_broken', ob: id, side } } }
+        for (const y of [top - 1, bot + 1]) for (const dx of [0, 1]) reserved.add(idx(bx + dx, y));
+      }
       if (L.ob === 'bridge') return;
     }
     const [px, py, dx, dy] = pts[at], nx = -dy, ny = dx, cells = new Set();
@@ -117,8 +128,8 @@ async function enterMine() { if (SINAI.entering) return; SINAI.entering = 1; awa
 async function goSection(sec, how) {
   const S = CAVES[sec], C = caveState(); saveSeen(); genCave(sec); storeMap('mine');
   const first = sec > (C.max || 0); C.max = Math.max(C.max || 0, sec); state.mineMax = Math.max(state.mineMax || 0, C.max); state.mineFloor = sec;
-  const at = how === 'top' || how === 'up' ? [S.up[0] + .5, S.up[1] + 1.8] : how === 'down' ? [S.down[0] + .5, S.down[1] + 1.8] : [S.cart[0] + .5, S.cart[1] + 1.8];
-  await travel('mine', at[0], at[1], 's');
+  const [fx, fy] = how === 'top' || how === 'up' ? S.up : how === 'down' ? S.down : S.cart, at = openSpotBeside(fx, fy);
+  await travel('mine', at[0], at[1], at[2]);
   if (first && sec > 1) setTimeout(() => toast(`You found the ${S.n}!`), 900);
   if (first && sec === 1) setTimeout(() => say('The Sinai Caverns. Tunnels wind off in every direction. The old mine cart here still runs on its rails: repair the stations you find deeper down, and you can ride straight back.'), 900);
   if (!C.starter) { C.starter = 1; setTimeout(() => { addItem('cavetorch', 10); note('cavetorch', 10); say('It’s dark down here. Someone left a bundle of torches by the ladder. Place them to light your way: they stay lit even after you leave. You can make more at your workbench.') }, first ? 4200 : 900) }
@@ -166,7 +177,7 @@ async function caveAction(r) {
   return false;
 }
 function fixObstacle(id, t) {
-  World.objs.forEach((o, i) => { if (o && o.ob === id) World.objs[i] = t === 'chasm' ? { t: 'rbridge', vert: World.objs[i - W] && World.objs[i - W].ob === id ? 1 : 0 } : t === 'bridge_broken' ? { t: 'cbridge' } : null });
+  World.objs.forEach((o, i) => { if (o && o.ob === id) World.objs[i] = t === 'chasm' ? { t: 'rbridge', vert: World.objs[i - W] && World.objs[i - W].ob === id ? 1 : 0 } : t === 'bridge_broken' ? { t: 'cbridge', side: World.objs[i].side } : null });
 }
 // boards can only be broken from the deep side of the tunnel
 function boardsSide(o) { return (player.x - o.px) * o.dx + (player.y - o.py) * o.dy < 0 }
@@ -242,10 +253,14 @@ function drawCaveObj(g, o, x, y, t) {
     case 'boards':
       R(ink, 0, -10, 16, 26); for (let k = 0; k < 4; k++) { R(k % 2 ? WD[1] : WD[2], 1 + k * 4, -9, 3, 24); R(WD[0], 3 + k * 4, -9, 1, 24) }
       for (const yy of [-6, 6]) { R(ink, 0, yy, 16, 3); R(WD[1], 0, yy + 1, 16, 1) } for (const [a, b] of [[2, -5], [13, -5], [2, 7], [13, 7]]) R('#c0c0cc', a, b, 1, 1); break;
-    case 'bridge_broken':
-      for (const a of [1, 13]) { R(ink, a, 0, 3, 16); R(WD[0], a + 1, 1, 1, 14) } R(ink, 3, 6, 6, 3); R(WD[1], 3, 7, 5, 1); R(ink, 9, 9, 4, 2); break;
-    case 'cbridge':
-      for (const a of [0, 14]) { R(ink, a, 0, 2, 16); R(WD[0], a, 0, 1, 16) } for (let k = 0; k < 4; k++) { R(ink, 1, k * 4, 14, 4); R(WD[2], 2, k * 4 + 1, 12, 2); R(WD[3], 2, k * 4 + 1, 12, 1) } break;
+    case 'bridge_broken': {   // old posts sticking out of the water, a plank or two left
+      const a = o.side === 'r' ? 12 : 2; R(ink, a, 1, 3, 14); R(WD[0], a + 1, 2, 1, 12);
+      if (o.side !== 'r' && y % 2) { R(ink, 4, 6, 12, 3); R(WD[1], 5, 7, 10, 1) } break;
+    }
+    case 'cbridge': {   // planks across, a rail along each outer edge
+      for (let k = 0; k < 4; k++) { R(ink, 0, k * 4, 16, 4); R(WD[2], 0, k * 4 + 1, 16, 2); R(WD[3], 0, k * 4 + 1, 16, 1) }
+      const a = o.side === 'r' ? 13 : 0; R(ink, a, 0, 3, 16); R(WD[1], a + 1, 0, 1, 16); R(WD[3], a + 1, 0, 1, 1); break;
+    }
     case 'ford': for (const [a, b] of [[2, 3], [9, 6], [4, 11]]) { R(ink, a, b, 6, 4); R(ST[2], a + 1, b + 1, 4, 2); R(ST[3], a + 1, b + 1, 3, 1) } break;
     case 'chasm': R('#030202', 0, 0, 16, 16); R('#1a120c', 0, 0, 16, 2); R('rgba(255,255,255,.03)', 3, 6, 10, 1); break;
     case 'rbridge':
@@ -500,4 +515,13 @@ function collectionTab(b) {
     }
   }
   b.innerHTML = h; b.querySelectorAll('[data-bt]').forEach(el => el.onclick = () => { bookTab = el.dataset.bt; sfx.tap(); collectionTab(b); b.scrollTop = 0 });
+}
+
+// arrive on the nearest open floor beside the stairs or station (below if there's room, else to a side, else above),
+// checking your whole body against the walls, and face the thing you came through
+function openSpotBeside(fx, fy) {
+  const fits = (x, y) => [[x - .28, y - .15], [x + .28, y - .15], [x - .28, y + .2], [x + .28, y + .2]].every(([a, b]) => !World.blocks(a, b) && World.ground[idx(Math.floor(a), Math.floor(b))] === DIRT);
+  const tries = [[0, 1, 'n'], [-1, 0, 'r'], [1, 0, 'l'], [0, -1, 's'], [-1, 1, 'n'], [1, 1, 'n'], [-1, -1, 's'], [1, -1, 's'], [0, 2, 'n'], [-2, 0, 'r'], [2, 0, 'l'], [0, -2, 's']];
+  for (const [dx, dy, dir] of tries) { const x = fx + dx + .5, y = fy + dy + .6; if (fits(x, y)) return [x, y, dir] }
+  return [fx + .5, fy + 1.8, 's'];
 }
