@@ -28,10 +28,17 @@ const weekday = () => WEEK[(state.totalDay - 1) % 7];
 const fmtTime = m => { m = m % 1440; let h = Math.floor(m / 60), mm = m % 60, am = h < 12; h = h % 12 || 12; return h + ':' + String(mm).padStart(2, '0') + (am ? ' am' : ' pm') };
 
 // ---------- inventory ----------
-function addItem(id, n) {
-  for (const s of state.inv) if (s && s.id === id && !ITEMS[id].tool) { s.n += n; return 0 }
-  const i = state.inv.indexOf(null); if (i < 0) return n; state.inv[i] = { id, n }; return 0;
+// stacks hold up to 99; whatever doesn't fit in your bag lands on the ground beside you (unless keep is set)
+const STACK = 99;
+function addItem(id, n, keep) {
+  const tool = ITEMS[id] && ITEMS[id].tool;
+  if (!tool) for (const s of state.inv) if (s && s.id === id && s.n < STACK) { const k = Math.min(n, STACK - s.n); s.n += k; n -= k; if (!n) return 0 }
+  while (n > 0) { const i = state.inv.indexOf(null); if (i < 0) break; const k = tool ? 1 : Math.min(n, STACK); state.inv[i] = { id, n: k }; n -= k }
+  if (n > 0 && !keep) { for (let k = 0; k < Math.min(n, 20); k++) drop(id, 1, player.x, player.y + .4); if (n > 20) state.chest.push({ id, n: n - 20 }); bagFullToast(); return 0 }
+  return n;
 }
+const canTake = id => state.inv.includes(null) || (!ITEMS[id].tool && state.inv.some(s => s && s.id === id && s.n < STACK));
+let bagFullT = 0; function bagFullToast() { if (performance.now() - bagFullT > 4000) { bagFullT = performance.now(); toast('Your bag is full!'); sfx.no() } }
 function count(id) { return state.inv.reduce((a, s) => a + (s && s.id === id ? s.n : 0), 0) }
 const selItem = () => state.inv[state.sel];
 
@@ -173,8 +180,9 @@ function updateDrops(dt) {
     d.t += dt; d.vz -= 9 * dt; d.z += d.vz * dt; if (d.z < 0) { d.z = 0; d.vz = -d.vz * .35; d.vx *= .6; d.vy *= .6; if (Math.abs(d.vz) < .5) d.vz = 0 }
     d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= Math.pow(.2, dt); d.vy *= Math.pow(.2, dt);
     const dx = player.x - d.x, dy = player.y - .3 - d.y, dist = Math.hypot(dx, dy);
-    if (d.t > .45 && dist < 2.2) { const sp = 9 / Math.max(.4, dist); d.x += dx / dist * sp * dt * .6; d.y += dy / dist * sp * dt * .6 }
-    if (d.t > .45 && dist < .35) { if (addItem(d.id, 1) === 0) { d.gone = 1; note(d.id, 1); sfx.pick() } }
+    const room = canTake(d.id);   // a full bag: it just stays on the ground
+    if (room && d.t > .45 && dist < 2.2) { const sp = 9 / Math.max(.4, dist); d.x += dx / dist * sp * dt * .6; d.y += dy / dist * sp * dt * .6 }
+    if (d.t > .45 && dist < .35) { if (room && addItem(d.id, 1, true) === 0) { d.gone = 1; note(d.id, 1); sfx.pick() } else if (!room && dist < .3) bagFullToast() }
   }
   drops = drops.filter(d => !d.gone);
 }
@@ -266,7 +274,7 @@ function load() {
     if (!state.bin) state.bin = []; if (!state.chest) state.chest = new Array(INV_SIZE).fill(null); if (state.maxE < 150) { state.energy = Math.min(150, state.energy + 150 - state.maxE); state.maxE = 150 } ensureBin(); const movedCart = removeCart(); if (state.can === undefined) state.can = CAN_MAX; giveStarter(true);
     fillBorder(Math.random); World.objs.forEach((o, i) => { if (o && o.t === 'sign' && /Bethlehem/.test(o.text || '')) World.objs[i] = null }); placeRoadSign(W - 6, World.EXIT.y - 1, FARM_SIGN); storeMap('farm'); useMap(World.maps[state.map] ? state.map : 'farm');
     if (movedCart && state.farmStart) setTimeout(() => say('The merchant has packed up his cart and moved to the new market in Bethlehem. Follow the road east off your farm to find the town!'), 1700);
-    const bagMoved = fitBag(); if (bagMoved) setTimeout(() => say(`Your backpack now holds 2 rows. ${bagMoved} stack${bagMoved > 1 ? 's' : ''} that didn’t fit went into your storage chest by the tent. Tobiah sells bigger bags at the market in Bethlehem.`), 1900);
+    splitStacks(); const bagMoved = fitBag(); if (bagMoved) setTimeout(() => say(`Your backpack now holds 2 rows. ${bagMoved} stack${bagMoved > 1 ? 's' : ''} that didn’t fit went into your storage chest by the tent. Tobiah sells bigger bags at the market in Bethlehem.`), 1900);
     look = buildCharacter(state.look); return true;
   } catch (e) { console.warn(e); return false }
 }
@@ -323,8 +331,9 @@ function openChest() { menuOpen = true; boxMode = 'chest'; $('#binM .ttl').textC
 // move a whole stack from one list to another, joining a matching stack if there is one
 function moveStack(from, i, to) {
   const s = from[i]; if (!s) return false;
-  if (!ITEMS[s.id].tool) { const m = to.find(q => q && q.id === s.id); if (m) { m.n += s.n; from[i] = null; return true } }
-  const e = to.indexOf(null); if (e < 0) return false; to[e] = s; from[i] = null; return true;
+  let moved = false;   // top up matching stacks (up to 99), then use an empty slot for the rest
+  if (!ITEMS[s.id].tool) for (const m of to) if (m && m.id === s.id && m.n < STACK) { const k = Math.min(s.n, STACK - m.n); m.n += k; s.n -= k; moved = true; if (!s.n) { from[i] = null; return true } }
+  const e = to.indexOf(null); if (e < 0) return moved; to[e] = s; from[i] = null; return true;
 }
 function renderChest() {
   const b = $('#binM .mbody'), slot = (s, attr, i) => `<div class="slot" ${attr}="${i}">${s ? `<img src="${iconURL(ITEMS[s.id].icon)}"><span class="n">${s.n > 1 ? s.n : ''}</span>` : ''}</div>`;
@@ -420,7 +429,7 @@ function update(dt) {
   } else if (mx || my) {
     const l = Math.hypot(mx, my); if (l > 1) { mx /= l; my /= l }
     const sp = 4.2 * (World.ground[idx(Math.floor(player.x), Math.floor(player.y))] === DIRT ? 1.05 : 1);
-    const r = .28, col = (x, y) => World.solid(Math.floor(x - r), Math.floor(y - .15)) || World.solid(Math.floor(x + r), Math.floor(y - .15)) || World.solid(Math.floor(x - r), Math.floor(y + .2)) || World.solid(Math.floor(x + r), Math.floor(y + .2));
+    const r = .28, col = (x, y) => World.blocks(x - r, y - .15) || World.blocks(x + r, y - .15) || World.blocks(x - r, y + .2) || World.blocks(x + r, y + .2);
     const nx = player.x + mx * sp * dt, ny = player.y + my * sp * dt;
     if (!col(nx, player.y)) player.x = nx; if (!col(player.x, ny)) player.y = ny;
     player.moving = true; player.at += dt;
@@ -601,4 +610,11 @@ function cycleItem() {
   let el = $('#selname'); if (!el) { el = document.createElement('div'); el.id = 'selname'; document.body.appendChild(el) }
   el.innerHTML = `<img src="${iconURL(ITEMS[s.id].icon)}">${ITEMS[s.id].n}${s.n > 1 ? ` <small>×${s.n}</small>` : ''}`;
   el.classList.remove('on'); void el.offsetWidth; el.classList.add('on'); clearTimeout(cycleItem.t); cycleItem.t = setTimeout(() => el.classList.remove('on'), 1300);
+}
+
+// older saves could hold more than 99 in one slot: split those up (extra goes to the storage chest)
+function splitStacks() {
+  for (const box of [state.inv, state.chest]) for (let i = 0; i < box.length; i++) { const s = box[i]; if (!s || ITEMS[s.id].tool || s.n <= STACK) continue;
+    let extra = s.n - STACK; s.n = STACK;
+    while (extra > 0) { const k = Math.min(extra, STACK), e = state.inv.indexOf(null); if (box === state.inv && e >= 0) state.inv[e] = { id: s.id, n: k }; else { const c = state.chest.indexOf(null); if (c >= 0) state.chest[c] = { id: s.id, n: k }; else state.chest.push({ id: s.id, n: k }) } extra -= k } }
 }

@@ -153,7 +153,7 @@ function takeN(id, n) {
 }
 const ingName = id => GROUPS[id] ? GROUPS[id].n : ITEMS[id].n.toLowerCase();
 const ingIcon = id => GROUPS[id] ? GROUPS[id].icon : ITEMS[id].icon;
-const roomFor = id => state.inv.includes(null) || state.inv.some(s => s && s.id === id && !ITEMS[id].tool);
+const roomFor = id => canTake(id);
 const canMake = (r, times = 1) => Object.entries(r.need).every(([id, n]) => haveN(id) >= n * times);
 
 function unlockProgress(u) {
@@ -693,13 +693,13 @@ let toolAim = null;
 // which tool wins over tapping: pickaxe, axe or hoe on something you placed (but open full chests and busy machines; the workbench needs the pickaxe)
 function toolWins(it) {
   const s = selItem(), tl = s && ITEMS[s.id].tool, o = it.o;
-  if (!['pick', 'axe', 'hoe'].includes(tl) || World.cur !== 'farm' || !MOVABLE[o.t]) return false;
+  if (!['pick', 'axe', 'hoe'].includes(tl) || World.cur !== 'farm' || !MOVABLE[o.t] || o.t === 'mach') return false;   // machines: tap and choose “Pick it up”
   if (o.t === 'chest2' && o.items.some(Boolean)) return false; if (o.t === 'mach' && o.out) return false; if (o.t === 'bench' && tl !== 'pick') return false;
   return true;
 }
 function toolPickUp() {
   if (World.cur !== 'farm') return false; const [x, y] = toolAim ? [toolAim.x, toolAim.y] : facingCell(), o = World.get(x, y); toolAim = null; if (!o || !MOVABLE[o.t]) return false;
-  if (o.t === 'bench' && !(selItem() && ITEMS[selItem().id].tool === 'pick')) return false;
+  if (o.t === 'mach' || (o.t === 'bench' && !(selItem() && ITEMS[selItem().id].tool === 'pick'))) return false;
   if (o.t === 'mach' && o.out) { toast(machReady(o) ? 'Take out what’s inside first.' : 'It’s still working. Let it finish first.'); sfx.no(); return true }
   if (o.t === 'chest2' && o.items.some(Boolean)) { toast('Empty the chest first.'); sfx.no(); return true }
   if (player.sit && player.sit.x === x && player.sit.y === y) return true;

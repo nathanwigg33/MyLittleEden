@@ -51,9 +51,9 @@ function fitBag() {
   const size = BAGS[bagLv()].slots; if (state.inv.length <= size) { while (state.inv.length < size) state.inv.push(null); return 0 }
   let moved = 0; const extra = state.inv.splice(size).filter(Boolean);
   for (const s of extra) {
-    const here = !ITEMS[s.id].tool && state.inv.find(q => q && q.id === s.id); if (here) { here.n += s.n; continue }
+    const here = !ITEMS[s.id].tool && state.inv.find(q => q && q.id === s.id && q.n + s.n <= 99); if (here) { here.n += s.n; continue }
     const e = state.inv.indexOf(null); if (e >= 0) { state.inv[e] = s; continue }
-    const c = !ITEMS[s.id].tool && state.chest.find(q => q && q.id === s.id); if (c) { c.n += s.n; moved++; continue }
+    const c = !ITEMS[s.id].tool && state.chest.find(q => q && q.id === s.id && q.n + s.n <= 99); if (c) { c.n += s.n; moved++; continue }
     const ce = state.chest.indexOf(null); if (ce >= 0) state.chest[ce] = s; else state.chest.push(s); moved++;
   }
   return moved;

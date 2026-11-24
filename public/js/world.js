@@ -17,6 +17,13 @@ const World = {
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
   owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') { if (o.ox < 0) return null; const ow = this.objs[idx(o.ox, o.oy)]; return ow ? { o: ow, x: o.ox, y: o.oy } : null } return o ? { o, x, y } : null },
+  // fences, walls and closed gates only block the lower part of their tile (where they're drawn), so you can walk
+  // right up behind them; a fence that continues above it fills the whole tile, so lines have no gaps
+  blocks(px, py) {
+    const x = Math.floor(px), y = Math.floor(py), o = inb(x, y) && this.objs[idx(x, y)];
+    if (o && (o.t === 'fence' || o.t === 'sfence' || (o.t === 'gate' && !o.open))) { const up = this.get(x, y - 1); if (up && ['fence', 'sfence', 'gate'].includes(up.t)) return true; return py - y > .42 }
+    return this.solid(x, y);
+  },
   solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck' || o.t === 'cbridge')); return !!(o && OBJ[o.t] && OBJ[o.t].solid && !(o.t === 'gate' && o.open)) },
   place(x, y, o) { this.objs[idx(x, y)] = o },
   footprint(x, y, w, h, o) { for (let yy = y - h + 1; yy <= y; yy++) for (let xx = x - Math.floor(w / 2); xx <= x + Math.floor(w / 2); xx++) this.objs[idx(xx, yy)] = (xx === x && yy === y) ? o : { t: 'part', ox: x, oy: y } },
