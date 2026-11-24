@@ -15,9 +15,9 @@ const CAVES = [null,
     up: [32, 5], cart: [38, 8], down: [36, 43], chests: { a: [8, 22], b: [57, 35] },
     loot: { a: [['ore_coal', 6], ['money', 120]], b: [['bar_copper', 3], ['ore_amethyst', 1]] }, fix: { bar: 'bar_copper' } },
   { n: 'Underground River', pal: 1, ores: { stone: 52, copper: 10, coal: 12, iron: 14 }, river: 1,
-    rooms: [[32, 8, 6, 3], [14, 15, 5, 4], [49, 15, 6, 4], [58, 7, 3, 3], [24, 36, 6, 4], [38, 42, 6, 4], [52, 37, 5, 4], [8, 44, 3, 3]],
+    rooms: [[32, 8, 6, 3], [14, 15, 5, 4], [49, 15, 6, 4], [58, 7, 3, 3], [24, 36, 6, 4], [38, 42, 6, 4], [52, 37, 5, 4], [8, 44, 3, 3], [38, 24, 6, 3], [28, 30, 5, 3]],   // last two: riverbank grottos for fishing
     links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 2, b: 3, w: 2, ob: 'rubble' }, { a: 1, b: 4, w: 3, via: [[20, 24]], ob: 'bridge' },
-      { a: 4, b: 5, w: 3 }, { a: 5, b: 6, w: 3 }, { a: 4, b: 7, w: 2 }, { a: 6, b: 2, w: 2, ob: 'boards', ford: 1 }],
+      { a: 4, b: 5, w: 3 }, { a: 5, b: 6, w: 3 }, { a: 4, b: 7, w: 2 }, { a: 6, b: 2, w: 2, ob: 'boards', ford: 1 }, { a: 0, b: 8, w: 3, via: [[35, 15]] }, { a: 4, b: 9, w: 3 }],
     up: [32, 6], cart: [37, 9], down: [52, 40], chests: { a: [58, 7], b: [8, 44] },
     loot: { a: [['bar_iron', 2], ['money', 250]], b: [['ore_emerald', 1], ['bait', 20]] }, fix: { bar: 'bar_copper' } },
   { n: 'Crystal Grotto', pal: 2, ores: { stone: 44, iron: 10, silver: 12, coal: 8, amethyst: 4, emerald: 2.5 },
@@ -307,4 +307,131 @@ function migrateCaves() {
   if (state.caves) return; const f = state.mineMax || 0, C = caveState();
   C.max = f >= 15 ? 4 : f >= 10 ? 3 : f >= 5 ? 2 : f >= 1 ? 1 : 0; state.mineMax = C.max;
   if (f >= 1) setTimeout(() => say('The old Sinai Mines have opened up into the Sinai Caverns: a winding cave system with five sections to explore. You can get straight back to the deepest section you reached once you fix its mine-cart station.'), 2400);
+}
+
+// ---------- cave fish: only in the underground river ----------
+Object.assign(FISH, {
+  loach: { n: 'Cave Loach', price: 45, diff: 2, where: ['cave'], w: 10, lb: [.1, .5] },
+  cavefish: { n: 'Blind Cavefish', price: 72, diff: 2, where: ['cave'], w: 7, lb: [.2, 1.2] },
+  glowfin: { n: 'Glowfin', price: 140, diff: 3, where: ['cave'], w: 4, lb: [.5, 3] },
+  ghosteel: { n: 'Ghost Eel', price: 260, diff: 4, where: ['cave'], w: 1.6, lb: [2, 9] },
+});
+WHERE.cave = 'the underground river in the Sinai Caverns'; FISH.sandal.where.push('cave');
+
+// ---------- ancient relics: rare finds in the caverns, for the church treasury ----------
+const RELICS = {
+  shard: { n: 'Pottery Shard', sec: 1, price: 40, d: 'A piece of a painted clay jar, thousands of years old.' },
+  oillamp: { n: 'Clay Oil Lamp', sec: 1, price: 80, d: 'A small clay lamp. “Your word is a lamp to my feet.”' },
+  mite: { n: 'Bronze Coin', sec: 1, price: 60, d: 'A tiny bronze coin, like the widow’s two mites.' },
+  jarhandle: { n: 'Stamped Jar Handle', sec: 2, price: 100, d: 'A jar handle pressed with an old royal seal.' },
+  seal: { n: 'Stone Seal', sec: 2, price: 150, d: 'A carved stone seal once used to sign letters in clay.' },
+  hook: { n: 'Bronze Fishhook', sec: 2, price: 90, d: 'An ancient fishhook. Some things never change.' },
+  scroll: { n: 'Scroll Fragment', sec: 3, price: 250, d: 'A scrap of parchment covered in faded writing.' },
+  shofar: { n: 'Ram’s Horn', sec: 3, price: 220, d: 'An old shofar, a trumpet made from a ram’s horn.' },
+  shekel: { n: 'Silver Shekel', sec: 4, price: 300, d: 'A silver coin, heavy and still bright.' },
+  bell: { n: 'Golden Bell', sec: 4, price: 400, d: 'A little golden bell, like those sewn on the hem of a priest’s robe.' },
+  onyx: { n: 'Engraved Onyx', sec: 5, price: 500, d: 'A black onyx stone engraved with names, set in gold.' },
+  tablet: { n: 'Stone Tablet Fragment', sec: 5, price: 800, d: 'A broken piece of a stone tablet, found deep beneath Mount Sinai.' },
+};
+const RELIC_REWARDS = [[3, 'money', 500], [6, 'decor_relicase', 1], [9, 'money', 2000], [12, 'decor_stainedglass', 1]];
+function relicItems() { const o = {}; for (const k in RELICS) o['relic_' + k] = { n: RELICS[k].n, icon: 'relic_' + k, price: RELICS[k].price, relic: k, d: RELICS[k].d + ' Elder Simeon would love to see this.' }; return o }
+const relicState = () => (state.relics = state.relics || { given: {}, rewards: {} });
+// chests hold one too
+CAVES[1].loot.a.push(['relic_oillamp', 1]); CAVES[2].loot.a.push(['relic_seal', 1]); CAVES[3].loot.a.push(['relic_scroll', 1]);
+CAVES[4].loot.a.push(['relic_bell', 1]); CAVES[5].loot.final.push(['relic_tablet', 1]);
+// breaking rocks in the caverns now and then turns up a relic from this section or one above it
+function maybeRelic(o, cx, cy) {
+  if (World.cur !== 'mine' || Math.random() > (o.k === 'stone' ? .008 : .022)) return;
+  const R = relicState(), pool = Object.keys(RELICS).filter(k => RELICS[k].sec <= CAVE.sec).map(k => [k, (RELICS[k].sec === CAVE.sec ? 3 : 1) * (R.given[k] ? 1 : 2)]);
+  let r = Math.random() * pool.reduce((a, p) => a + p[1], 0); let k = pool[0][0]; for (const [q, w] of pool) { r -= w; if (r <= 0) { k = q; break } }
+  drop('relic_' + k, 1, cx, cy); toast('Something old glints in the rubble…'); tone(523, .08, 'triangle', .04); tone(784, .12, 'triangle', .04, .09);
+}
+const newRelics = () => state.inv.filter(s => s && ITEMS[s.id].relic && !relicState().given[ITEMS[s.id].relic]);
+function donateRelics() {
+  const R = relicState(), got = [];
+  for (const s of newRelics()) { const k = ITEMS[s.id].relic; if (R.given[k]) continue; R.given[k] = 1; got.push(k); takeItem(s.id, 1) }
+  if (!got.length) return 0;
+  const f = (state.friends = state.friends || {}).simeon || (state.friends.simeon = { pts: 0, last: 0, met: 1 }); f.pts = Math.min(200, f.pts + 10 * got.length);
+  const n = Object.keys(R.given).length;
+  for (const [at, item, amt] of RELIC_REWARDS) if (n >= at && !R.rewards[at]) { R.rewards[at] = 1;
+    if (item === 'money') { state.money += amt; setTimeout(() => toast(`Elder Simeon gives you ₪${amt} from the church for your help!`), 700) }
+    else { addItem(item, amt); note(item, amt); setTimeout(() => toast(`Elder Simeon gives you a ${ITEMS[item].n}!`), 700) } }
+  sfx.pick(); updateHUD(); save(); return got.length;
+}
+function openTreasury() { menuOpen = true; boxMode = 'treasury'; $('#binM .ttl').textContent = 'Church Treasury'; $('#binM').classList.add('on'); sfx.tap(); renderTreasury() }
+function renderTreasury() {
+  const R = relicState(), b = $('#binM .mbody'), n = Object.keys(R.given).length, carry = newRelics();
+  let h = `<p class="muted" style="margin:0 0 8px">Ancient things found in the Sinai Caverns, kept safe by the church. <b>${n} of 12</b> donated.</p>`;
+  if (carry.length) h += `<div style="text-align:center;margin-bottom:8px"><button class="btn" id="donate">Donate ${carry.length} relic${carry.length > 1 ? 's' : ''}</button></div>`;
+  h += '<div class="relicgrid">';
+  for (const k in RELICS) { const r = RELICS[k], has = R.given[k], held = carry.some(s => ITEMS[s.id].relic === k);
+    h += `<div class="relic ${has ? 'got' : held ? 'held' : ''}"><img class="${has || held ? '' : 'sil'}" src="${iconURL('relic_' + k)}"><b>${has || held ? r.n : '???'}</b><small>${has ? 'In the treasury' : held ? 'In your bag' : 'Found in the ' + CAVES[r.sec].n}</small></div>` }
+  h += '</div><div class="h3">Thank-you gifts</div>';
+  for (const [at, item, amt] of RELIC_REWARDS) h += `<div class="rrow ${R.rewards[at] ? 'done' : ''}"><span>${at} relics</span><span>${item === 'money' ? '₪' + amt.toLocaleString() : ITEMS[item].n}</span><span>${R.rewards[at] ? '✓' : ''}</span></div>`;
+  b.innerHTML = h; const d = $('#donate'); if (d) d.onclick = () => { const k = donateRelics(); if (k) toast(`Thank you! ${k} relic${k > 1 ? 's' : ''} added to the treasury.`); renderTreasury() };
+}
+async function simeonRelics() {
+  if (!newRelics().length) return;
+  const n = npcs.find(q => q.v.id === 'simeon');
+  const v = await say('Is that… an ancient relic? Things like that belong to all of us. Would you place it in the church treasury? I’ll keep it safe.', [['Donate', 1], ['Not yet', 0]], n ? { name: n.v.name, frames: n.frames } : null);
+  if (v) { const k = donateRelics(); if (k) { toast(`${k} relic${k > 1 ? 's' : ''} added to the treasury.`); setTimeout(openTreasury, 500) } }
+}
+// the thank-you decorations
+DECOR.relicase = { n: 'Relic Display Case', craft: 1, need: {}, fee: 0, d: 'A glass case for showing off ancient finds.' };
+DECOR.stainedglass = { n: 'Stained Glass Window', craft: 1, need: {}, fee: 0, d: 'A freestanding window of coloured glass, a gift from the church.', light: [40, .55] };
+function drawCaveDecor(g, k, cx, by, t) {
+  const P = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(Math.round(cx + a), Math.round(by + b), w, h) }, INK = '#2a1e18';
+  if (k === 'relicase') {
+    P(INK, -9, -8, 18, 8); P('#8a5232', -8, -7, 16, 7); P('#b8784a', -8, -7, 16, 1);
+    P(INK, -9, -22, 18, 15); P('rgba(190,230,255,.35)', -8, -21, 16, 13); P('rgba(255,255,255,.7)', -7, -20, 1, 10);
+    P('#b8582e', -5, -12, 4, 3); P('#e08a52', -5, -12, 2, 1); P('#e0b030', 2, -13, 3, 4); P('#fff0a0', 2, -13, 1, 1); P('#9aa0aa', -2, -18, 3, 3);
+    P(INK, -9, -23, 18, 2); P('#b8784a', -8, -23, 16, 1);
+  } else if (k === 'stainedglass') {
+    for (const a of [-9, 7]) { P(INK, a, -2, 3, 2) } P(INK, -8, -30, 16, 29); P('#8a5232', -7, -29, 14, 27);
+    const pane = [['#c03a3a', '#e8c040', '#3a6ac0'], ['#3aa06a', '#f4f0e0', '#9a4ac0'], ['#3a6ac0', '#e8c040', '#c03a3a']];
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) { const lit = Math.sin(t * 1.3 + r + c) > .6; P(pane[r][c], -6 + c * 4, -28 + r * 8, 3, 7); if (lit) P('rgba(255,255,255,.35)', -6 + c * 4, -28 + r * 8, 1, 7) }
+    P('#f4f0e0', -1, -28, 2, 23); P('#f4f0e0', -5, -21, 10, 2);   // a cross through the middle
+  }
+}
+
+// ---------- icons: cave fish, relics, gifts ----------
+function caveIcons() {
+  const mk = (k, f) => { const c = mkc(16, 16), g = c.getContext('2d'), R = (col, x, y, w = 1, h = 1) => { g.fillStyle = col; g.fillRect(x, y, w, h) }; f(R, g); AT[k] = [c] };
+  const I = '#1a1420';
+  const fish = (R, body, belly, fin, eye, long) => {
+    const L = long ? 13 : 10, x0 = long ? 1 : 3;
+    R(I, x0, 6, L, 5); R(I, x0 + 1, 5, L - 2, 7); R(body, x0 + 1, 6, L - 2, 3); R(belly, x0 + 1, 9, L - 2, 2); R(body, x0, 7, 1, 3);
+    R(I, x0 + L, 5, 2, 3); R(I, x0 + L, 9, 2, 3); R(fin, x0 + L, 6, 1, 1); R(fin, x0 + L, 10, 1, 1); R(I, x0 + L - 1, 7, 2, 3);   // tail
+    R(I, x0 + 3, 4, 4, 1); R(fin, x0 + 4, 5, 3, 1); if (eye) { R(eye, x0 + 2, 7, 1, 1) }
+  };
+  mk('fish_loach', R => { fish(R, '#a07858', '#d8b898', '#7a5438', I, 1); for (const x of [4, 7, 10]) R('#7a5438', x, 7, 1, 1) });
+  mk('fish_cavefish', R => fish(R, '#f0c0c8', '#fbe0e4', '#e0a0aa', null, 0));
+  mk('fish_glowfin', R => { fish(R, '#2a3a7a', '#3a5aa0', '#4af0f0', '#ffffff', 0); for (const [x, y] of [[5, 7], [8, 8], [10, 7]]) R('#7affff', x, y, 1, 1) });
+  mk('fish_ghosteel', R => { fish(R, '#e8eef4', '#ffffff', '#c8d4e0', '#6a7a8a', 1); R('rgba(160,200,230,.6)', 3, 8, 9, 1) });
+  const r = {
+    shard: R => { R(I, 3, 4, 10, 9); R('#b8582e', 4, 5, 8, 7); R('#e08a52', 4, 5, 3, 2); R('#2a1e18', 4, 8, 8, 1); R(I, 9, 11, 4, 2); R(I, 3, 12, 3, 1) },
+    oillamp: R => { R(I, 2, 7, 12, 6); R(I, 4, 6, 7, 1); R('#b8582e', 3, 8, 10, 4); R('#e08a52', 4, 8, 5, 1); R(I, 12, 7, 3, 3); R('#b8582e', 13, 8, 1, 1); R('#3a1e10', 6, 7, 3, 1) },
+    mite: R => { R(I, 4, 4, 8, 8); R(I, 3, 5, 10, 6); R('#8a6a3a', 4, 5, 8, 6); R('#5a8a6a', 5, 6, 6, 4); R('#c8a060', 5, 5, 3, 1); R(I, 7, 7, 2, 2) },
+    jarhandle: R => { R(I, 3, 3, 4, 11); R(I, 3, 3, 9, 4); R('#b8582e', 4, 4, 7, 2); R('#b8582e', 4, 4, 2, 9); R(I, 9, 5, 5, 5); R('#e08a52', 10, 6, 3, 3); R('#7a3a1c', 11, 7, 1, 1) },
+    seal: R => { R(I, 4, 3, 8, 11); R('#8e867c', 5, 4, 6, 9); R('#b4ac9f', 5, 4, 2, 9); for (const y of [6, 9, 11]) R('#4e4a46', 7, y, 3, 1) },
+    hook: R => { R(I, 9, 1, 3, 10); R('#c8743a', 10, 2, 1, 8); R(I, 4, 9, 8, 4); R('#c8743a', 5, 10, 6, 1); R(I, 3, 6, 3, 5); R('#c8743a', 4, 7, 1, 3); R('#f0a868', 4, 6, 1, 1) },
+    scroll: R => { R(I, 2, 3, 12, 10); R('#e8d8b0', 3, 4, 10, 8); for (const y of [5, 7, 9]) R('#8a6a4a', 4, y, 7, 1); R(I, 1, 2, 3, 12); R('#c8a878', 2, 3, 1, 10); R(I, 12, 2, 3, 12); R('#c8a878', 13, 3, 1, 10) },
+    shofar: R => { const P = [[2, 11], [3, 10], [4, 10], [5, 9], [6, 9], [7, 8], [8, 7], [9, 6], [10, 5], [11, 4], [12, 3]]; for (const [x, y] of P) R(I, x - 1, y - 1, 4, 4); P.forEach(([x, y], i) => R(i < 5 ? '#f0e0c0' : i < 8 ? '#c8a070' : '#7a5030', x, y, 2, 2)) },
+    shekel: R => { R(I, 4, 3, 8, 10); R(I, 3, 4, 10, 8); R('#c8d0dc', 4, 4, 8, 8); R('#f4f8ff', 5, 4, 3, 1); R('#8a94a4', 6, 6, 4, 1); R('#8a94a4', 7, 7, 2, 3); R('#8a94a4', 6, 10, 4, 1) },
+    bell: R => { R(I, 7, 1, 2, 3); R(I, 4, 3, 8, 9); R(I, 3, 9, 10, 3); R('#e0b030', 5, 4, 6, 7); R('#fff0a0', 5, 4, 2, 4); R('#e0b030', 4, 10, 8, 1); R(I, 7, 12, 2, 2); R('#b07a16', 7, 12, 2, 1) },
+    onyx: R => { R(I, 3, 2, 10, 12); R('#e0b030', 4, 3, 8, 10); R(I, 5, 4, 6, 8); R('#2a2a34', 5, 4, 6, 8); R('#5a5a6a', 5, 4, 2, 2); for (const y of [6, 8, 10]) R('#e8e8f0', 7, y, 3, 1) },
+    tablet: R => { R(I, 3, 2, 10, 13); R(I, 4, 1, 8, 1); R('#b4ac9f', 4, 3, 8, 11); R('#d4ccbe', 4, 2, 8, 2); R('#8e867c', 11, 3, 1, 11); for (const y of [5, 7, 9, 11]) { R('#6e6a66', 5, y, 2, 1); R('#6e6a66', 8, y, 2, 1) } R(I, 9, 12, 4, 3) },
+  };
+  for (const k in r) mk('relic_' + k, r[k]);
+  for (const k of ['relicase', 'stainedglass']) { const c = mkc(40, 48), g = c.getContext('2d'); drawCaveDecor(g, k, 20, 47, 0); AT['decor_' + k] = [trimCanvas(c)] }
+}
+// the treasury table in the church: donated relics laid out on linen
+function drawTreasury(g, o, X, Y, B, w, t) {
+  if (o.k !== 'treasury') return false; const R = (c, a, b, ww = 1, hh = 1) => { g.fillStyle = c; g.fillRect(X + a, Y + b, ww, hh) }, I = '#2a1e18';
+  R('rgba(60,35,15,.22)', 1, 14, 46, 2);
+  for (const a of [2, 43]) { R(I, a, 6, 3, 9); R('#8a5232', a + 1, 6, 1, 8) }
+  R(I, 0, -2, 48, 9); R('#f4ecd8', 1, -1, 46, 6); R('#d8ccb0', 1, 5, 46, 1); R('#2c4a9a', 1, 3, 46, 1); R('#b02a2a', 1, 4, 46, 1);
+  const given = Object.keys(relicState().given); given.slice(0, 12).forEach((k, i) => { const s = AT['relic_' + k] && AT['relic_' + k][0]; if (s) g.drawImage(s, X + 2 + (i % 6) * 7.5 + (Math.floor(i / 6) ? 3 : 0), Y - 7 + Math.floor(i / 6) * 5, 8, 8) });
+  if (!given.length) { g.fillStyle = 'rgba(90,60,30,.6)'; g.font = '700 5px Nunito, sans-serif'; g.fillText('Treasury', X + 14, Y + 3) }
+  return true;
 }

@@ -88,6 +88,7 @@ async function talkTo(n) {
   if (first && heartsOf(v.id) > Math.floor((f.pts - (isSabbath() ? 8 : 5)) / 20)) { toast(`${v.name} likes you more! ♥ ${heartsOf(v.id)}`); sfx.pick() }
   n.talking = false; n.wait = 1.5;
   if (v.id === 'peter') await peterGift();
+  if (v.id === 'simeon') await simeonRelics();
   if (v.shop && shopOpen(v.shop)) ({ market: openMarket, smithy: openSmithy, inn: openInn, carpenter: openCarpenter, tackle: openTackle, workshop: openWorkshop })[v.shop]();
 }
 function drawVillager(g, n) {

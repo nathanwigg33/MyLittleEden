@@ -610,6 +610,7 @@ function drawCraftDecor(g, k, cx, by, t) {
       P(INK, -9, -24, 18, 4); P(WD[1], -8, -23, 16, 2); P(WD[2], -8, -23, 16, 1);
       P('#f4f0e6', -4, -20, 2, 9); P('#f4f0e6', 2, -20, 2, 7); P('#f4f0e6', -2, -20, 4, 2); P('#d8d2c4', 2, -14, 2, 1); P('#d8d2c4', -4, -12, 2, 1);
       P(INK, -4, -2, 8, 2); P(ST[1], -3, -2, 6, 1); break;
+    default: drawCaveDecor(g, k, cx, by, t);
   }
 }
 

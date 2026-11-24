@@ -216,7 +216,7 @@ function lineSpotNS(dir) {
   }
   return null;
 }
-function fishWhere(c) { return World.cur === 'mine' ? 'river' : World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
+function fishWhere(c) { return World.cur === 'mine' ? 'cave' : World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
   if (isInside()) { sfx.no(); return }

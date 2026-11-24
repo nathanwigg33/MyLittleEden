@@ -126,6 +126,7 @@ function mineItems() { const o = {}; for (const k in MINE_ITEMS) { const [n, pri
 function nodeDrop(o, cx, cy) {
   const k = o.k; drop(ORES[k].item, k === 'stone' ? ri(1, 2) : 1, cx, cy); if (k !== 'stone' && Math.random() < .5) drop('stone', 1, cx, cy);
   if (k !== 'stone') state.stats.ores = (state.stats.ores || 0) + 1;
+  maybeRelic(o, cx, cy);
 }
 const NODE_CHIP = { stone: '#9a978f', copper: '#d07a3a', coal: '#3a3a44', iron: '#a05a40', silver: '#e8eef6', gold: '#f2c94c', amethyst: '#a960e0', emerald: '#4ad070', ruby: '#e04050', sapphire: '#3aa0e8' };
 function drawMineObj(g, o, x, y, t) {

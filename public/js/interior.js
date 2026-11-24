@@ -59,6 +59,7 @@ function genSynagogue() {
   put(31, 26, 'bimah', 3);                                 // the reading platform in the middle
   for (const y of [24, 29, 31]) { put(27, y, 'pew', 4); put(34, y, 'pew', 4) }
   put(27, 32, 'plant'); put(37, 32, 'plant'); put(27, 27, 'lamp'); put(37, 27, 'lamp');
+  put(34, 27, 'treasury', 3);                              // the treasury table for relics from the caverns
 }
 const isInside = () => !!ROOMS[World.cur];
 
@@ -127,7 +128,7 @@ function drawChurchRoom(g, x0, y0, x1, y1, t) {
 
 function drawFurn(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, B = Y + 16, w = (o.w || 1) * 16;
-  if (drawSmithFurn(g, o, X, Y, B, w, t) || drawInnFurn(g, o, X, Y, B, w, t) || drawCarpFurn(g, o, X, Y, B, w, t)) return;
+  if (drawTreasury(g, o, X, Y, B, w, t) || drawSmithFurn(g, o, X, Y, B, w, t) || drawInnFurn(g, o, X, Y, B, w, t) || drawCarpFurn(g, o, X, Y, B, w, t)) return;
   const shadow = (sx, sw) => px(g, 'rgba(60,35,15,.22)', sx, B - 2, sw, 2);
   switch (o.k) {
     case 'pew': {   // walnut benches, gold caps, crimson cushions
@@ -576,6 +577,7 @@ function mapTab(b, which) {
 function furnitureAction(o) {
   switch (o.k) {
     case 'bimah': visitChurch(); break;
+    case 'treasury': openTreasury(); break;
     case 'bar': { const m = npcs.find(n => n.v.id === 'miriam' && n.map === World.cur); if (m && shopOpen('inn')) talkTo(m); else say(closedMsg('inn')); break }
     case 'hearth': say('A big stone hearth. A pot of lentil stew bubbles over the fire and smells wonderful.'); break;
     case 'pantry': say('Shelves of fresh loaves, honey jars and dried figs.'); break;
