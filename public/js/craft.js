@@ -64,7 +64,7 @@ function craftItems() {
     linen: { n: 'Linen Cloth', icon: 'ic_linen', price: 260, d: 'Fine cloth woven from flax.' },
     fert1: { n: 'Fertilizer', icon: 'ic_fert1', fert: 1, price: 2, d: 'Spread it on tilled soil. Crops there grow about a third faster. Lasts until harvest.' },
     fert2: { n: 'Rich Compost', icon: 'ic_fert2', fert: 2, price: 5, d: 'Spread it on tilled soil. Crops there grow about half again as fast. Lasts until harvest.' },
-    ropeladder: { n: 'Rope Ladder', icon: 'ic_ropeladder', rope: 1, price: 10, d: 'Use it in the Sinai Mines to climb straight down to the next floor.' },
+    ropeladder: { n: 'Rope Ladder', icon: 'ic_ropeladder', rope: 1, price: 10, d: 'Use it anywhere in the Sinai Caverns to climb straight back out to Mount Sinai.' },
     workbench: { n: 'Workbench', icon: 'ic_workbench', put: { t: 'bench' }, d: 'Your crafting workbench. Place it anywhere on your farm.' },
     chest: { n: 'Chest', icon: 'chest', put: { t: 'chest2' }, d: 'Extra storage. Place it, then tap it to put things in.' },
     farmwell: { n: 'Well', icon: 'well', put: { t: 'fwell' }, d: 'Fill your watering can right where you need it.' },
@@ -92,7 +92,7 @@ const RECIPES = [
   { id: 'fert1', cat: 'farm', n: 5, need: { fiber: 5, any_crop: 1 }, un: ['harvest', 5] },
   { id: 'fert2', cat: 'farm', n: 5, need: { fert1: 5, ore_coal: 1, honey: 1 }, un: ['harvest', 40] },
   { id: 'm_sprinkler', cat: 'farm', n: 1, need: { bar_copper: 1, stone: 5 }, un: ['harvest', 20] },
-  { id: 'm_qsprinkler', cat: 'farm', n: 1, need: { bar_iron: 1, bar_gold: 1, ore_coal: 2 }, un: ['mine', 15] },
+  { id: 'm_qsprinkler', cat: 'farm', n: 1, need: { bar_iron: 1, bar_gold: 1, ore_coal: 2 }, un: ['mine', 4] },
   { id: 'm_beehive', cat: 'farm', n: 1, need: { wood: 40, fiber: 10, ore_coal: 2 }, un: ['day', 5] },
   { id: 'farmwell', cat: 'farm', n: 1, need: { stone: 50, wood: 20, bar_copper: 1 }, un: ['heart', 'joseph', 2] },
   // machines
@@ -100,8 +100,8 @@ const RECIPES = [
   { id: 'm_press', cat: 'mach', n: 1, need: { wood: 40, bar_copper: 1, bar_iron: 1 }, un: ['harvest', 30] },
   { id: 'm_mill', cat: 'mach', n: 1, need: { stone: 40, wood: 20 }, un: ['heart', 'ruth', 2] },
   { id: 'm_loom', cat: 'mach', n: 1, need: { wood: 50, fiber: 30, bar_iron: 1 }, un: ['day', 14] },
-  { id: 'm_kiln', cat: 'mach', n: 1, need: { wood: 30, stone: 20 }, un: ['mine', 2] },
-  { id: 'm_furnace', cat: 'mach', n: 1, need: { stone: 40, ore_copper: 15, ore_coal: 5 }, un: ['mine', 10] },
+  { id: 'm_kiln', cat: 'mach', n: 1, need: { wood: 30, stone: 20 }, un: ['mine', 1] },
+  { id: 'm_furnace', cat: 'mach', n: 1, need: { stone: 40, ore_copper: 15, ore_coal: 5 }, un: ['mine', 3] },
   { id: 'm_smoker', cat: 'mach', n: 1, need: { wood: 40, stone: 20, ore_coal: 5 }, un: ['fish', 10] },
   // food
   { id: 'bread', cat: 'food', sub: 'Meals', n: 1, need: { wheat: 3 }, un: ['start'] },
@@ -115,7 +115,7 @@ const RECIPES = [
   { id: 'honeycake', cat: 'food', sub: 'Meals', n: 1, need: { flour: 2, honey: 1 }, un: ['heart', 'miriam', 3] },
   { id: 'loaves', cat: 'food', sub: 'Meals', n: 1, need: { bread: 5, any_fish: 2 }, un: ['fish', 25] },
   { id: 'bait', cat: 'food', sub: 'Supplies', n: 10, need: { fiber: 6 }, un: ['fish', 3] },
-  { id: 'ropeladder', cat: 'food', sub: 'Supplies', n: 1, need: { fiber: 30, wood: 10 }, un: ['mine', 10] },
+  { id: 'ropeladder', cat: 'food', sub: 'Supplies', n: 1, need: { fiber: 30, wood: 10 }, un: ['mine', 2] },
   // build
   { id: 'path_wood', cat: 'build', sub: 'Paths', n: 5, need: { wood: 5 }, un: ['start'] },
   { id: 'path_flag', cat: 'build', sub: 'Paths', n: 5, need: { stone: 5 }, un: ['start'] },
@@ -131,7 +131,7 @@ const RECIPES = [
   { id: 'decor_sign', cat: 'decor', sub: 'Furniture', n: 1, need: { wood: 5 }, un: ['start'] },
   { id: 'decor_bench', cat: 'decor', sub: 'Furniture', n: 1, need: { wood: 15 }, un: ['day', 2] },
   { id: 'decor_table', cat: 'decor', sub: 'Furniture', n: 1, need: { wood: 25 }, un: ['heart', 'joseph', 1] },
-  { id: 'decor_barrel', cat: 'decor', sub: 'Furniture', n: 1, need: { wood: 15, ore_iron: 1 }, un: ['mine', 5] },
+  { id: 'decor_barrel', cat: 'decor', sub: 'Furniture', n: 1, need: { wood: 15, ore_iron: 1 }, un: ['mine', 2] },
   { id: 'decor_jars', cat: 'decor', sub: 'Furniture', n: 1, need: { stone: 30 }, un: ['day', 12] },
   { id: 'decor_flowerpot', cat: 'decor', sub: 'Garden', n: 1, need: { stone: 6, fiber: 4 }, un: ['day', 3] },
   { id: 'decor_scarecrow', cat: 'decor', sub: 'Garden', n: 1, need: { wood: 10, fiber: 15, wheat: 2 }, un: ['day', 3] },
@@ -171,7 +171,7 @@ function unlockHint(u) {
     case 'day': return `Live on your farm for ${need} days (day ${Math.min(have, need)})`;
     case 'harvest': return `Harvest ${need} crops (${Math.min(have, need)}/${need})`;
     case 'fish': return `Catch ${need} fish (${Math.min(have, need)}/${need})`;
-    case 'mine': return `Reach floor ${need} of the Sinai Mines (best: ${have || 0})`;
+    case 'mine': return `Reach the ${CAVES[need].n} in the Sinai Caverns`;
     case 'heart': return `Become friends with ${v ? v.name : u[1]}: ${need} heart${need > 1 ? 's' : ''} (${have}/${need})`;
   }
   return '';
@@ -236,8 +236,8 @@ const emptyCell = (x, y, me) => inb(x, y) && World.ground[idx(x, y)] !== WATER &
 function useCraftItem(slot) {
   const s = state.inv[slot], it = ITEMS[s.id], used = () => { s.n--; if (s.n <= 0) state.inv[slot] = null; updateHUD(); save() };
   if (it.rope) {
-    if (World.cur !== 'mine') { toast('Use it in the Sinai Mines to climb down a floor.'); sfx.no(); return }
-    used(); sfx.swish(); toast('You climb down the rope ladder…'); goFloor(state.mineFloor + 1); return;
+    if (World.cur !== 'mine') { toast('Use it in the Sinai Caverns to climb straight back out.'); sfx.no(); return }
+    used(); sfx.swish(); toast('You climb the rope ladder up to the surface…'); saveSeen(); travel('sinai', 33, 12.7, 's'); return;
   }
   if (it.fert) {
     const c = findCell((x, y) => { const q = soilAt(x, y); return q && (q.f || 0) < it.fert });

@@ -9,7 +9,7 @@ const OBJ = {
   stump: { tool: 'axe', hp: 3, solid: 1 }, sapling: { tool: 'axe', hp: 1, solid: 1 }, twig: { tool: 'axe', hp: 1, solid: 1 },
   rock: { tool: 'pick', hp: 3, solid: 1 }, boulder: { tool: 'pick', hp: 6, solid: 1 },
   weed: { tool: 'scythe', hp: 1, solid: 1 }, grass: { tool: 'scythe', hp: 1, solid: 0 },
-  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, bezstall: { solid: 1 }, bezcart: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
+  wild: { solid: 1 }, bush: { solid: 1 }, tent: { solid: 1 }, part: { solid: 1 }, campfire: { solid: 1 }, sign: { solid: 1 }, crate: { solid: 1 }, bin: { solid: 1 }, cart: { solid: 1 }, bld: { solid: 1 }, forge: { solid: 1 }, dock: { solid: 0 }, bridge: { solid: 0 }, node: { tool: 'pick', hp: 3, solid: 1 }, decor: { solid: 1 }, ladder: { solid: 1 }, ladder_up: { solid: 1 }, minecart: { solid: 1 }, shell: { solid: 0 }, wreck: { solid: 1 }, lighthouse: { solid: 1 }, deck: { solid: 0 }, fboat: { solid: 1 }, mast: { solid: 1 }, helm: { solid: 1 }, coracle: { solid: 1 }, duck: { solid: 0 }, deco: { solid: 0 }, ifurn: { solid: 1 }, anvil: { solid: 1 }, torch: { solid: 1 }, barrel: { solid: 1 }, bench: { solid: 1 }, stairs_down: { solid: 1 }, stairs_up: { solid: 1 }, mcart: { solid: 1 }, rubble: { tool: 'pick', hp: 4, solid: 1 }, boards: { tool: 'axe', hp: 3, solid: 1 }, bridge_broken: { solid: 1 }, cbridge: {}, ford: {}, chasm: { solid: 1 }, rbridge: {}, cchest: { solid: 1 }, crystal: { solid: 1 }, oforge: { solid: 1 }, oanvil: { solid: 1 }, pillar: { solid: 1 }, bezstall: { solid: 1 }, bezcart: { solid: 1 }, mach: { solid: 1 }, chest2: { solid: 1 }, fwell: { solid: 1 }, fence: { tool: 'axe', hp: 1, solid: 1 }, sfence: { tool: 'pick', hp: 1, solid: 1 }, gate: { tool: 'axe', hp: 1, solid: 1 },
 };
 const World = {
   ground: null, objs: null, seed: 1,
@@ -17,7 +17,7 @@ const World = {
   get(x, y) { return inb(x, y) ? this.objs[idx(x, y)] : null },
   // the object at a cell (follows multi-cell parts back to their owner)
   owner(x, y) { const o = this.get(x, y); if (o && o.t === 'part') { if (o.ox < 0) return null; const ow = this.objs[idx(o.ox, o.oy)]; return ow ? { o: ow, x: o.ox, y: o.oy } : null } return o ? { o, x, y } : null },
-  solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck')); return !!(o && OBJ[o.t] && OBJ[o.t].solid && !(o.t === 'gate' && o.open)) },
+  solid(x, y) { if (!inb(x, y)) return true; const o = this.objs[idx(x, y)]; if (this.ground[idx(x, y)] === WATER) return !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'deck' || o.t === 'cbridge')); return !!(o && OBJ[o.t] && OBJ[o.t].solid && !(o.t === 'gate' && o.open)) },
   place(x, y, o) { this.objs[idx(x, y)] = o },
   footprint(x, y, w, h, o) { for (let yy = y - h + 1; yy <= y; yy++) for (let xx = x - Math.floor(w / 2); xx <= x + Math.floor(w / 2); xx++) this.objs[idx(xx, yy)] = (xx === x && yy === y) ? o : { t: 'part', ox: x, oy: y } },
 };
@@ -213,6 +213,7 @@ function drawObject(g, o, x, y, t) {
     case 'coracle': case 'duck': drawWaterObj(g, o, x, y, t); break;
     case 'shell': case 'wreck': case 'lighthouse': drawSeaObj(g, o, x, y, t); break;
     case 'node': case 'ladder': case 'ladder_up': case 'minecart': drawMineObj(g, o, x, y, t); break;
+    case 'stairs_down': case 'stairs_up': case 'mcart': case 'rubble': case 'boards': case 'bridge_broken': case 'cbridge': case 'ford': case 'chasm': case 'rbridge': case 'cchest': case 'crystal': case 'oforge': case 'oanvil': case 'pillar': drawCaveObj(g, o, x, y, t); break;
     case 'decor': drawDecor(g, o.k, x * 16 + 8, y * 16 + 15, t); break;
     case 'dock': case 'bridge': case 'deck': break;
     case 'forge': shadow(7); spr(AT.campfire[0], 0); { const f = AT.fire[Math.floor(t * 10) % AT.fire.length]; g.drawImage(f, Math.round(cx - f.width / 2), Math.round(by - f.height - 5)); g.drawImage(f, Math.round(cx - f.width / 2) + 3, Math.round(by - f.height - 7)) } break;

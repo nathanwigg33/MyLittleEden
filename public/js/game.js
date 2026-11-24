@@ -79,7 +79,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate', 'bezstall', 'bezcart'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'stairs_down', 'stairs_up', 'mcart', 'boards', 'bridge_broken', 'chasm', 'cchest', 'crystal', 'oforge', 'oanvil', 'pillar', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate', 'bezstall', 'bezcart'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -96,7 +96,7 @@ async function action() {
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
     if (it.o.t === 'ifurn') { furnitureAction(it.o); return }
     if (it.o.t === 'shell') { if (addItem('shell', 1)) { toast('Your bag is full.'); sfx.no(); return } World.place(it.x, it.y, null); sfx.pick(); toast('You found a seashell!'); return }
-    if (['ladder', 'ladder_up', 'minecart'].includes(it.o.t)) { mineAction(it.o); return }
+    if (World.cur === 'mine' && await caveAction(it)) return;
     if (it.o.t === 'decor') { decorAction(it); return }
     if (it.o.t === 'wreck') { say('An old fishing boat, washed up and turned over long ago.'); return }
     if (it.o.t === 'lighthouse') { say('The lighthouse keeps boats safe at night. Its light sweeps across the sea after dark.'); return }
@@ -138,10 +138,11 @@ function hit(tool, act) {
   const r = findTarget(tool); if (!r) { if (!((tool === 'pick' || tool === 'axe') && removePath())) sfx.miss(); return } damage(r, toolLv(tool));
 }
 function damage(r, dmg) {
-  const { o, x, y } = r; if (!o.hit) { o.hp = objHp(o); o.hit = 1 } o.hp -= dmg; o.shake = .25;   // the same toughness everywhere in the game
+  const { o, x, y } = r; if (o.t === 'boards' && !boardsSide(o)) { toast('The boards are nailed from the other side.'); sfx.no(); return }
+  if (!o.hit) { o.hp = objHp(o); o.hit = 1 } o.hp -= dmg; o.shake = .25;   // the same toughness everywhere in the game
   const cx = x + .5, cy = y + .5;
   if (OBJ[o.t].tree) { sfx.chop(); leaves(cx, cy - 1.2, 6) } else if (o.t === 'stump' || o.t === 'twig') { sfx.chop(); chips(cx, cy, '#a0703f', 4) }
-  else if (o.t === 'rock' || o.t === 'boulder') { sfx.rock(); chips(cx, cy, '#9a978f', 5) } else if (o.t === 'node') { sfx.rock(); chips(cx, cy, NODE_CHIP[o.k], 6) } else { chips(cx, cy, '#5aa83a', 6) }
+  else if (o.t === 'rock' || o.t === 'boulder' || o.t === 'rubble') { sfx.rock(); chips(cx, cy, '#9a978f', 5) } else if (o.t === 'boards') { sfx.chop(); chips(cx, cy, '#b8784a', 6) } else if (o.t === 'node') { sfx.rock(); chips(cx, cy, NODE_CHIP[o.k], 6) } else { chips(cx, cy, '#5aa83a', 6) }
   if (o.hp > 0) return;
   World.place(x, y, null); markBare(x, y);
   switch (o.t) {
@@ -151,6 +152,8 @@ function damage(r, dmg) {
     case 'sapling': if ((o.g || 0) >= 3) drop('wood', 1, cx, cy); break;
     case 'rock': drop('stone', o.v ? 1 : ri(2, 3), cx, cy); state.stats.rocks++; break;
     case 'boulder': drop('stone', ri(5, 8), cx, cy); state.stats.rocks++; break;
+    case 'rubble': drop('stone', ri(1, 2), cx, cy); rubbleCleared(o); break;
+    case 'boards': drop('wood', 1, cx, cy); boardsBroken(o); break;
     case 'node': nodeDrop(o, cx, cy); state.stats.rocks++; break;
     case 'weed': if (Math.random() < .6) drop('fiber', 1, cx, cy); state.stats.weeds++; break;
     case 'grass': if (Math.random() < .15) drop('fiber', 1, cx, cy); break;
@@ -238,7 +241,7 @@ const wait = ms => new Promise(r => setTimeout(r, ms));
 async function travel(map, x, y, dir) {
   if (sleeping) return; sleeping = true; const f = $('#fade'); f.style.transition = 'opacity .3s'; f.classList.add('on'); await wait(320);
   useMap(map); player.x = x; player.y = y; player.dir = dir || (map === 'town' ? 'r' : 'l'); drops = []; snapCam();
-  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : map === 'sea' ? 'The Open Sea' : map === 'sinai' ? 'Mount Sinai' : map === 'mine' ? `Sinai Mines · Floor ${MINE.floor}` : state.look.farm);
+  f.classList.remove('on'); await wait(300); f.style.transition = ''; sleeping = false; banner(ROOMS[map] ? ROOMS[map].name : map === 'mine' ? caveName() : map === 'town' ? 'Bethlehem' : map === 'jordan' ? JORDAN.name : map === 'sea' ? 'The Open Sea' : map === 'sinai' ? 'Mount Sinai' : state.look.farm);
 }
 
 // ---------- saving ----------
@@ -527,7 +530,7 @@ function render() {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = World.cur === 'mine' ? `rgba(10,6,4,${dark})` : `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
     lx.globalCompositeOperation = 'destination-out';
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
-    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && o.t === 'bezstall' && (bezOpen() || state.time >= 18 * 60)) lamp(x + .5, y - 1.6, 70, .95); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
+    for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && World.cur === 'mine') caveLight(o, x, y, lamp); if (o && o.t === 'bezstall' && (bezOpen() || state.time >= 18 * 60)) lamp(x + .5, y - 1.6, 70, .95); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
     if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 120 : 34, World.cur === 'mine' ? .97 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
@@ -562,7 +565,7 @@ function showTitle() {
 }
 function newGame() { $('#title').classList.remove('on'); openCreator(lk => { const seed = ri(1, 1e9); genFarm(seed); World.soil = {}; storeMap('farm'); useMap('farm'); state = G.state = freshState(lk, seed); player = mkPlayer(state.px, state.py); look = buildCharacter(lk); drops = []; save(); startPlay(true) }) }
 function startPlay(fresh) {
-  mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); const newBench = ensureBench(); checkRecipes(!state.known); snapCam(); hudSig = ''; updateHUD();
+  mode = 'play'; paused = false; $('#title').classList.remove('on'); $('#hud').classList.add('on'); migrateCaves(); const newBench = ensureBench(); checkRecipes(!state.known); snapCam(); hudSig = ''; updateHUD();
   if (newBench && !fresh) benchWelcome();
   if (fresh) { banner(state.look.farm); setTimeout(() => say(`Welcome to ${state.look.farm}, ${state.look.name}! This little plot outside Bethlehem is yours now. It's overgrown, but your axe, pickaxe and scythe can clear it. Dig soil with the hoe, plant the wheat seeds waiting in your storage chest, and water them every day. Sell what you grow in the shipping bin. The road east leads to Bethlehem, with a market, a blacksmith, an inn, a carpenter and a church. Joseph the carpenter left you a workbench beside your tent for crafting. Sleep in your tent when the day is done.`), 900) }
   else { banner(`${weekday()}, ${SEASONS[state.season]} ${state.day}`); if (state.newMap) { delete state.newMap; save(); setTimeout(() => say('Your farm has grown! The land is bigger now, and the wild has crept back in. Your tools, items and shekels are all still with you.'), 900) } }

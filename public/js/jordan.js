@@ -205,21 +205,21 @@ const LINE_END = [29.5, 21];
 function lineSpot(side) {
   const wx = player.x + side * LINE_END[0] / 16, wy = player.y + LINE_END[1] / 16, x = Math.floor(wx), y = Math.floor(wy);
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
-  return World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge')) ? { x, y, wx, wy } : null;
+  return World.ground[idx(x, y)] === WATER && (World.cur !== 'mine' || CAVE.river.has(idx(x, y))) && !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'cbridge' || o.t === 'bridge_broken')) ? { x, y, wx, wy } : null;
 }
 // facing up or down: the bobber lands a couple of tiles straight ahead
 function lineSpotNS(dir) {
   for (const d of dir === 's' ? [2, 1.6, 2.5] : [2.5, 2.1, 3]) {
     const wx = player.x + .05, wy = player.y + (dir === 's' ? d : -d), x = Math.floor(wx), y = Math.floor(wy);
     if (!inb(x, y)) continue; const o = World.objs[idx(x, y)];
-    if (World.ground[idx(x, y)] === WATER && !(o && (o.t === 'dock' || o.t === 'bridge'))) return { x, y, wx, wy };
+    if (World.ground[idx(x, y)] === WATER && (World.cur !== 'mine' || CAVE.river.has(idx(x, y))) && !(o && (o.t === 'dock' || o.t === 'bridge' || o.t === 'cbridge' || o.t === 'bridge_broken'))) return { x, y, wx, wy };
   }
   return null;
 }
-function fishWhere(c) { return World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
+function fishWhere(c) { return World.cur === 'mine' ? 'river' : World.cur === 'farm' ? 'pond' : World.cur === 'sea' ? (SEA.deep[idx(c.x, c.y)] ? 'sea' : 'offshore') : World.cur === 'jordan' ? (c.y >= JORDAN.bay ? 'shore' : 'river') : 'river' }
 function onDockEnd() { const o = World.objs[idx(Math.floor(player.x), Math.floor(player.y))]; return !!(o && o.t === 'dock' && o.end) }
 function startFishing() {
-  if (isInside() || World.cur === 'mine') { sfx.no(); return }
+  if (isInside()) { sfx.no(); return }
   // cast the way you face: straight ahead when facing up or down (or to either side if there's no water ahead)
   const ns = player.dir === 'n' || player.dir === 's' ? player.dir : null;
   let side = 0, c = ns ? lineSpotNS(ns) : null, dir = c ? ns : null;

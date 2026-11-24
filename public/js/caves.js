@@ -1,0 +1,310 @@
+// ---------- the Sinai Caverns ----------
+// A hand-made cave system under Mount Sinai, the same in every game. Five sections of chambers joined by tunnels,
+// with more than one route through each: dead ends with old miners' chests, things to clear (rubble, a broken bridge,
+// a chasm), a mine-cart station in each section you repair once to ride between them, and a boarded-up shortcut you
+// can only knock out from the deep side, so it becomes a quick way back. Rocks and ore grow back every day.
+'use strict';
+const CAVE = { sec: 1, river: new Set(), seen: null, seenSec: 0 };
+const CAVE_CACHE = {};
+// rooms: [x, y, rx, ry] · links: a ↔ b, tunnel width w, optional bends, optional obstacle (rubble, chasm, bridge, boards, ford)
+const CAVES = [null,
+  { n: 'Upper Tunnels', pal: 0, ores: { stone: 60, copper: 16, coal: 12 },
+    rooms: [[32, 8, 7, 4], [15, 10, 5, 3], [49, 12, 5, 4], [9, 22, 4, 4], [26, 21, 6, 4], [45, 24, 6, 4], [56, 34, 4, 3], [19, 35, 6, 4], [36, 39, 7, 5]],
+    links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 1, b: 3, w: 2 }, { a: 1, b: 4, w: 3 }, { a: 2, b: 5, w: 3 }, { a: 4, b: 5, w: 2 },
+      { a: 5, b: 6, w: 2, ob: 'rubble' }, { a: 4, b: 7, w: 3 }, { a: 7, b: 8, w: 3 }, { a: 8, b: 5, w: 2, ob: 'boards' }],
+    up: [32, 5], cart: [38, 8], down: [36, 43], chests: { a: [8, 22], b: [57, 35] },
+    loot: { a: [['ore_coal', 6], ['money', 120]], b: [['bar_copper', 3], ['ore_amethyst', 1]] }, fix: { bar: 'bar_copper' } },
+  { n: 'Underground River', pal: 1, ores: { stone: 52, copper: 10, coal: 12, iron: 14 }, river: 1,
+    rooms: [[32, 8, 6, 3], [14, 15, 5, 4], [49, 15, 6, 4], [58, 7, 3, 3], [24, 36, 6, 4], [38, 42, 6, 4], [52, 37, 5, 4], [8, 44, 3, 3]],
+    links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 2, b: 3, w: 2, ob: 'rubble' }, { a: 1, b: 4, w: 3, via: [[20, 24]], ob: 'bridge' },
+      { a: 4, b: 5, w: 3 }, { a: 5, b: 6, w: 3 }, { a: 4, b: 7, w: 2 }, { a: 6, b: 2, w: 2, ob: 'boards', ford: 1 }],
+    up: [32, 6], cart: [37, 9], down: [52, 40], chests: { a: [58, 7], b: [8, 44] },
+    loot: { a: [['bar_iron', 2], ['money', 250]], b: [['ore_emerald', 1], ['bait', 20]] }, fix: { bar: 'bar_copper' } },
+  { n: 'Crystal Grotto', pal: 2, ores: { stone: 44, iron: 10, silver: 12, coal: 8, amethyst: 4, emerald: 2.5 },
+    rooms: [[32, 8, 6, 3], [17, 15, 6, 4], [47, 15, 6, 4], [32, 25, 8, 5], [10, 31, 4, 4], [53, 30, 5, 4], [30, 41, 7, 4], [50, 45, 4, 3]],
+    links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 1, b: 3, w: 3 }, { a: 2, b: 3, w: 3 }, { a: 1, b: 4, w: 2 }, { a: 2, b: 5, w: 3 },
+      { a: 3, b: 6, w: 3, ob: 'chasm' }, { a: 5, b: 7, w: 2, via: [[52, 38]] }, { a: 6, b: 1, w: 2, via: [[20, 32]], ob: 'boards' }],
+    up: [32, 6], cart: [37, 9], down: [30, 44], chests: { a: [9, 31], b: [51, 46] },
+    crystals: [[26, 22], [38, 22], [27, 28], [37, 28], [32, 21], [44, 13], [19, 12], [54, 28], [33, 39]],
+    loot: { a: [['ore_amethyst', 3], ['ore_emerald', 2]], b: [['bar_silver', 3], ['money', 400]] }, fix: { bar: 'bar_iron' } },
+  { n: 'Old Forge', pal: 3, ores: { stone: 40, iron: 12, silver: 10, gold: 8, coal: 10, ruby: 1.5 }, square: 1,
+    rooms: [[32, 8, 6, 3], [14, 16, 6, 4], [50, 16, 6, 4], [32, 23, 9, 5], [9, 32, 4, 3], [50, 32, 6, 4], [32, 41, 8, 4], [57, 44, 3, 3]],
+    links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 1, b: 3, w: 3 }, { a: 2, b: 3, w: 3 }, { a: 1, b: 4, w: 2 }, { a: 2, b: 5, w: 3 },
+      { a: 3, b: 6, w: 3, ob: 'rubble' }, { a: 5, b: 7, w: 2, via: [[57, 38]], ob: 'rubble' }, { a: 6, b: 5, w: 2, ob: 'boards' }],
+    up: [32, 6], cart: [37, 9], down: [32, 44], chests: { a: [8, 32], b: [58, 45] },
+    forges: [[26, 20], [38, 20]], anvils: [[29, 25], [35, 25]],
+    loot: { a: [['bar_gold', 2], ['ore_ruby', 1]], b: [['money', 800], ['bar_iron', 4]] }, fix: { bar: 'bar_iron' } },
+  { n: 'Deep Halls', pal: 4, ores: { stone: 36, iron: 8, silver: 8, gold: 10, coal: 6, amethyst: 3, emerald: 3, ruby: 2.5, sapphire: 2 },
+    rooms: [[32, 8, 6, 3], [16, 17, 6, 5], [48, 17, 6, 5], [32, 29, 9, 6], [11, 39, 5, 4], [53, 39, 5, 4], [32, 45, 7, 4]],
+    links: [{ a: 0, b: 1, w: 3 }, { a: 0, b: 2, w: 3 }, { a: 1, b: 3, w: 3 }, { a: 2, b: 3, w: 3 }, { a: 1, b: 4, w: 2, via: [[12, 30]], ob: 'chasm' },
+      { a: 2, b: 5, w: 2, via: [[54, 30]], ob: 'rubble' }, { a: 3, b: 6, w: 3 }, { a: 6, b: 2, w: 2, via: [[44, 40], [46, 28]], ob: 'boards' }],
+    up: [32, 6], cart: [37, 9], chests: { a: [11, 40], b: [54, 40], final: [32, 47] },
+    pillars: [[27, 26], [37, 26], [27, 32], [37, 32]],
+    loot: { a: [['ore_sapphire', 2], ['ore_ruby', 2]], b: [['bar_gold', 4], ['money', 1200]], final: [['money', 3000], ['ore_sapphire', 3], ['ore_ruby', 3], ['ore_emerald', 3]] }, fix: { bar: 'bar_gold' } },
+];
+const caveState = () => (state.caves = state.caves || { max: 0, carts: { 1: 1 }, short: {}, fixed: {}, loot: {}, seen: {} });
+const OB_FIX = { bridge: { need: { wood: 15 }, msg: 'You lay new planks across the river.' }, chasm: { need: { fiber: 25, wood: 10 }, msg: 'You lash a rope bridge across the chasm.' } };
+const cartFix = sec => ({ wood: 20, stone: 15, [CAVES[sec].fix.bar]: 1 });
+
+// ---------- building a section (same layout every game; rocks are new each day) ----------
+function linePts(L, S) { const r = S.rooms; return [[r[L.a][0], r[L.a][1]], ...(L.via || []), [r[L.b][0], r[L.b][1]]] }
+function along(pts, step = .4) {   // points along a bent line, with the direction at each
+  const out = []; for (let k = 0; k < pts.length - 1; k++) { const [x0, y0] = pts[k], [x1, y1] = pts[k + 1], d = Math.hypot(x1 - x0, y1 - y0) || 1;
+    for (let s = 0; s < d; s += step) out.push([x0 + (x1 - x0) * s / d, y0 + (y1 - y0) * s / d, (x1 - x0) / d, (y1 - y0) / d]) }
+  return out;
+}
+const inRoom = (S, x, y, pad = 1) => S.rooms.some(([cx, cy, rx, ry]) => S.square ? Math.max(Math.abs(x - cx) / rx, Math.abs(y - cy) / ry) <= pad : ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2 <= pad);
+const riverY = x => 27 + 2.2 * Math.sin(x * .2);
+function genCave(sec) {
+  const S = CAVES[sec], C = caveState(), day = state.totalDay; CAVE.sec = sec;
+  const cached = CAVE_CACHE[sec];
+  if (cached && cached.day === day) { World.ground = cached.ground; World.objs = cached.objs; World.soil = {}; World.pave = null; CAVE.river = cached.river; loadSeen(sec); return }
+  const g = World.ground = new Uint8Array(W * H).fill(WATER), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
+  const hz = (x, y) => hash(x + sec * 101, y + sec * 37), floor = (x, y) => { if (x > 1 && y > 1 && x < W - 2 && y < H - 2) g[idx(x, y)] = DIRT };
+  // chambers
+  for (const [cx, cy, rx, ry] of S.rooms) for (let y = cy - ry - 2; y <= cy + ry + 2; y++) for (let x = cx - rx - 2; x <= cx + rx + 2; x++) {
+    const v = S.square ? Math.max(Math.abs(x - cx) / rx, Math.abs(y - cy) / ry) : ((x - cx) / rx) ** 2 + ((y - cy) / ry) ** 2;
+    if (v <= 1 + (hz(x, y) - .5) * (S.square ? .15 : .5)) floor(x, y);
+  }
+  // tunnels
+  for (const L of S.links) for (const [x, y] of along(linePts(L, S))) { const r = L.w / 2 + (hz(Math.round(x * 3), Math.round(y * 3)) - .5) * .5;
+    for (let yy = Math.floor(y - r - 1); yy <= y + r + 1; yy++) for (let xx = Math.floor(x - r - 1); xx <= x + r + 1; xx++) if (Math.hypot(xx + .5 - x, yy + .5 - y) <= r) floor(xx, yy) }
+  // the underground river runs right through the rock
+  CAVE.river = new Set();
+  if (S.river) for (let x = 0; x < W; x++) { const yc = riverY(x); for (let y = Math.floor(yc - 2); y <= yc + 2; y++) if (Math.abs(y + .5 - yc) <= 1.7) { g[idx(x, y)] = WATER; CAVE.river.add(idx(x, y)) } }
+  // features
+  const reserved = new Set(), keep = (x, y, r = 1.6) => { for (let yy = Math.floor(y - r); yy <= y + r; yy++) for (let xx = Math.floor(x - r); xx <= x + r; xx++) reserved.add(idx(xx, yy)) };
+  const put = (x, y, obj) => { o[idx(x, y)] = obj; keep(x + .5, y + .5) };
+  if (sec === 1) put(S.up[0], S.up[1], { t: 'ladder_up' }); else put(S.up[0], S.up[1], { t: 'stairs_up' });
+  if (S.down) put(S.down[0], S.down[1], { t: 'stairs_down' });
+  put(S.cart[0], S.cart[1], { t: 'mcart', ok: C.carts[sec] ? 1 : 0 });
+  for (const k in S.chests) { const [x, y] = S.chests[k]; put(x, y, { t: 'cchest', id: sec + k, open: C.loot[sec + k] ? 1 : 0, big: k === 'final' ? 1 : 0 }) }
+  for (const [x, y] of S.crystals || []) put(x, y, { t: 'crystal', v: (x + y) % 3 });
+  for (const [x, y] of S.forges || []) put(x, y, { t: 'oforge' });
+  for (const [x, y] of S.anvils || []) put(x, y, { t: 'oanvil' });
+  for (const [x, y] of S.pillars || []) put(x, y, { t: 'pillar' });
+  // obstacles, placed across their tunnel
+  S.links.forEach((L, li) => {
+    if (!L.ob) return; const id = `${sec}:${li}`, pts = along(linePts(L, S), .25);
+    let at = Math.floor(pts.length / 2);
+    if (L.ob === 'boards') { at = pts.findIndex(([x, y]) => !inRoom(S, x, y, 1.25)); at = Math.min(pts.length - 1, Math.max(0, at) + 6) }
+    if (L.ob === 'bridge' || L.ford) {   // where the tunnel meets the river
+      const wet = pts.filter(([x, y]) => CAVE.river.has(idx(Math.floor(x), Math.floor(y))));
+      for (const [x, y] of wet) for (const dx of [0, 1]) { const i = idx(Math.floor(x) + dx, Math.floor(y)); if (!CAVE.river.has(i)) continue; reserved.add(i);
+        if (L.ford) { g[i] = DIRT; CAVE.river.delete(i); o[i] = { t: 'ford' } } else o[i] = C.fixed[id] ? { t: 'cbridge' } : { t: 'bridge_broken', ob: id } }
+      if (L.ob === 'bridge') return;
+    }
+    const [px, py, dx, dy] = pts[at], nx = -dy, ny = dx, cells = new Set();
+    for (let s = -3.5; s <= 3.5; s += .25) for (const f of L.ob === 'chasm' ? [0, 1] : [0]) { const x = Math.floor(px + nx * s + dx * f), y = Math.floor(py + ny * s + dy * f); if (g[idx(x, y)] === DIRT) cells.add(idx(x, y)) }
+    for (const i of cells) { reserved.add(i); for (const [ax, ay] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) reserved.add(i + ax + ay * W);
+      if (L.ob === 'rubble') { if (!C.fixed[id]) o[i] = { t: 'rubble', ob: id, v: i % 3 } }
+      else if (L.ob === 'chasm') o[i] = C.fixed[id] ? { t: 'rbridge', vert: Math.abs(dy) > Math.abs(dx) ? 1 : 0 } : { t: 'chasm', ob: id };
+      else if (L.ob === 'boards') { if (!C.short[id]) o[i] = { t: 'boards', ob: id, px, py, dx, dy, side: L.a } }
+    }
+  });
+  // rocks and ore: thick in the chambers, sparse in the tunnels, different every day
+  const R = mulberry(sec * 7919 + day * 13), mix = S.ores, tot = Object.values(mix).reduce((a, b) => a + b, 0);
+  const pick = () => { let r = R() * tot; for (const k in mix) { r -= mix[k]; if (r <= 0) return k } return 'stone' };
+  for (let i = 0; i < W * H; i++) { if (g[i] !== DIRT || o[i] || reserved.has(i)) continue; const x = i % W, y = Math.floor(i / W);
+    if (R() < (inRoom(S, x + .5, y + .5) ? .15 : .05)) o[i] = { t: 'node', k: pick() } }
+  CAVE_CACHE[sec] = { day, ground: g, objs: o, river: CAVE.river }; loadSeen(sec);
+}
+
+// ---------- getting around ----------
+async function enterMine() { if (SINAI.entering) return; SINAI.entering = 1; await goSection(1, 'top'); SINAI.entering = 0 }
+async function goSection(sec, how) {
+  const S = CAVES[sec], C = caveState(); saveSeen(); genCave(sec); storeMap('mine');
+  const first = sec > (C.max || 0); C.max = Math.max(C.max || 0, sec); state.mineMax = Math.max(state.mineMax || 0, C.max); state.mineFloor = sec;
+  const at = how === 'top' || how === 'up' ? [S.up[0] + .5, S.up[1] + 1.8] : how === 'down' ? [S.down[0] + .5, S.down[1] + 1.8] : [S.cart[0] + .5, S.cart[1] + 1.8];
+  await travel('mine', at[0], at[1], 's');
+  if (first && sec > 1) setTimeout(() => toast(`You found the ${S.n}!`), 900);
+  if (first && sec === 1) setTimeout(() => say('The Sinai Caverns. Tunnels wind off in every direction. The old mine cart here still runs on its rails: repair the stations you find deeper down, and you can ride straight back.'), 900);
+}
+const caveName = () => `Sinai Caverns · ${CAVES[CAVE.sec].n}`;
+async function caveAction(r) {
+  const o = r.o, S = CAVES[CAVE.sec], C = caveState(), sec = CAVE.sec;
+  switch (o.t) {
+    case 'ladder_up': { const v = await say('Climb back up to Mount Sinai?', [['Climb up', 1], ['Keep exploring', 0]]); if (v) { saveSeen(); await travel('sinai', 33, 12.7, 's') } return true }
+    case 'stairs_up': { const v = await say(`Go back up to the ${CAVES[sec - 1].n}?`, [['Go up', 1], ['Stay', 0]]); if (v) await goSection(sec - 1, 'down'); return true }
+    case 'stairs_down': { sfx.tap(); await goSection(sec + 1, 'up'); return true }
+    case 'mcart': {
+      if (!o.ok) {
+        const need = cartFix(sec), list = Object.entries(need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()}`).join(', ');
+        const has = Object.entries(need).every(([k, n]) => count(k) >= n);
+        const v = await say(`A mine-cart station, but the rails are broken. Fixing it takes ${list}. Then you can ride between stations.`, has ? [['Fix it', 1], ['Not now', 0]] : [['OK', 0]]);
+        if (v) { for (const [k, n] of Object.entries(need)) takeItem(k, n); o.ok = 1; C.carts[sec] = 1; sfx.chop(); setTimeout(() => sfx.pick(), 200); toast('The station is working! Ride it from any other station.'); updateHUD(); save() }
+        return true;
+      }
+      const stops = Object.keys(C.carts).map(Number).filter(s => s !== sec && s <= (C.max || 1)).sort();
+      if (!stops.length) { say('The mine cart is ready to roll, but there’s no other working station yet. Fix the stations you find deeper in the caverns.'); return true }
+      const v = await say('Hop in the mine cart. Where to?', stops.map(s => [s === 1 ? 'Entrance' : CAVES[s].n, s]).concat([['Stay', 0]]));
+      if (v) { sfx.swish(); await goSection(v, 'cart') } return true;
+    }
+    case 'boards': say(boardsSide(o) ? 'Old boards, nailed shut from this side. Your axe would knock them out.' : 'The passage is boarded up from the other side.'); return true;
+    case 'bridge_broken': case 'chasm': {
+      const F = OB_FIX[o.t === 'chasm' ? 'chasm' : 'bridge'], list = Object.entries(F.need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()}`).join(' and ');
+      const has = Object.entries(F.need).every(([k, n]) => count(k) >= n);
+      const v = await say(o.t === 'chasm' ? `A deep chasm cuts across the tunnel. You could build a rope bridge with ${list}.` : `The old bridge has rotted away. You could lay new planks with ${list}.`, has ? [['Build it', 1], ['Not now', 0]] : [['OK', 0]]);
+      if (v) { for (const [k, n] of Object.entries(F.need)) takeItem(k, n); C.fixed[o.ob] = 1; fixObstacle(o.ob, o.t); sfx.chop(); toast(F.msg); updateHUD(); save() }
+      return true;
+    }
+    case 'cchest': {
+      if (o.open) { say('Empty. Someone found this already: you!'); return true }
+      const L = S.loot[o.id.slice(1)] || []; o.open = 1; C.loot[o.id] = 1; sfx.pop(); tone(660, .1, 'triangle', .04); tone(880, .14, 'triangle', .04, .1);
+      for (const [k, n] of L) { if (k === 'money') { state.money += n; toast(`+₪${n}`) } else { addItem(k, n); note(k, n) } }
+      if (o.big) setTimeout(() => say('At the very bottom of the caverns, an old chest wrapped in linen. Whoever hid it here long ago left it for someone patient enough to find it.'), 600);
+      updateHUD(); save(); return true;
+    }
+    case 'crystal': toast('The crystals hum with a soft light.'); return true;
+    case 'oforge': say('An ancient smelting furnace, cold for centuries. Soot still darkens the stones.'); return true;
+    case 'oanvil': say('An old anvil, worn smooth by hammers long ago.'); return true;
+    case 'pillar': toast('A huge carved pillar holds up the ceiling.'); return true;
+    case 'minecart': say('An old minecart, still full of rubble.'); return true;
+  }
+  return false;
+}
+function fixObstacle(id, t) {
+  World.objs.forEach((o, i) => { if (o && o.ob === id) World.objs[i] = t === 'chasm' ? { t: 'rbridge', vert: World.objs[i - W] && World.objs[i - W].ob === id ? 1 : 0 } : t === 'bridge_broken' ? { t: 'cbridge' } : null });
+}
+// boards can only be broken from the deep side of the tunnel
+function boardsSide(o) { return (player.x - o.px) * o.dx + (player.y - o.py) * o.dy < 0 }
+function boardsBroken(o) {
+  const C = caveState(); C.short[o.ob] = 1; World.objs.forEach((q, i) => { if (q && q.ob === o.ob) World.objs[i] = null });
+  sfx.fall(); toast('You broke through! A shortcut back toward the start of this section.'); save();
+}
+function rubbleCleared(o) { if (!World.objs.some(q => q && q.ob === o.ob)) { caveState().fixed[o.ob] = 1; toast('The way is clear!'); save() } }
+
+// ---------- what you've explored ----------
+function loadSeen(sec) { const s = caveState().seen[sec]; CAVE.seen = new Uint8Array(W * H); CAVE.seenSec = sec; if (s) for (let i = 0; i < s.length; i++) CAVE.seen[i] = s.charCodeAt(i) - 48 }
+function saveSeen() { if (!CAVE.seen || !state || !CAVE.seenSec) return; caveState().seen[CAVE.seenSec] = String.fromCharCode(...CAVE.seen.map(v => v + 48)) }
+function markSeen() {
+  if (World.cur !== 'mine' || !CAVE.seen) return; const px = Math.floor(player.x), py = Math.floor(player.y);
+  for (let y = py - 5; y <= py + 5; y++) for (let x = px - 6; x <= px + 6; x++) if (inb(x, y) && (x - px) ** 2 + (y - py) ** 2 <= 34) CAVE.seen[idx(x, y)] = 1;
+}
+setInterval(() => { if (typeof state !== 'undefined' && state && World.cur === 'mine') { markSeen(); saveSeen() } }, 600);
+
+// ---------- drawing ----------
+const CAVE_PAL = [
+  { floor: ['#4a3628', '#433024', '#53402f'], face: ['#5e4636', '#6e5442', '#3a2a20'], top: '#2a1e17' },   // Upper Tunnels
+  { floor: ['#3c4048', '#363a42', '#454a53'], face: ['#555b66', '#666d79', '#30343b'], top: '#1f2228' },   // Underground River
+  { floor: ['#3a3450', '#342e48', '#443d5c'], face: ['#4e4670', '#61588a', '#2c2640'], top: '#1c1828' },   // Crystal Grotto
+  { floor: ['#4a2a28', '#432422', '#553230'], face: ['#6a3a32', '#7e4a3e', '#3a1e1a'], top: '#24120f' },   // Old Forge
+  { floor: ['#2c4040', '#273a3a', '#334a4a'], face: ['#3e5a58', '#4c6e6a', '#203230'], top: '#141f1f' },   // Deep Halls
+];
+function drawMine(g, x0, y0, x1, y1, t) {
+  const P = CAVE_PAL[CAVES[CAVE.sec].pal];
+  g.fillStyle = '#080605'; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
+  const fl = (x, y) => inb(x, y) && World.ground[idx(x, y)] === DIRT, riv = (x, y) => inb(x, y) && CAVE.river.has(idx(x, y));
+  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
+    const X = x * 16, Y = y * 16, h = hash(x, y);
+    if (riv(x, y)) {   // dark water, slowly flowing
+      g.fillStyle = '#10283c'; g.fillRect(X, Y, 16, 16); g.fillStyle = '#1a3a54';
+      for (let k = 0; k < 3; k++) { const ox = ((x * 16 + k * 37 + t * 9) % 16 + 16) % 16; g.fillRect(X + ox, Y + 3 + k * 5, 4, 1) }
+      if (!riv(x, y - 1) && !fl(x, y - 1)) { g.fillStyle = P.top; g.fillRect(X, Y, 16, 3) } else if (fl(x, y - 1)) { g.fillStyle = 'rgba(140,190,220,.35)'; g.fillRect(X, Y, 16, 1) }
+    } else if (fl(x, y)) {
+      g.fillStyle = P.floor[h > .7 ? 2 : h > .35 ? 1 : 0]; g.fillRect(X, Y, 16, 16);
+      for (let k = 0; k < 3; k++) { const hh = hash(x * 7 + k, y * 3 - k); g.fillStyle = hh > .5 ? P.floor[2] : P.floor[1]; g.fillRect(X + (hh * 97 % 14 | 0), Y + (hh * 31 % 14 | 0), 2, 1) }
+    } else if (fl(x, y + 1) || riv(x, y + 1)) {        // a rock wall facing you
+      g.fillStyle = P.face[0]; g.fillRect(X, Y, 16, 16); g.fillStyle = P.face[1]; g.fillRect(X, Y + 2, 16, 2); g.fillRect(X + (h * 9 | 0), Y + 7, 6, 1); g.fillStyle = P.face[2]; g.fillRect(X, Y + 14, 16, 2); g.fillRect(X + (h * 13 | 0), Y + 9, 1, 5);
+      g.fillStyle = P.top; g.fillRect(X, Y, 16, 2);
+    } else if (fl(x - 1, y) || fl(x + 1, y) || fl(x, y - 1) || fl(x + 1, y + 1) || fl(x - 1, y + 1) || riv(x - 1, y) || riv(x + 1, y)) {
+      g.fillStyle = P.top; g.fillRect(X, Y, 16, 16); g.fillStyle = P.face[2];
+      if (fl(x - 1, y)) g.fillRect(X, Y, 2, 16); if (fl(x + 1, y)) g.fillRect(X + 14, Y, 2, 16); if (fl(x, y - 1)) g.fillRect(X, Y, 16, 2);
+    }
+  }
+}
+function drawCaveObj(g, o, x, y, t) {
+  const X = x * 16, Y = y * 16, cx = X + 8, B = Y + 15, ink = '#1a100a', R = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(X + a, Y + b, w, h) };
+  const WD = ['#5a3020', '#8a5232', '#b8784a', '#e0a870'], ST = ['#4e4a46', '#6e6a66', '#8e867c', '#b4ac9f'];
+  switch (o.t) {
+    case 'stairs_down':   // steps carved down into the dark
+      R(ink, 0, 1, 16, 15); for (let k = 0; k < 5; k++) { const c = 70 - k * 13; R(`rgb(${c + 30},${c + 18},${c + 8})`, 1 + k, 2 + k * 3, 14 - k * 2, 2); R('#050302', 1 + k, 4 + k * 3, 14 - k * 2, 1) }
+      R('#050302', 6, 14, 4, 2); break;
+    case 'stairs_up':
+      g.fillStyle = 'rgba(255,240,200,.12)'; g.beginPath(); g.moveTo(X + 2, Y - 26); g.lineTo(X + 14, Y - 26); g.lineTo(X + 16, B); g.lineTo(X, B); g.fill();
+      R(ink, 0, 0, 16, 16); for (let k = 0; k < 5; k++) { const c = 150 - k * 18; R(`rgb(${c},${c - 14},${c - 30})`, 5 - k, 13 - k * 3, 6 + k * 2, 2); R('rgba(0,0,0,.35)', 5 - k, 15 - k * 3, 6 + k * 2, 1) } break;
+    case 'mcart': {
+      R('rgba(0,0,0,.3)', -4, 13, 24, 3);
+      for (const yy of [9, 14]) { R(ink, -6, yy - 1, 28, 3); R(o.ok ? '#9aa0aa' : '#6a5a50', -6, yy, 28, 1) }                               // rails
+      for (let k = 0; k < 4; k++) { R(ink, -4 + k * 7, 8, 3, 8); R(WD[1], -3 + k * 7, 9, 1, 6) }                                                // ties
+      if (!o.ok) R('#050302', 12, 8, 6, 8);   // broken: a gap in the rails
+      const s = AT.minecart[0]; g.save(); if (!o.ok) { g.translate(cx - 2, B - 2); g.rotate(-.25); g.drawImage(s, -s.width / 2, -s.height + 3) } else g.drawImage(s, Math.round(cx - s.width / 2), B - s.height + 1); g.restore();
+      R(ink, 18, -14, 3, 29); R(WD[1], 19, -13, 1, 28); R(ink, 16, -17, 7, 5); R(o.ok ? '#ffd860' : '#3a3030', 17, -16, 5, 3);   // lantern post
+      break;
+    }
+    case 'rubble': {
+      const rk = (a, b, r, c) => { g.fillStyle = ink; g.beginPath(); g.arc(X + a, Y + b, r + 1, 0, 7); g.fill(); g.fillStyle = c; g.beginPath(); g.arc(X + a, Y + b, r, 0, 7); g.fill(); g.fillStyle = ST[3]; g.fillRect(X + a - 1, Y + b - r + 1, 2, 1) };
+      const sh = o.shake > 0 ? Math.sin(t * 60) * 1.2 : 0; g.save(); g.translate(sh, 0);
+      rk(4, 11, 4, ST[1]); rk(12, 12, 4, ST[2]); rk(8, 6, 4, ST[2]); rk(13, 5, 2.5, ST[1]); R(WD[0], 1, 13, 5, 1); g.restore(); break;
+    }
+    case 'boards':
+      R(ink, 0, -10, 16, 26); for (let k = 0; k < 4; k++) { R(k % 2 ? WD[1] : WD[2], 1 + k * 4, -9, 3, 24); R(WD[0], 3 + k * 4, -9, 1, 24) }
+      for (const yy of [-6, 6]) { R(ink, 0, yy, 16, 3); R(WD[1], 0, yy + 1, 16, 1) } for (const [a, b] of [[2, -5], [13, -5], [2, 7], [13, 7]]) R('#c0c0cc', a, b, 1, 1); break;
+    case 'bridge_broken':
+      for (const a of [1, 13]) { R(ink, a, 0, 3, 16); R(WD[0], a + 1, 1, 1, 14) } R(ink, 3, 6, 6, 3); R(WD[1], 3, 7, 5, 1); R(ink, 9, 9, 4, 2); break;
+    case 'cbridge':
+      for (const a of [0, 14]) { R(ink, a, 0, 2, 16); R(WD[0], a, 0, 1, 16) } for (let k = 0; k < 4; k++) { R(ink, 1, k * 4, 14, 4); R(WD[2], 2, k * 4 + 1, 12, 2); R(WD[3], 2, k * 4 + 1, 12, 1) } break;
+    case 'ford': for (const [a, b] of [[2, 3], [9, 6], [4, 11]]) { R(ink, a, b, 6, 4); R(ST[2], a + 1, b + 1, 4, 2); R(ST[3], a + 1, b + 1, 3, 1) } break;
+    case 'chasm': R('#030202', 0, 0, 16, 16); R('#1a120c', 0, 0, 16, 2); R('rgba(255,255,255,.03)', 3, 6, 10, 1); break;
+    case 'rbridge':
+      R('#030202', 0, 0, 16, 16);
+      if (o.vert) { for (const a of [2, 13]) R('#c8a060', a, 0, 1, 16); for (let k = 0; k < 4; k++) { R(ink, 3, k * 4, 10, 3); R(WD[2], 3, k * 4 + 1, 10, 1) } }
+      else { for (const b of [3, 12]) R('#c8a060', 0, b, 16, 1); for (let k = 0; k < 4; k++) { R(ink, k * 4, 4, 3, 8); R(WD[2], k * 4 + 1, 4, 1, 8) } } break;
+    case 'cchest': { const s = AT.chest[0]; g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(cx, B, 8, 2.5, 0, 0, 7); g.fill();
+      if (o.big) { g.save(); g.translate(cx, B); g.scale(1.35, 1.35); g.drawImage(s, -s.width / 2, -s.height); g.restore() } else g.drawImage(s, Math.round(cx - s.width / 2), B - s.height);
+      if (o.open) { R('#1a100a', 3, 5, 10, 2) } else if (Math.sin(t * 2.5 + x) > .75) { R('#fff4c0', 12, 1, 1, 3); R('#fff4c0', 11, 2, 3, 1) } break }
+    case 'crystal': {
+      const cols = [['#7a4ad0', '#b88aff', '#e8d8ff'], ['#2a8ad0', '#7ac8ff', '#d8f0ff'], ['#2ab08a', '#7af0c8', '#d8fff0']][o.v || 0];
+      for (const [a, h, w] of [[3, 12, 3], [7, 17, 4], [11, 10, 3]]) { R(ink, a - 1, 15 - h, w + 2, h + 1); R(cols[0], a, 16 - h, w, h - 1); R(cols[1], a, 16 - h, 1, h - 2); R(cols[2], a + (w > 3 ? 1 : 0), 16 - h, 1, 1) }
+      if (Math.sin(t * 2 + x * 3) > .6) { R('#ffffff', 8, -3, 1, 3); R('#ffffff', 7, -2, 3, 1) } break;
+    }
+    case 'oforge':
+      R(ink, -1, -12, 18, 28); R(ST[1], 0, -11, 16, 26); for (const [yy, off] of [[-11, 0], [-5, 4], [1, 0], [7, 4]]) { R(ST[2], 0, yy, 16, 1); for (let xx = 2 + off; xx < 15; xx += 8) R(ST[0], xx, yy + 1, 1, 5) }
+      R(ink, 3, 3, 10, 9); R('#1a0a06', 4, 4, 8, 8); R(`rgba(255,${110 + Math.sin(t * 3 + x) * 30 | 0},40,.55)`, 5, 9, 6, 3); R(ink, 5, -16, 6, 5); R(ST[0], 6, -15, 4, 4); break;
+    case 'oanvil': R(ink, 3, 9, 10, 7); R(WD[0], 4, 10, 8, 6); R(ink, 0, 3, 16, 7); R('#4a4a54', 1, 4, 14, 4); R('#8a8a96', 1, 4, 14, 1); R(ink, 4, 7, 7, 3); break;
+    case 'pillar':
+      R('rgba(0,0,0,.3)', -2, 13, 20, 3); R(ink, 1, -26, 14, 42); R(ST[2], 2, -25, 12, 40); R(ST[3], 3, -25, 2, 40); R(ST[1], 11, -25, 2, 40);
+      R(ink, -1, -29, 18, 5); R(ST[3], 0, -28, 16, 3); R(ink, -1, 11, 18, 5); R(ST[2], 0, 12, 16, 3); for (const yy of [-16, -4]) R(ST[1], 2, yy, 12, 1); break;
+  }
+}
+// a soft light from crystals, working stations and the old forges
+function caveLight(o, x, y, lamp) {
+  if (o.t === 'crystal') lamp(x + .5, y + .2, 44, .7); else if (o.t === 'mcart' && o.ok) lamp(x + 1.6, y - .7, 40, .75); else if (o.t === 'oforge') lamp(x + .5, y + .5, 30, .5);
+  else if (o.t === 'stairs_up' || o.t === 'ladder_up') lamp(x + .5, y - .5, 50, .7);
+}
+
+// ---------- the cave map (fills in as you explore) ----------
+let caveMapSec = 0;
+function caveMapTab(b) {
+  const C = caveState(), here = CAVE.sec, sec = caveMapSec || here, S = CAVES[sec]; caveMapSec = sec; saveSeen();
+  const seen = CAVE.seenSec === sec && CAVE.seen ? CAVE.seen : (() => { const s = C.seen[sec] || '', a = new Uint8Array(W * H); for (let i = 0; i < s.length; i++) a[i] = s.charCodeAt(i) - 48; return a })();
+  if (sec !== here) genCave(sec);   // build the layout to draw it
+  const ground = World.ground, objs = World.objs, river = CAVE.river;
+  let h = `<div class="mapbtns">`; for (let s = 1; s <= Math.max(1, C.max || 1); s++) h += `<button class="btn ${s === sec ? '' : 'alt'}" data-cs="${s}">${CAVES[s].n}</button>`;
+  h += `<button class="btn alt" data-cs="world">World map</button></div><div class="mapwrap"><div class="mapinner cavemap"></div></div>
+    <div class="mapkey"><span><i class="kd you"></i>You</span><span>🚃 Station</span><span>📦 Chest</span><span>⬇ Way down</span></div>
+    <p class="muted" style="margin:4px 2px 0">The map fills in as you explore. ${C.carts[sec] ? 'This section’s mine-cart station is working.' : 'Fix this section’s mine-cart station to ride straight here.'}</p>`;
+  b.innerHTML = h;
+  const c = document.createElement('canvas'); c.width = W * 4; c.height = H * 4; c.className = 'mapart'; const g = c.getContext('2d'); const pal = CAVE_PAL[S.pal];
+  g.fillStyle = '#0c0a08'; g.fillRect(0, 0, c.width, c.height);
+  for (let i = 0; i < W * H; i++) { if (!seen[i]) continue; const x = i % W, y = (i / W) | 0;
+    g.fillStyle = river.has(i) ? '#24587e' : ground[i] === DIRT ? pal.floor[2] : pal.top; g.fillRect(x * 4, y * 4, 4, 4);
+    const o = objs[i]; if (o && ground[i] === DIRT) { const col = { rubble: '#9a948a', boards: '#b8784a', chasm: '#000', rbridge: '#c8a060', crystal: '#b88aff', pillar: '#b4ac9f' }[o.t]; if (col) { g.fillStyle = col; g.fillRect(x * 4, y * 4, 4, 4) } } }
+  const inner = b.querySelector('.mapinner'); inner.appendChild(c);
+  const pos = (x, y) => `left:${x / W * 100}%;top:${y / H * 100}%`, lab = (html, x, y, cls = 'sm') => inner.insertAdjacentHTML('beforeend', `<div class="mlab ${cls}" style="${pos(x, y)}">${html}</div>`);
+  const seenAt = (x, y) => seen[idx(x, y)];
+  if (seenAt(S.cart[0], S.cart[1])) lab(`🚃 ${C.carts[sec] ? 'Station' : 'Broken station'}`, S.cart[0] + 1, S.cart[1] - 1.2);
+  if (seenAt(S.up[0], S.up[1])) lab(sec === 1 ? '⬆ To Mount Sinai' : `⬆ ${CAVES[sec - 1].n}`, S.up[0] + .5, S.up[1] - 1.2);
+  if (S.down && seenAt(S.down[0], S.down[1])) lab(`⬇ ${CAVES[sec + 1].n}`, S.down[0] + .5, S.down[1] + 2.2);
+  for (const k in S.chests) { const [x, y] = S.chests[k]; if (seenAt(x, y)) lab(C.loot[sec + k] ? '▫ Empty chest' : '📦 Chest', x + .5, y - 1) }
+  if (sec === here && World.cur === 'mine') inner.insertAdjacentHTML('beforeend', `<div class="pin" style="${pos(player.x, player.y)}"><b></b><span>You</span></div>`);
+  if (sec !== here) genCave(here);   // put the section you're in back
+  b.querySelectorAll('[data-cs]').forEach(el => el.onclick = () => { sfx.tap(); if (el.dataset.cs === 'world') { caveMapSec = 0; mapTab(b, 'sinai') } else { caveMapSec = +el.dataset.cs; caveMapTab(b) } });
+}
+
+// older saves counted mine floors: turn that into how deep into the caverns you've been
+function migrateCaves() {
+  if (state.caves) return; const f = state.mineMax || 0, C = caveState();
+  C.max = f >= 15 ? 4 : f >= 10 ? 3 : f >= 5 ? 2 : f >= 1 ? 1 : 0; state.mineMax = C.max;
+  if (f >= 1) setTimeout(() => say('The old Sinai Mines have opened up into the Sinai Caverns: a winding cave system with five sections to explore. You can get straight back to the deepest section you reached once you fix its mine-cart station.'), 2400);
+}

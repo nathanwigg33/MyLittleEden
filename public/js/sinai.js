@@ -122,78 +122,12 @@ const ORES = {   // node type: hit points (by size: ore rocks are rock-sized, ge
 };
 const MINE_ITEMS = { ore_coal: ['Coal', 15], ore_copper: ['Copper Ore', 20], ore_iron: ['Iron Ore', 35], ore_silver: ['Silver Ore', 60], ore_gold: ['Gold Ore', 110],
   ore_amethyst: ['Amethyst', 120], ore_emerald: ['Emerald', 200], ore_ruby: ['Ruby', 260], ore_sapphire: ['Sapphire', 320] };
-function mineItems() { const o = {}; for (const k in MINE_ITEMS) { const [n, price] = MINE_ITEMS[k]; o[k] = { n, icon: k, price, d: `Found in the Sinai Mines. Sells for ₪${price}.` } } return o }
-// what you find on each floor (weights)
-function oreMix(f) {
-  const m = { stone: 60, copper: 14, coal: 10 };
-  if (f >= 5) Object.assign(m, { iron: 10 }); if (f >= 10) Object.assign(m, { silver: 7, amethyst: 1.2, copper: 6 });
-  if (f >= 15) Object.assign(m, { gold: 5, emerald: 1, coal: 6 }); if (f >= 20) Object.assign(m, { gold: 7, ruby: .8, sapphire: .6, copper: 2 });
-  return m;
-}
-const MINE = { floor: 1, spawn: [32, 20] };
-function genMine(f) {
-  const R = mulberry(f * 7919 + (state.totalDay || 1) * 13), ri = (a, b) => a + Math.floor(R() * (b - a + 1));
-  const g = World.ground = new Uint8Array(W * H).fill(WATER), o = World.objs = new Array(W * H).fill(null); World.soil = {}; World.pave = null;
-  // a cave: random rock, smoothed into open chambers, keeping the biggest connected one
-  const X0 = 14, X1 = 50, Y0 = 12, Y1 = 42; let cell = [];
-  for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) cell[idx(x, y)] = R() < .42 ? 1 : 0;   // 1 = rock
-  for (let it = 0; it < 4; it++) { const nx = []; for (let y = Y0; y <= Y1; y++) for (let x = X0; x <= X1; x++) { let n = 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const xx = x + dx, yy = y + dy; n += xx < X0 || xx > X1 || yy < Y0 || yy > Y1 ? 1 : cell[idx(xx, yy)] } nx[idx(x, y)] = n >= 5 ? 1 : 0 } cell = nx }
-  const S = [32, 18]; for (let y = S[1] - 2; y <= S[1] + 2; y++) for (let x = S[0] - 2; x <= S[0] + 2; x++) cell[idx(x, y)] = 0;
-  const seen = new Set([idx(S[0], S[1])]), q = [[S[0], S[1]]];
-  while (q.length) { const [x, y] = q.pop(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const xx = x + dx, yy = y + dy, i = idx(xx, yy); if (xx < X0 || xx > X1 || yy < Y0 || yy > Y1 || seen.has(i) || cell[i]) continue; seen.add(i); q.push([xx, yy]) } }
-  for (const i of seen) g[i] = DIRT;
-  // the ladder you came down, then rocks and ore everywhere else
-  o[idx(S[0], S[1] - 1)] = { t: 'ladder_up' }; MINE.spawn = [S[0] + .5, S[1] + .7];
-  const mix = oreMix(f), tot = Object.values(mix).reduce((a, b) => a + b, 0), pickOre = () => { let r = R() * tot; for (const k in mix) { r -= mix[k]; if (r <= 0) return k } return 'stone' };
-  const spots = [...seen].filter(i => Math.hypot(i % W - S[0], (i / W | 0) - S[1]) > 2.5);
-  const rocks = []; for (const i of spots) if (R() < .17) { const k = pickOre(); o[i] = { t: 'node', k }; rocks.push(i) }
-  // one rock hides the ladder down; pick one well away from where you start
-  rocks.sort((a, b) => Math.hypot(b % W - S[0], (b / W | 0) - S[1]) - Math.hypot(a % W - S[0], (a / W | 0) - S[1]));
-  if (rocks.length) o[rocks[ri(0, Math.min(rocks.length - 1, Math.floor(rocks.length / 3)))]].ladder = 1;
-  // a few things left behind by miners
-  const free = spots.filter(i => !o[i]); for (let k = 0; k < 3 && free.length; k++) { const i = free.splice(ri(0, free.length - 1), 1)[0]; o[i] = { t: k ? 'barrel' : 'minecart' } }
-  MINE.floor = f;
-}
+function mineItems() { const o = {}; for (const k in MINE_ITEMS) { const [n, price] = MINE_ITEMS[k]; o[k] = { n, icon: k, price, d: `Found in the Sinai Caverns. Sells for ₪${price}.` } } return o }
 function nodeDrop(o, cx, cy) {
   const k = o.k; drop(ORES[k].item, k === 'stone' ? ri(1, 2) : 1, cx, cy); if (k !== 'stone' && Math.random() < .5) drop('stone', 1, cx, cy);
   if (k !== 'stone') state.stats.ores = (state.stats.ores || 0) + 1;
-  if (o.ladder) { World.place(Math.floor(cx), Math.floor(cy), { t: 'ladder' }); sfx.pop(); toast('You found a ladder down!') }
 }
 const NODE_CHIP = { stone: '#9a978f', copper: '#d07a3a', coal: '#3a3a44', iron: '#a05a40', silver: '#e8eef6', gold: '#f2c94c', amethyst: '#a960e0', emerald: '#4ad070', ruby: '#e04050', sapphire: '#3aa0e8' };
-async function enterMine() {
-  if (SINAI.entering) return; SINAI.entering = 1;
-  let f = 1; const max = state.mineMax || 1, stops = [1]; for (let k = 5; k <= max; k += 5) stops.push(k);
-  if (stops.length > 1) { const v = await say('The mine shaft goes deep into the mountain. Which floor do you want to go to?', stops.slice(-4).map(n => [`Floor ${n}`, n]).concat([['Not now', 0]])); if (!v) { SINAI.entering = 0; player.y += .6; return } f = v }
-  await goFloor(f); SINAI.entering = 0;
-}
-async function goFloor(f) { state.mineFloor = f; state.mineMax = Math.max(state.mineMax || 1, f); genMine(f); storeMap('mine'); await travel('mine', MINE.spawn[0], MINE.spawn[1], 's') }
-async function mineAction(o) {
-  if (o.t === 'ladder') { sfx.tap(); await goFloor(MINE.floor + 1); if (MINE.floor % 5 === 0) toast(`Floor ${MINE.floor}! You can come straight back here from the mine entrance.`); return }
-  if (o.t === 'ladder_up') { const v = await say(`Floor ${MINE.floor}. Climb back up to Mount Sinai?`, [['Climb up', 1], ['Keep mining', 0]]); if (v) await travel('sinai', 33, 12.7, 's'); return }
-  if (o.t === 'minecart') say('An old minecart, still full of rubble.');
-}
-// cave walls and floor; deeper floors change colour
-function drawMine(g, x0, y0, x1, y1, t) {
-  const f = MINE.floor, band = f < 10 ? 0 : f < 20 ? 1 : 2;
-  const P = [{ floor: ['#4a3628', '#433024', '#53402f'], face: ['#5e4636', '#6e5442', '#3a2a20'], top: '#2a1e17' },
-    { floor: ['#3c4048', '#363a42', '#454a53'], face: ['#555b66', '#666d79', '#30343b'], top: '#1f2228' },
-    { floor: ['#4a2a28', '#432422', '#553230'], face: ['#6a3a32', '#7e4a3e', '#3a1e1a'], top: '#24120f' }][band];
-  g.fillStyle = '#080605'; g.fillRect(x0 * 16, y0 * 16, (x1 - x0 + 1) * 16, (y1 - y0 + 1) * 16);
-  const fl = (x, y) => inb(x, y) && World.ground[idx(x, y)] === DIRT;
-  for (let y = Math.max(0, y0); y <= Math.min(H - 1, y1); y++) for (let x = Math.max(0, x0); x <= Math.min(W - 1, x1); x++) {
-    const X = x * 16, Y = y * 16, h = hash(x, y);
-    if (fl(x, y)) {
-      g.fillStyle = P.floor[h > .7 ? 2 : h > .35 ? 1 : 0]; g.fillRect(X, Y, 16, 16);
-      for (let k = 0; k < 3; k++) { const hh = hash(x * 7 + k, y * 3 - k); g.fillStyle = hh > .5 ? P.floor[2] : P.floor[1]; g.fillRect(X + (hh * 97 % 14 | 0), Y + (hh * 31 % 14 | 0), 2, 1) }
-    } else if (fl(x, y + 1)) {        // a rock wall facing you
-      g.fillStyle = P.face[0]; g.fillRect(X, Y, 16, 16); g.fillStyle = P.face[1]; g.fillRect(X, Y + 2, 16, 2); g.fillRect(X + (h * 9 | 0), Y + 7, 6, 1); g.fillStyle = P.face[2]; g.fillRect(X, Y + 14, 16, 2); g.fillRect(X + (h * 13 | 0), Y + 9, 1, 5);
-      g.fillStyle = P.top; g.fillRect(X, Y, 16, 2);
-    } else if (fl(x - 1, y) || fl(x + 1, y) || fl(x, y - 1) || fl(x + 1, y + 1) || fl(x - 1, y + 1)) {
-      g.fillStyle = P.top; g.fillRect(X, Y, 16, 16); g.fillStyle = P.face[2];
-      if (fl(x - 1, y)) g.fillRect(X, Y, 2, 16); if (fl(x + 1, y)) g.fillRect(X + 14, Y, 2, 16); if (fl(x, y - 1)) g.fillRect(X, Y, 16, 2);
-    }
-  }
-}
 function drawMineObj(g, o, x, y, t) {
   const X = x * 16, Y = y * 16, cx = X + 8, B = Y + 15, ink = '#1a100a';
   if (o.t === 'node') { const s = AT['node_' + o.k][0], sh = o.shake > 0 ? Math.sin(t * 60) * 1.2 : 0; g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(cx, B, 7, 2.5, 0, 0, 7); g.fill(); g.drawImage(s, Math.round(cx - s.width / 2 + sh), B - s.height + 1);
