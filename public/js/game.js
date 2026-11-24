@@ -79,7 +79,7 @@ function faceToward(x, y) { const vx = x + .5 - player.x, vy = y + .5 - player.y
 
 function interactTarget() {
   const [fx, fy] = facingCell(); const cells = [[fx, fy], [Math.floor(player.x), Math.floor(player.y - 1)]];
-  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'stairs_down', 'stairs_up', 'mcart', 'boards', 'bridge_broken', 'chasm', 'cchest', 'crystal', 'oforge', 'oanvil', 'pillar', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate', 'bezstall', 'bezcart'].includes(r.o.t)) return r }
+  for (const [x, y] of cells) { const r = World.owner(x, y); if (r && ['tent', 'sign', 'crate', 'campfire', 'bin', 'cart', 'bld', 'anvil', 'ifurn', 'shell', 'wreck', 'lighthouse', 'ladder', 'ladder_up', 'minecart', 'stairs_down', 'stairs_up', 'mcart', 'boards', 'bridge_broken', 'chasm', 'cchest', 'crystal', 'oforge', 'oanvil', 'pillar', 'ctorch', 'decor', 'bench', 'mach', 'chest2', 'fwell', 'gate', 'bezstall', 'bezcart'].includes(r.o.t)) return r }
   return null;
 }
 async function action() {
@@ -90,7 +90,8 @@ async function action() {
   const vn = villagerNear(); if (vn) { talkTo(vn); return }
   if (boatAction()) return;
   let it = interactTarget(); toolAim = null;
-  if (it && toolWins(it)) { toolAim = { x: it.x, y: it.y }; it = null }   // holding a pickaxe, axe or hoe: knock it loose instead
+  if (it && toolWins(it)) { toolAim = { x: it.x, y: it.y }; it = null }
+  if (it && it.o.t === 'boards' && selItem() && ITEMS[selItem().id].tool === 'axe') it = null;   // holding the axe: swing at the boards   // holding a pickaxe, axe or hoe: knock it loose instead
   if (it) {
     if (await craftInteract(it)) return;
     if (it.o.t === 'bld' || it.o.t === 'anvil') { const k = it.o.k; if (it.o.t === 'anvil') say('Jesse’s outdoor anvil, for big jobs on sunny days. His shop is inside.'); else if (it.o.shop === 'market') openMarket(); else if (k === 'smithy') tryBuildingDoor('smithy'); else if (k === 'inn') tryBuildingDoor('inn'); else if (k === 'synagogue') tryBuildingDoor('synagogue'); else if (k === 'carpenter') tryBuildingDoor('carpenter'); else if (k === 'farmhouse') { const v = await say('Your farmhouse. Go to sleep for the night?', [['Sleep', 1], ['Not yet', 0]]); if (v) goSleep() } else if (k === 'coop' || k === 'barn') say(`Your new ${k} smells of fresh timber. It’s ready for animals, which are coming soon!`); else if (k === 'well') say('The old town well. The water is cool and clear.'); else say(pick(['A villager’s home. Nobody answers when you knock.', 'A villager’s home. It looks like nobody is in right now.', 'Someone’s home. You hear a pot bubbling inside, but nobody comes to the door.'])); return }
@@ -113,6 +114,7 @@ async function action() {
   if (item && item.food) { eat(state.sel); return }
   if (item && item.place) { placeDecor(state.sel); return }
   if (item && (item.put || item.fert || item.rope)) { useCraftItem(state.sel); return }
+  if (item && item.cavetorch) { placeCaveTorch(state.sel); return }
   if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
   if (tool === 'rod') { startFishing(); return }
@@ -299,6 +301,7 @@ function renderMenu(tab) {
     b.innerHTML = h;
     b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i; sfx.tap(); if (bagSel === null || bagSel === i) { bagSel = bagSel === i ? null : i } else { const t = state.inv[i]; state.inv[i] = state.inv[bagSel]; state.inv[bagSel] = t; bagSel = null } renderMenu('bag') });
   } else if (tab === 'people') { peopleTab(b);
+  } else if (tab === 'book') { collectionTab(b);
   } else if (tab === 'map') { mapTab(b);
   } else if (tab === 'farm') {
     b.innerHTML = `<div class="farmcard"><canvas id="mPort" width="128" height="128"></canvas><div><div class="big">${esc(state.look.name)}</div><div class="muted">${esc(state.look.farm)}</div><div class="kv"><span>Day</span><b>${weekday()}, ${SEASONS[state.season]} ${state.day}, Year ${state.year}</b></div><div class="kv"><span>Shekels</span><b>${state.money.toLocaleString()}</b></div><div class="kv"><span>Trees felled</span><b>${state.stats.chopped}</b></div><div class="kv"><span>Rocks broken</span><b>${state.stats.rocks}</b></div><div class="kv"><span>Weeds cleared</span><b>${state.stats.weeds}</b></div><div class="kv"><span>Shekels earned</span><b>${state.stats.earned || 0}</b></div></div></div>`;
@@ -524,7 +527,7 @@ function render() {
   ctx.drawImage(buf2, -ox, -oy, bw * SC, bh * SC);
   for (const q of signsFront) drawSign(ctx, q[0], q[1], q[2], cxf, cyf);
   // light & night
-  let [dark, warm] = dayLight(); if (isInside()) { dark *= .55; warm = Math.max(warm, .35) } if (World.cur === 'mine') { dark = .78; warm = .2 }
+  let [dark, warm] = dayLight(); if (isInside()) { dark *= .55; warm = Math.max(warm, .35) } if (World.cur === 'mine') { dark = .95; warm = .15 }
   if (warm > 0) { ctx.fillStyle = `rgba(255,150,60,${.16 * warm})`; ctx.fillRect(0, 0, cv.width, cv.height) }
   if (dark > 0) {
     lx.globalCompositeOperation = 'source-over'; lx.clearRect(0, 0, bw, bh); lx.fillStyle = World.cur === 'mine' ? `rgba(10,6,4,${dark})` : `rgba(14,18,52,${dark})`; lx.fillRect(0, 0, bw, bh);
@@ -532,7 +535,7 @@ function render() {
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
     for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && World.cur === 'mine') caveLight(o, x, y, lamp); if (o && o.t === 'bezstall' && (bezOpen() || state.time >= 18 * 60)) lamp(x + .5, y - 1.6, 70, .95); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
-    if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 120 : 34, World.cur === 'mine' ? .97 : .55);
+    if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 58 : 34, World.cur === 'mine' ? .9 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3 && World.cur !== 'mine') { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
   }

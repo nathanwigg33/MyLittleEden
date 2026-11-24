@@ -44,6 +44,7 @@ const CAVES = [null,
 ];
 const caveState = () => (state.caves = state.caves || { max: 0, carts: { 1: 1 }, short: {}, fixed: {}, loot: {}, seen: {} });
 const OB_FIX = { bridge: { need: { wood: 15 }, msg: 'You lay new planks across the river.' }, chasm: { need: { fiber: 25, wood: 10 }, msg: 'You lash a rope bridge across the chasm.' } };
+const needList = need => Object.entries(need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()} (you have ${count(k)})`).join(', ');
 const cartFix = sec => ({ wood: 20, stone: 15, [CAVES[sec].fix.bar]: 1 });
 
 // ---------- building a section (same layout every game; rocks are new each day) ----------
@@ -83,6 +84,7 @@ function genCave(sec) {
   for (const [x, y] of S.forges || []) put(x, y, { t: 'oforge' });
   for (const [x, y] of S.anvils || []) put(x, y, { t: 'oanvil' });
   for (const [x, y] of S.pillars || []) put(x, y, { t: 'pillar' });
+  for (const i of (C.torches || {})[sec] || []) if (g[i] === DIRT && !o[i]) { o[i] = { t: 'ctorch' }; reserved.add(i) }
   // obstacles, placed across their tunnel
   S.links.forEach((L, li) => {
     if (!L.ob) return; const id = `${sec}:${li}`, pts = along(linePts(L, S), .25);
@@ -119,6 +121,7 @@ async function goSection(sec, how) {
   await travel('mine', at[0], at[1], 's');
   if (first && sec > 1) setTimeout(() => toast(`You found the ${S.n}!`), 900);
   if (first && sec === 1) setTimeout(() => say('The Sinai Caverns. Tunnels wind off in every direction. The old mine cart here still runs on its rails: repair the stations you find deeper down, and you can ride straight back.'), 900);
+  if (!C.starter) { C.starter = 1; setTimeout(() => { addItem('cavetorch', 10); note('cavetorch', 10); say('It’s dark down here. Someone left a bundle of torches by the ladder. Place them to light your way: they stay lit even after you leave. You can make more at your workbench.') }, first ? 4200 : 900) }
 }
 const caveName = () => `Sinai Caverns · ${CAVES[CAVE.sec].n}`;
 async function caveAction(r) {
@@ -129,9 +132,8 @@ async function caveAction(r) {
     case 'stairs_down': { sfx.tap(); await goSection(sec + 1, 'up'); return true }
     case 'mcart': {
       if (!o.ok) {
-        const need = cartFix(sec), list = Object.entries(need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()}`).join(', ');
-        const has = Object.entries(need).every(([k, n]) => count(k) >= n);
-        const v = await say(`A mine-cart station, but the rails are broken. Fixing it takes ${list}. Then you can ride between stations.`, has ? [['Fix it', 1], ['Not now', 0]] : [['OK', 0]]);
+        const need = cartFix(sec), has = Object.entries(need).every(([k, n]) => count(k) >= n);
+        const v = await say(`A mine-cart station, but the rails are broken. Fixing it takes ${needList(need)}. ${has ? 'You have everything!' : 'Bring the rest and tap it again.'} Then you can ride between stations.`, has ? [['Fix it', 1], ['Not now', 0]] : [['OK', 0]]);
         if (v) { for (const [k, n] of Object.entries(need)) takeItem(k, n); o.ok = 1; C.carts[sec] = 1; sfx.chop(); setTimeout(() => sfx.pick(), 200); toast('The station is working! Ride it from any other station.'); updateHUD(); save() }
         return true;
       }
@@ -142,16 +144,15 @@ async function caveAction(r) {
     }
     case 'boards': say(boardsSide(o) ? 'Old boards, nailed shut from this side. Your axe would knock them out.' : 'The passage is boarded up from the other side.'); return true;
     case 'bridge_broken': case 'chasm': {
-      const F = OB_FIX[o.t === 'chasm' ? 'chasm' : 'bridge'], list = Object.entries(F.need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()}`).join(' and ');
-      const has = Object.entries(F.need).every(([k, n]) => count(k) >= n);
-      const v = await say(o.t === 'chasm' ? `A deep chasm cuts across the tunnel. You could build a rope bridge with ${list}.` : `The old bridge has rotted away. You could lay new planks with ${list}.`, has ? [['Build it', 1], ['Not now', 0]] : [['OK', 0]]);
+      const F = OB_FIX[o.t === 'chasm' ? 'chasm' : 'bridge'], list = needList(F.need), has = Object.entries(F.need).every(([k, n]) => count(k) >= n);
+      const v = await say((o.t === 'chasm' ? `A deep chasm cuts across the tunnel. A rope bridge takes ${list}.` : `The old bridge has rotted away. New planks take ${list}.`) + (has ? ' You have everything!' : ' Bring the rest and tap it again.'), has ? [['Build it', 1], ['Not now', 0]] : [['OK', 0]]);
       if (v) { for (const [k, n] of Object.entries(F.need)) takeItem(k, n); C.fixed[o.ob] = 1; fixObstacle(o.ob, o.t); sfx.chop(); toast(F.msg); updateHUD(); save() }
       return true;
     }
     case 'cchest': {
       if (o.open) { say('Empty. Someone found this already: you!'); return true }
       const L = S.loot[o.id.slice(1)] || []; o.open = 1; C.loot[o.id] = 1; sfx.pop(); tone(660, .1, 'triangle', .04); tone(880, .14, 'triangle', .04, .1);
-      for (const [k, n] of L) { if (k === 'money') { state.money += n; toast(`+₪${n}`) } else { addItem(k, n); note(k, n) } }
+      for (const [k, n] of L) { if (k === 'money') { state.money += n; toast(`+₪${n}`) } else { addItem(k, n); note(k, n); if (k.startsWith('relic_')) foundRelic(k.slice(6)) } }
       if (o.big) setTimeout(() => say('At the very bottom of the caverns, an old chest wrapped in linen. Whoever hid it here long ago left it for someone patient enough to find it.'), 600);
       updateHUD(); save(); return true;
     }
@@ -160,6 +161,7 @@ async function caveAction(r) {
     case 'oanvil': say('An old anvil, worn smooth by hammers long ago.'); return true;
     case 'pillar': toast('A huge carved pillar holds up the ceiling.'); return true;
     case 'minecart': say('An old minecart, still full of rubble.'); return true;
+    case 'ctorch': { if (!roomFor('cavetorch')) { toast('Your bag is full.'); sfx.no(); return true } World.place(r.x, r.y, null); setTorch(sec, idx(r.x, r.y), false); addItem('cavetorch', 1); sfx.pick(); updateHUD(); return true }
   }
   return false;
 }
@@ -262,6 +264,7 @@ function drawCaveObj(g, o, x, y, t) {
       R(ink, -1, -12, 18, 28); R(ST[1], 0, -11, 16, 26); for (const [yy, off] of [[-11, 0], [-5, 4], [1, 0], [7, 4]]) { R(ST[2], 0, yy, 16, 1); for (let xx = 2 + off; xx < 15; xx += 8) R(ST[0], xx, yy + 1, 1, 5) }
       R(ink, 3, 3, 10, 9); R('#1a0a06', 4, 4, 8, 8); R(`rgba(255,${110 + Math.sin(t * 3 + x) * 30 | 0},40,.55)`, 5, 9, 6, 3); R(ink, 5, -16, 6, 5); R(ST[0], 6, -15, 4, 4); break;
     case 'oanvil': R(ink, 3, 9, 10, 7); R(WD[0], 4, 10, 8, 6); R(ink, 0, 3, 16, 7); R('#4a4a54', 1, 4, 14, 4); R('#8a8a96', 1, 4, 14, 1); R(ink, 4, 7, 7, 3); break;
+    case 'ctorch': drawCaveTorch(g, x, y, t); break;
     case 'pillar':
       R('rgba(0,0,0,.3)', -2, 13, 20, 3); R(ink, 1, -26, 14, 42); R(ST[2], 2, -25, 12, 40); R(ST[3], 3, -25, 2, 40); R(ST[1], 11, -25, 2, 40);
       R(ink, -1, -29, 18, 5); R(ST[3], 0, -28, 16, 3); R(ink, -1, 11, 18, 5); R(ST[2], 0, 12, 16, 3); for (const yy of [-16, -4]) R(ST[1], 2, yy, 12, 1); break;
@@ -271,6 +274,7 @@ function drawCaveObj(g, o, x, y, t) {
 function caveLight(o, x, y, lamp) {
   if (o.t === 'crystal') lamp(x + .5, y + .2, 44, .7); else if (o.t === 'mcart' && o.ok) lamp(x + 1.6, y - .7, 40, .75); else if (o.t === 'oforge') lamp(x + .5, y + .5, 30, .5);
   else if (o.t === 'stairs_up' || o.t === 'ladder_up') lamp(x + .5, y - .5, 50, .7);
+  else if (o.t === 'ctorch') lamp(x + .5, y + .1, 78, .96);
 }
 
 // ---------- the cave map (fills in as you explore) ----------
@@ -289,7 +293,7 @@ function caveMapTab(b) {
   g.fillStyle = '#0c0a08'; g.fillRect(0, 0, c.width, c.height);
   for (let i = 0; i < W * H; i++) { if (!seen[i]) continue; const x = i % W, y = (i / W) | 0;
     g.fillStyle = river.has(i) ? '#24587e' : ground[i] === DIRT ? pal.floor[2] : pal.top; g.fillRect(x * 4, y * 4, 4, 4);
-    const o = objs[i]; if (o && ground[i] === DIRT) { const col = { rubble: '#9a948a', boards: '#b8784a', chasm: '#000', rbridge: '#c8a060', crystal: '#b88aff', pillar: '#b4ac9f' }[o.t]; if (col) { g.fillStyle = col; g.fillRect(x * 4, y * 4, 4, 4) } } }
+    const o = objs[i]; if (o && ground[i] === DIRT) { const col = { ctorch: '#ffb030', rubble: '#9a948a', boards: '#b8784a', chasm: '#000', rbridge: '#c8a060', crystal: '#b88aff', pillar: '#b4ac9f' }[o.t]; if (col) { g.fillStyle = col; g.fillRect(x * 4, y * 4, 4, 4) } } }
   const inner = b.querySelector('.mapinner'); inner.appendChild(c);
   const pos = (x, y) => `left:${x / W * 100}%;top:${y / H * 100}%`, lab = (html, x, y, cls = 'sm') => inner.insertAdjacentHTML('beforeend', `<div class="mlab ${cls}" style="${pos(x, y)}">${html}</div>`);
   const seenAt = (x, y) => seen[idx(x, y)];
@@ -313,38 +317,42 @@ function migrateCaves() {
 Object.assign(FISH, {
   loach: { n: 'Cave Loach', price: 45, diff: 2, where: ['cave'], w: 10, lb: [.1, .5] },
   cavefish: { n: 'Blind Cavefish', price: 72, diff: 2, where: ['cave'], w: 7, lb: [.2, 1.2] },
-  glowfin: { n: 'Glowfin', price: 140, diff: 3, where: ['cave'], w: 4, lb: [.5, 3] },
-  ghosteel: { n: 'Ghost Eel', price: 260, diff: 4, where: ['cave'], w: 1.6, lb: [2, 9] },
+  glowfin: { n: 'Glowfin', price: 140, diff: 3, where: ['cave'], w: 2.5, lb: [.5, 3] },
+  ghosteel: { n: 'Ghost Eel', price: 260, diff: 4, where: ['cave'], w: 1, night: true, lb: [2, 9] },
 });
+// a legendary fish for the farm pond: only in spring, and very rare
+FISH.goldcarp = { n: 'Golden Carp', price: 600, diff: 5, where: ['pond'], w: .3, seasons: [0], lb: [4, 22] };
 WHERE.cave = 'the underground river in the Sinai Caverns'; FISH.sandal.where.push('cave');
 
 // ---------- ancient relics: rare finds in the caverns, for the church treasury ----------
+// r: how often it turns up (higher = more common)
 const RELICS = {
-  shard: { n: 'Pottery Shard', sec: 1, price: 40, d: 'A piece of a painted clay jar, thousands of years old.' },
-  oillamp: { n: 'Clay Oil Lamp', sec: 1, price: 80, d: 'A small clay lamp. “Your word is a lamp to my feet.”' },
-  mite: { n: 'Bronze Coin', sec: 1, price: 60, d: 'A tiny bronze coin, like the widow’s two mites.' },
-  jarhandle: { n: 'Stamped Jar Handle', sec: 2, price: 100, d: 'A jar handle pressed with an old royal seal.' },
-  seal: { n: 'Stone Seal', sec: 2, price: 150, d: 'A carved stone seal once used to sign letters in clay.' },
-  hook: { n: 'Bronze Fishhook', sec: 2, price: 90, d: 'An ancient fishhook. Some things never change.' },
-  scroll: { n: 'Scroll Fragment', sec: 3, price: 250, d: 'A scrap of parchment covered in faded writing.' },
-  shofar: { n: 'Ram’s Horn', sec: 3, price: 220, d: 'An old shofar, a trumpet made from a ram’s horn.' },
-  shekel: { n: 'Silver Shekel', sec: 4, price: 300, d: 'A silver coin, heavy and still bright.' },
-  bell: { n: 'Golden Bell', sec: 4, price: 400, d: 'A little golden bell, like those sewn on the hem of a priest’s robe.' },
-  onyx: { n: 'Engraved Onyx', sec: 5, price: 500, d: 'A black onyx stone engraved with names, set in gold.' },
-  tablet: { n: 'Stone Tablet Fragment', sec: 5, price: 800, d: 'A broken piece of a stone tablet, found deep beneath Mount Sinai.' },
+  shard: { n: 'Pottery Shard', sec: 1, r: 3, price: 40, d: 'A piece of a painted clay jar, thousands of years old.' },
+  oillamp: { n: 'Clay Oil Lamp', sec: 1, r: 2, price: 80, d: 'A small clay lamp. “Your word is a lamp to my feet.”' },
+  mite: { n: 'Bronze Coin', sec: 1, r: 3, price: 60, d: 'A tiny bronze coin, like the widow’s two mites.' },
+  jarhandle: { n: 'Stamped Jar Handle', sec: 2, r: 3, price: 100, d: 'A jar handle pressed with an old royal seal.' },
+  seal: { n: 'Stone Seal', sec: 2, r: 1, price: 150, d: 'A carved stone seal once used to sign letters in clay.' },
+  hook: { n: 'Bronze Fishhook', sec: 2, r: 2, price: 90, d: 'An ancient fishhook. Some things never change.' },
+  scroll: { n: 'Scroll Fragment', sec: 3, r: 1, price: 250, d: 'A scrap of parchment covered in faded writing.' },
+  shofar: { n: 'Ram’s Horn', sec: 3, r: 2, price: 220, d: 'An old shofar, a trumpet made from a ram’s horn.' },
+  shekel: { n: 'Silver Shekel', sec: 4, r: 2, price: 300, d: 'A silver coin, heavy and still bright.' },
+  bell: { n: 'Golden Bell', sec: 4, r: 1, price: 400, d: 'A little golden bell, like those sewn on the hem of a priest’s robe.' },
+  onyx: { n: 'Engraved Onyx', sec: 5, r: 1, price: 500, d: 'A black onyx stone engraved with names, set in gold.' },
+  tablet: { n: 'Stone Tablet Fragment', sec: 5, r: .3, price: 800, d: 'A broken piece of a stone tablet, found deep beneath Mount Sinai.' },
 };
 const RELIC_REWARDS = [[3, 'money', 500], [6, 'decor_relicase', 1], [9, 'money', 2000], [12, 'decor_stainedglass', 1]];
 function relicItems() { const o = {}; for (const k in RELICS) o['relic_' + k] = { n: RELICS[k].n, icon: 'relic_' + k, price: RELICS[k].price, relic: k, d: RELICS[k].d + ' Elder Simeon would love to see this.' }; return o }
-const relicState = () => (state.relics = state.relics || { given: {}, rewards: {} });
+const relicState = () => { const r = state.relics = state.relics || { given: {}, rewards: {} }; r.found = r.found || Object.assign({}, r.given); return r };
+const foundRelic = k => { relicState().found[k] = 1 };
 // chests hold one too
 CAVES[1].loot.a.push(['relic_oillamp', 1]); CAVES[2].loot.a.push(['relic_seal', 1]); CAVES[3].loot.a.push(['relic_scroll', 1]);
 CAVES[4].loot.a.push(['relic_bell', 1]); CAVES[5].loot.final.push(['relic_tablet', 1]);
 // breaking rocks in the caverns now and then turns up a relic from this section or one above it
 function maybeRelic(o, cx, cy) {
-  if (World.cur !== 'mine' || Math.random() > (o.k === 'stone' ? .008 : .022)) return;
-  const R = relicState(), pool = Object.keys(RELICS).filter(k => RELICS[k].sec <= CAVE.sec).map(k => [k, (RELICS[k].sec === CAVE.sec ? 3 : 1) * (R.given[k] ? 1 : 2)]);
+  if (World.cur !== 'mine' || Math.random() > (o.k === 'stone' ? .006 : .016)) return;
+  const R = relicState(), pool = Object.keys(RELICS).filter(k => RELICS[k].sec <= CAVE.sec).map(k => [k, RELICS[k].r * (RELICS[k].sec === CAVE.sec ? 2 : 1)]);
   let r = Math.random() * pool.reduce((a, p) => a + p[1], 0); let k = pool[0][0]; for (const [q, w] of pool) { r -= w; if (r <= 0) { k = q; break } }
-  drop('relic_' + k, 1, cx, cy); toast('Something old glints in the rubble…'); tone(523, .08, 'triangle', .04); tone(784, .12, 'triangle', .04, .09);
+  drop('relic_' + k, 1, cx, cy); foundRelic(k); toast('Something old glints in the rubble…'); tone(523, .08, 'triangle', .04); tone(784, .12, 'triangle', .04, .09);
 }
 const newRelics = () => state.inv.filter(s => s && ITEMS[s.id].relic && !relicState().given[ITEMS[s.id].relic]);
 function donateRelics() {
@@ -407,6 +415,9 @@ function caveIcons() {
   mk('fish_loach', R => { fish(R, '#a07858', '#d8b898', '#7a5438', I, 1); for (const x of [4, 7, 10]) R('#7a5438', x, 7, 1, 1) });
   mk('fish_cavefish', R => fish(R, '#f0c0c8', '#fbe0e4', '#e0a0aa', null, 0));
   mk('fish_glowfin', R => { fish(R, '#2a3a7a', '#3a5aa0', '#4af0f0', '#ffffff', 0); for (const [x, y] of [[5, 7], [8, 8], [10, 7]]) R('#7affff', x, y, 1, 1) });
+  { const c = mkc(16, 16), g = c.getContext('2d'), s = AT.fish_carp[0]; g.drawImage(s, Math.round(8 - s.width / 2), Math.round(8 - s.height / 2));
+    g.globalCompositeOperation = 'source-atop'; g.fillStyle = 'rgba(240,190,40,.75)'; g.fillRect(0, 0, 16, 16); g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#fff6c0'; g.fillRect(6, 6, 2, 1); g.fillRect(9, 7, 1, 1); AT.fish_goldcarp = [c] }
   mk('fish_ghosteel', R => { fish(R, '#e8eef4', '#ffffff', '#c8d4e0', '#6a7a8a', 1); R('rgba(160,200,230,.6)', 3, 8, 9, 1) });
   const r = {
     shard: R => { R(I, 3, 4, 10, 9); R('#b8582e', 4, 5, 8, 7); R('#e08a52', 4, 5, 3, 2); R('#2a1e18', 4, 8, 8, 1); R(I, 9, 11, 4, 2); R(I, 3, 12, 3, 1) },
@@ -434,4 +445,59 @@ function drawTreasury(g, o, X, Y, B, w, t) {
   const given = Object.keys(relicState().given); given.slice(0, 12).forEach((k, i) => { const s = AT['relic_' + k] && AT['relic_' + k][0]; if (s) g.drawImage(s, X + 2 + (i % 6) * 7.5 + (Math.floor(i / 6) ? 3 : 0), Y - 7 + Math.floor(i / 6) * 5, 8, 8) });
   if (!given.length) { g.fillStyle = 'rgba(90,60,30,.6)'; g.font = '700 5px Nunito, sans-serif'; g.fillText('Treasury', X + 14, Y + 3) }
   return true;
+}
+
+// ---------- cave torches: cheap to make, and they stay where you put them ----------
+function setTorch(sec, i, on) { const C = caveState(), T = (C.torches = C.torches || {}), L = T[sec] = T[sec] || []; const k = L.indexOf(i); if (on && k < 0) L.push(i); if (!on && k >= 0) L.splice(k, 1); save() }
+function placeCaveTorch(slot) {
+  if (World.cur !== 'mine') { toast('Cave torches are for lighting the Sinai Caverns.'); sfx.no(); return }
+  const [x, y] = facingCell(), i = idx(x, y);
+  if (!inb(x, y) || World.ground[i] !== DIRT || World.objs[i]) { toast('Face an open spot on the cave floor.'); sfx.no(); return }
+  World.objs[i] = { t: 'ctorch' }; setTorch(CAVE.sec, i, true);
+  const s = state.inv[slot]; s.n--; if (s.n <= 0) state.inv[slot] = null; sfx.plant(); tone(330, .08, 'triangle', .03); updateHUD();
+}
+function drawCaveTorch(g, x, y, t) {
+  const X = x * 16, Y = y * 16, R = (c, a, b, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(X + a, Y + b, w, h) };
+  g.fillStyle = 'rgba(0,0,0,.3)'; g.beginPath(); g.ellipse(X + 8, Y + 15, 3, 1.2, 0, 0, 7); g.fill();
+  R('#1a100a', 6, 2, 4, 14); R('#8a5232', 7, 3, 2, 12); R('#b8784a', 7, 3, 1, 12);
+  R('#1a100a', 5, 0, 6, 4); R('#c8a878', 6, 1, 4, 2); R('#8a6a4a', 6, 2, 4, 1);
+  const f = Math.floor(t * 10 + x * 3) % 3, h = 5 + f;
+  R('#e8402a', 6, 1 - h, 4, h); R('#ff9a30', 6, 3 - h, 4, h - 2); R('#ffe27a', 7, 4 - h, 2, h - 3); R('#fff8d8', 7, 0, 2, 1);
+  if (f === 1) R('#ffb030', 9, -h - 1, 1, 1);
+}
+
+// ---------- the collection book: every fish and relic, with how rare each one is ----------
+let bookTab = 'fish';
+const FISH_PLACES = [['pond', 'Farm Pond'], ['river', 'Jordan River'], ['shore', 'Galilee Bay Shore'], ['offshore', 'Open Sea'], ['sea', 'Deep Sea'], ['cave', 'Underground River']];
+const RARITY = [['Common', 'c'], ['Uncommon', 'u'], ['Rare', 'r'], ['Legendary', 'l']];
+function fishRarity(k) {
+  const d = FISH[k], pool = Object.keys(FISH).filter(q => !FISH[q].junk && FISH[q].where.includes(d.where[0])), tot = pool.reduce((a, q) => a + FISH[q].w, 0);
+  let s = d.w / tot; if (d.night) s /= 2; if (d.seasons) s *= d.seasons.length / 4;
+  return RARITY[s >= .2 ? 0 : s >= .1 ? 1 : s >= .035 ? 2 : 3];
+}
+const relicRarity = k => RARITY[RELICS[k].r >= 3 ? 0 : RELICS[k].r >= 2 ? 1 : RELICS[k].r >= 1 ? 2 : 3];
+function collectionTab(b) {
+  const log = state.fishLog || {}, cnt = state.fishCount || {}, R = relicState();
+  const fishKeys = Object.keys(FISH).filter(k => !FISH[k].junk), nf = fishKeys.filter(k => log[k] !== undefined).length, nr = Object.keys(R.found).length;
+  let h = `<div class="stabs"><button class="stab ${bookTab === 'fish' ? 'on' : ''}" data-bt="fish">Fish <small>${nf}/${fishKeys.length}</small></button><button class="stab ${bookTab === 'relics' ? 'on' : ''}" data-bt="relics">Relics <small>${nr}/12</small></button></div>`;
+  if (bookTab === 'fish') {
+    for (const [w, name] of FISH_PLACES) {
+      const ks = fishKeys.filter(k => FISH[k].where[0] === w); if (!ks.length) continue;
+      h += `<div class="h3 csub">${name}</div><div class="bookgrid">`;
+      for (const k of ks) { const d = FISH[k], got = log[k] !== undefined, [rn, rc] = fishRarity(k);
+        const when = [d.night ? 'Night only' : '', d.seasons ? d.seasons.map(s => SEASONS[s]).join(' & ') + ' only' : ''].filter(Boolean).join(' · ');
+        h += `<div class="bk ${got ? 'got' : ''}"><img class="${got ? '' : 'sil'}" src="${iconURL('fish_' + k)}"><b>${got ? d.n : '???'}</b><i class="rar ${rc}">${rn}</i>
+          <small>${got ? `Caught ${cnt[k] || 1} · Biggest ${log[k]} lb` : when || 'Not caught yet'}</small></div>` }
+      h += '</div>';
+    }
+  } else {
+    for (let s = 1; s <= 5; s++) {
+      h += `<div class="h3 csub">${CAVES[s].n}</div><div class="bookgrid">`;
+      for (const k of Object.keys(RELICS).filter(q => RELICS[q].sec === s)) { const r = RELICS[k], got = R.found[k], [rn, rc] = relicRarity(k);
+        h += `<div class="bk ${got ? 'got' : ''}"><img class="${got ? '' : 'sil'}" src="${iconURL('relic_' + k)}"><b>${got ? r.n : '???'}</b><i class="rar ${rc}">${rn}</i>
+          <small>${R.given[k] ? 'In the church treasury' : got ? 'Found! Give it to Elder Simeon' : (s > (caveState().max || 0) ? 'Somewhere deeper in the caverns' : 'Not found yet')}</small></div>` }
+      h += '</div>';
+    }
+  }
+  b.innerHTML = h; b.querySelectorAll('[data-bt]').forEach(el => el.onclick = () => { bookTab = el.dataset.bt; sfx.tap(); collectionTab(b); b.scrollTop = 0 });
 }

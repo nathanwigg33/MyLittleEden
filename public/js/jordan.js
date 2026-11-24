@@ -293,6 +293,7 @@ function catchIt() {
   f.lb = d.lb ? Math.round(rnd(d.lb[0], d.lb[1]) * (d.lb[1] < 1 ? 100 : 10)) / (d.lb[1] < 1 ? 100 : 10) : 0;
   const left = addItem('fish_' + k, 1); if (left) drop('fish_' + k, 1, player.x, player.y + .4);
   state.stats.fish = (state.stats.fish || 0) + 1; const log = state.fishLog = state.fishLog || {};
+  const cnt = state.fishCount = state.fishCount || {}; if (!d.junk) cnt[k] = (cnt[k] || 0) + 1;
   f.first = !d.junk && !log[k]; f.record = !d.junk && !f.first && f.lb > log[k]; if (!d.junk) log[k] = Math.max(log[k] || 0, f.lb);
 }
 // the catch window: picture, name, weight and price

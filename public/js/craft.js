@@ -64,6 +64,7 @@ function craftItems() {
     linen: { n: 'Linen Cloth', icon: 'ic_linen', price: 260, d: 'Fine cloth woven from flax.' },
     fert1: { n: 'Fertilizer', icon: 'ic_fert1', fert: 1, price: 2, d: 'Spread it on tilled soil. Crops there grow about a third faster. Lasts until harvest.' },
     fert2: { n: 'Rich Compost', icon: 'ic_fert2', fert: 2, price: 5, d: 'Spread it on tilled soil. Crops there grow about half again as fast. Lasts until harvest.' },
+    cavetorch: { n: 'Cave Torch', icon: 'ic_cavetorch', cavetorch: 1, price: 2, d: 'Place it on the cave floor to light up the Sinai Caverns. Torches stay lit even after you leave. Tap one to pick it back up.' },
     ropeladder: { n: 'Rope Ladder', icon: 'ic_ropeladder', rope: 1, price: 10, d: 'Use it anywhere in the Sinai Caverns to climb straight back out to Mount Sinai.' },
     workbench: { n: 'Workbench', icon: 'ic_workbench', put: { t: 'bench' }, d: 'Your crafting workbench. Place it anywhere on your farm.' },
     chest: { n: 'Chest', icon: 'chest', put: { t: 'chest2' }, d: 'Extra storage. Place it, then tap it to put things in.' },
@@ -114,6 +115,7 @@ const RECIPES = [
   { id: 'cabsoup', cat: 'food', sub: 'Meals', n: 1, need: { cabbage: 1, turnip: 1 }, un: ['harvest', 35] },
   { id: 'honeycake', cat: 'food', sub: 'Meals', n: 1, need: { flour: 2, honey: 1 }, un: ['heart', 'miriam', 3] },
   { id: 'loaves', cat: 'food', sub: 'Meals', n: 1, need: { bread: 5, any_fish: 2 }, un: ['fish', 25] },
+  { id: 'cavetorch', cat: 'food', sub: 'Supplies', n: 5, need: { wood: 1, fiber: 1 }, un: ['start'] },
   { id: 'bait', cat: 'food', sub: 'Supplies', n: 10, need: { fiber: 6 }, un: ['fish', 3] },
   { id: 'ropeladder', cat: 'food', sub: 'Supplies', n: 1, need: { fiber: 30, wood: 10 }, un: ['mine', 2] },
   // build
@@ -652,6 +654,7 @@ function craftIcons() {
   const big = (key, f) => { const c = mkc(40, 48), g = c.getContext('2d'); f(g); AT[key] = [trimCanvas(c)] };
   for (const k in MACH) big('mach_' + k, g => drawMach(g, k, 20, 47, 0, null));
   big('ic_workbench', g => drawWorkbench(g, 20, 47, 0));
+  big('ic_cavetorch', g => drawCaveTorch(g, 1, 1.6, .1));
   for (const k in CDECOR) big('decor_' + k, g => drawCraftDecor(g, k, 20, 47, 0));
   // preserves jars, juice and smoked fish: one icon per crop or fish
   const avg = s => { const d = s.getContext ? s.getContext('2d').getImageData(0, 0, s.width, s.height).data : null; if (!d) return '#c04a6a'; let r = 0, gg = 0, b = 0, n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] + d[i + 1] + d[i + 2] > 120) { r += d[i]; gg += d[i + 1]; b += d[i + 2]; n++ } return n ? `rgb(${r / n | 0},${gg / n | 0},${b / n | 0})` : '#c04a6a' };
