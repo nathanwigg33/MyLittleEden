@@ -315,3 +315,17 @@ button{font:inherit;cursor:pointer}
 .shoprow.slock{background:#ecdcc0}.slock img{filter:grayscale(1);opacity:.45}.slock b{color:#8a7a68}.slock .muted{color:#7a5a3a}
 .slock .lk{display:block;width:16px;height:20px;position:relative}.slock .lk:before{content:'';position:absolute;left:3px;top:0;width:6px;height:7px;border:3px solid #7a5a3a;border-bottom:0;border-radius:6px 6px 0 0}.slock .lk:after{content:'';position:absolute;left:0;top:8px;width:16px;height:11px;background:#7a5a3a;border-radius:2px}
 .muted.soon{margin:8px 2px 2px;font-style:italic}
+
+.skrow{background:#fbf3e2;border:2px solid #e0cba4;border-radius:12px;padding:8px 10px;margin:0 0 8px}
+.sk-top{display:flex;align-items:center;gap:10px}.sk-top img{width:32px;height:32px;image-rendering:pixelated}
+.sk-name{flex:1;display:flex;flex-direction:column}.sk-name b{font-size:16px}.sk-name .muted{font-size:12px}
+.sk-lv{font-size:13px;color:#7a5a3a}.sk-lv b{font-size:22px;color:var(--c)}
+.sk-pips{display:flex;gap:3px;margin:6px 0 4px}.sk-pips i{flex:1;height:7px;border-radius:4px;background:#e6d6b8}.sk-pips i.big{height:9px;margin-top:-1px}.sk-pips i.on{background:var(--c)}
+.sk-bar{position:relative;height:16px;border-radius:8px;background:#e6d6b8;overflow:hidden}.sk-bar div{height:100%;background:var(--c);opacity:.55}
+.sk-bar span{position:absolute;inset:0;font-size:11px;line-height:16px;text-align:center;color:#4a3420;font-weight:700}
+.sk-perks{margin:6px 0 0;padding-left:18px;font-size:12.5px;color:#4a3420}.sk-perks li{margin:1px 0}.sk-perks li.got{color:#3f7a2a;font-weight:700;list-style:none;margin-left:-14px}.sk-perks li.nyet{color:#a08a70;list-style:none;margin-left:-14px}
+#lvlup{position:fixed;inset:0;display:none;align-items:center;justify-content:center;z-index:60;pointer-events:none}#lvlup.on{display:flex;pointer-events:auto}
+.lu-card{background:#fbf3e2;border:4px solid var(--c);border-radius:16px;padding:14px 18px;max-width:300px;text-align:center;box-shadow:0 8px 30px rgba(0,0,0,.35);animation:luPop .45s cubic-bezier(.2,1.6,.4,1)}
+.lu-card img{width:48px;height:48px;image-rendering:pixelated}.lu-t{font-size:22px;font-weight:800;color:var(--c);margin:4px 0 6px}
+.lu-card ul{text-align:left;margin:0 0 8px;padding-left:18px;font-size:14px;color:#4a3420}.lu-card li{margin:2px 0}.lu-card li.lu-new{font-weight:800;color:#3f7a2a}
+@keyframes luPop{from{transform:scale(.4);opacity:0}to{transform:scale(1);opacity:1}}

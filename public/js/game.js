@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems(), relicItems(), moreItems());
+Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems(), relicItems(), moreItems()); skillPrices();
 const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1.5, pick: 1.5, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
@@ -134,7 +134,8 @@ async function action() {
   state.energy = Math.max(0, state.energy - cost);
 }
 // energy per swing: axe and pickaxe get 15% lighter with each upgrade; the hoe and watering can work a longer row when upgraded, and each extra tile costs half a point
-function toolCost(tool) {
+function toolCost(tool) { return skillToolCost(tool, toolCost0(tool)) }
+function toolCost0(tool) {
   const lv = toolLv(tool) || 1;
   if (tool === 'axe' || tool === 'pick') return +(TOOL_COST[tool] * Math.pow(.85, lv - 1)).toFixed(2);
   if (tool === 'hoe' || tool === 'can') return TOOL_COST[tool] + (rowLen(tool) - 1) * .5;
@@ -160,7 +161,7 @@ function damage(r, dmg) {
   if (OBJ[o.t].tree) { sfx.chop(); leaves(cx, cy - 1.2, 6) } else if (o.t === 'stump' || o.t === 'twig') { sfx.chop(); chips(cx, cy, '#a0703f', 4) }
   else if (o.t === 'rock' || o.t === 'boulder' || o.t === 'rubble') { sfx.rock(); chips(cx, cy, '#9a978f', 5) } else if (o.t === 'boards') { sfx.chop(); chips(cx, cy, '#b8784a', 6) } else if (o.t === 'node') { sfx.rock(); chips(cx, cy, NODE_CHIP[o.k], 6) } else { chips(cx, cy, '#5aa83a', 6) }
   if (o.hp > 0) return;
-  World.place(x, y, null); markBare(x, y);
+  World.place(x, y, null); markBare(x, y); skillBreak(o, cx, cy);
   switch (o.t) {
     case 'oak': case 'olive': World.place(x, y, { t: 'stump', hp: 3 }); falling.push({ o, x, y, t: 0, side: player.x < cx ? 1 : -1 }); sfx.fall(); state.stats.chopped++; break;
     case 'stump': drop('wood', ri(2, 3), cx, cy); break;
@@ -316,6 +317,7 @@ function renderMenu(tab) {
     b.innerHTML = h;
     b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { const i = +el.dataset.i; sfx.tap(); if (bagSel === null || bagSel === i) { bagSel = bagSel === i ? null : i } else { const t = state.inv[i]; state.inv[i] = state.inv[bagSel]; state.inv[bagSel] = t; bagSel = null } renderMenu('bag') });
   } else if (tab === 'people') { peopleTab(b);
+  } else if (tab === 'skills') { skillsTab(b);
   } else if (tab === 'book') { collectionTab(b);
   } else if (tab === 'map') { mapTab(b);
   } else if (tab === 'farm') {
@@ -422,7 +424,7 @@ function update(dt) {
   GT += dt;
   for (const p of parts) { p.life -= dt; p.vz -= (p.leaf ? 1.5 : 9) * dt; p.z += p.vz * dt; p.x += p.vx * dt; p.y += p.vy * dt; if (p.z < 0) { p.z = 0; p.vx *= .5; p.vy *= .5; p.vz = 0 } if (p.leaf) p.vx = Math.sin(GT * 3 + p.y * 9) * .6 }
   parts = parts.filter(p => p.life > 0);
-  for (const f of falling) f.t += dt; for (const f of falling) if (f.t > .9 && !f.done) { f.done = 1; drop('wood', ri(6, 9), f.x + .5 + f.side * 1.2, f.y); leaves(f.x + .5 + f.side * 1.4, f.y, 10); sfx.rock() } falling = falling.filter(f => f.t < 1.3);
+  for (const f of falling) f.t += dt; for (const f of falling) if (f.t > .9 && !f.done) { f.done = 1; drop('wood', ri(6, 9) + treeWood(), f.x + .5 + f.side * 1.2, f.y); leaves(f.x + .5 + f.side * 1.4, f.y, 10); sfx.rock() } falling = falling.filter(f => f.t < 1.3);
   for (const n of notes) { n.t -= dt; if (n.t <= 0 && !n.gone) { n.gone = 1; n.el.classList.add('out'); setTimeout(() => n.el.remove(), 400) } } notes = notes.filter(n => !n.gone || n.t > -1);
   birdT -= dt; if (birdT <= 0 && state && state.time < 18 * 60 && !isInside() && World.cur !== 'mine') { birdT = rnd(6, 14); const dir = Math.random() < .5 ? 1 : -1; birds.push({ x: camX / 16 + (dir > 0 ? -2 : viewW / 16 + 2), y: camY / 16 + rnd(1, 6), dir, t: 0 }); sfx.bird() }
   for (const b of birds) { b.t += dt; b.x += b.dir * 3.2 * dt; b.y += Math.sin(b.t * 2) * .3 * dt } birds = birds.filter(b => b.t < 12);

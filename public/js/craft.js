@@ -227,7 +227,7 @@ function craftDesc(r) {
 }
 function doCraft(id, times) {
   const r = RECIPES.find(q => q.id === id); let made = 0;
-  for (let k = 0; k < times; k++) { if (!canMake(r) || !roomFor(id)) break; for (const [i, n] of Object.entries(r.need)) takeN(i, n); addItem(id, r.n); made++ }
+  for (let k = 0; k < times; k++) { if (!canMake(r) || !roomFor(id)) break; for (const [i, n] of Object.entries(r.need)) takeN(i, n); const ex = craftExtra() ? 1 : 0; addItem(id, r.n + ex); made++; gainXP('craft', Math.min(30, 3 + Math.round(Object.values(r.need).reduce((a, b) => a + b, 0) * .3))); if (ex) toast('Skilled hands! You made an extra one.') }
   if (!made) { toast('You can’t make that right now.'); sfx.no(); return }
   delete (state.newRec || {})[id]; state.stats.crafted = (state.stats.crafted || 0) + made;
   sfx.chop(); setTimeout(() => sfx.pick(), 160); note(id, r.n * made); renderCraft(); updateHUD(); save();
@@ -297,7 +297,7 @@ async function machineAction(r) {
     if (machReady(o)) {
       const flowers = nearDecor(r.x, r.y, 4, ['flowerpot', 'planter']), n = flowers ? 2 : 1;
       if (!roomFor('honey')) { toast('Your bag is full.'); sfx.no(); return }
-      addItem('honey', n); note('honey', n); sfx.pick(); o.ready = nowMin() - state.time + 360 + 4 * 1440; updateHUD(); save(); return;
+      addItem('honey', n); note('honey', n); gainXP('craft', 8); sfx.pick(); o.ready = nowMin() - state.time + 360 + 4 * 1440; updateHUD(); save(); return;
     }
     const msg = state.season === 3 ? 'The bees are resting for the winter. They’ll make honey again in spring.' : `The bees are busy. Honey will be ready ${timeLeft(o.ready - nowMin())}.`;
     const v = await say(msg, [['Pick it up', 1], ['OK', 0]]); if (v) pickUp(r, id); return;
@@ -305,7 +305,7 @@ async function machineAction(r) {
   if (o.out) {
     if (!machReady(o)) { say(`The ${M.n.toLowerCase()} is making ${ITEMS[o.out].n.toLowerCase()}. It will be ready ${timeLeft(o.ready - nowMin())}.`); return }
     if (!roomFor(o.out)) { toast('Your bag is full.'); sfx.no(); return }
-    addItem(o.out, o.n); note(o.out, o.n); sfx.pick(); state.stats.made = (state.stats.made || 0) + o.n; delete o.out; delete o.n; delete o.ready; save(); return;
+    const ex = machExtra() ? 1 : 0; if (ex) { o.n += 1; toast('A little extra this time!') } addItem(o.out, o.n); note(o.out, o.n); gainXP('craft', Math.min(25, 3 + Math.round((ITEMS[o.out].price || 0) * .05))); sfx.pick(); state.stats.made = (state.stats.made || 0) + o.n; delete o.out; delete o.n; delete o.ready; save(); return;
   }
   const s = selItem(), spec = s && M.proc(s.id);
   if (spec) {
@@ -313,7 +313,7 @@ async function machineAction(r) {
     if (s.n < use && count(s.id) < use) { toast(`You need ${use} ${ITEMS[s.id].n.toLowerCase()}.`); sfx.no(); return }
     for (const [e, n] of Object.entries(extra)) if (count(e) < n) { toast(`You also need ${n} ${ITEMS[e].n.toLowerCase()}.`); sfx.no(); return }
     takeItem(s.id, use); for (const [e, n] of Object.entries(extra)) takeItem(e, n);
-    o.out = spec.out; o.n = spec.n; o.ready = nowMin() + spec.min; sfx.dig(); toast(`${M.n}: making ${ITEMS[spec.out].n.toLowerCase()}. Ready ${timeLeft(spec.min)}.`); updateHUD(); save(); return;
+    o.out = spec.out; o.n = spec.n; o.ready = nowMin() + Math.round(spec.min * machSpeed()); sfx.dig(); toast(`${M.n}: making ${ITEMS[spec.out].n.toLowerCase()}. Ready ${timeLeft(Math.round(spec.min * machSpeed()))}.`); updateHUD(); save(); return;
   }
   const v = await say(`${M.n}. ${M.hint} Select it in your bag, then tap the ${M.n.toLowerCase()}.`, [['Pick it up', 1], ['OK', 0]]); if (v) pickUp(r, id);
 }

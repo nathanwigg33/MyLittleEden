@@ -88,7 +88,7 @@ function renderMarket() {
   b.innerHTML = h;
   b.querySelectorAll('.stab').forEach(el => el.onclick = () => { marketTab = el.dataset.tab; sfx.tap(); renderMarket() });
   b.querySelectorAll('[data-bag]').forEach(el => el.onclick = () => buyBag(+el.dataset.bag));
-  b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n; if (!seedForSale(k)) return; const cost = CROPS[k].seed * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
+  b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n; if (!seedForSale(k)) return; const cost = seedPrice(k) * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
   b.querySelectorAll('[data-sell]').forEach(el => el.onclick = () => { const i = +el.dataset.sell, s = state.inv[i]; if (!s) return; const n = Math.min(+el.dataset.n, s.n); state.money += n * ITEMS[s.id].price; state.stats.earned = (state.stats.earned || 0) + n * ITEMS[s.id].price; s.n -= n; if (s.n <= 0) state.inv[i] = null; tone(988, .06, 'square', .025); tone(1318, .08, 'square', .02, .06); renderMarket() });
 }
 function openSmithy() { if (!shopOpen('smithy')) { say(closedMsg('smithy')); return } openShopModal("Jesse’s Forge", renderSmithy) }
@@ -108,7 +108,7 @@ function renderSmithy() {
   } else {
     h += `<p class="muted" style="margin:2px 0 8px">“Five ore and one lump of coal make a bar, plus a little for my fire. Bring me what you dig up on Mount Sinai.” You have ${count('ore_coal')} coal.</p>`;
     for (const bar in SMELT) {
-      const ore = SMELT[bar], have = count(ore), fee = SMELT_FEE[bar], can = Math.min(Math.floor(have / 5), count('ore_coal'), Math.floor(state.money / fee));
+      const ore = SMELT[bar], have = count(ore), fee = smeltFee(bar), can = Math.min(Math.floor(have / 5), count('ore_coal'), Math.floor(state.money / fee));
       h += `<div class="shoprow"><img src="${iconURL(bar)}"><div class="si"><b>${ITEMS[bar].n}</b><div class="req"><span class="${have >= 5 ? 'ok' : 'no'}">5 ${ITEMS[ore].n.toLowerCase()} (${have})</span> · <span class="${count('ore_coal') >= 1 ? 'ok' : 'no'}">1 coal</span> · <span class="${state.money >= fee ? 'ok' : 'no'}">₪${fee}</span></div><div class="muted">Sells for ₪${ITEMS[bar].price}</div></div><div class="sb"><button class="btn" data-smelt="${bar}" data-n="1" ${can >= 1 ? '' : 'disabled'}>Smelt</button>${can > 1 ? `<button class="btn alt" data-smelt="${bar}" data-n="${can}">All (${can})</button>` : ''}</div></div>`;
     }
   }
@@ -123,7 +123,7 @@ function renderSmithy() {
     sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => toast(`Jesse takes your ${ITEMS[id].n.toLowerCase()}. It’ll be ready tomorrow morning.`), 380); renderSmithy(); renderHotbar(); updateHUD(); save();
   });
   b.querySelectorAll('[data-smelt]').forEach(el => el.onclick = () => {
-    const bar = el.dataset.smelt, ore = SMELT[bar], fee = SMELT_FEE[bar], n = Math.min(+el.dataset.n, Math.floor(count(ore) / 5), count('ore_coal'), Math.floor(state.money / fee)); if (n < 1) return;
+    const bar = el.dataset.smelt, ore = SMELT[bar], fee = smeltFee(bar), n = Math.min(+el.dataset.n, Math.floor(count(ore) / 5), count('ore_coal'), Math.floor(state.money / fee)); if (n < 1) return;
     takeItem(ore, n * 5); takeItem('ore_coal', n); state.money -= fee * n; const left = addItem(bar, n); if (left) drop(bar, left, player.x, player.y + .5);
     sfx.rock(); setTimeout(() => sfx.splash(), 200); setTimeout(() => { sfx.pick(); toast(`Jesse smelted ${n} ${ITEMS[bar].n.toLowerCase()}${n > 1 ? 's' : ''}!`) }, 420); renderSmithy(); updateHUD(); save();
   });

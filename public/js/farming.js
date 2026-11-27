@@ -74,7 +74,7 @@ function plant(c, slot) {
 function harvest(c) {
   const s = soilAt(c.x, c.y), cr = s.c; s.c = null; delete s.f; delete s.fp;
   if (cr.dead) { chips(c.x + .5, c.y + .6, '#8a6a3a', 6); sfx.swish(); return }
-  drop(cr.id, Math.random() < .12 ? 2 : 1, c.x + .5, c.y + .6); sfx.pop(); leaves(c.x + .5, c.y + .3, 4);
+  drop(cr.id, Math.random() < farmDouble() ? 2 : 1, c.x + .5, c.y + .6); gainXP('farm', cropXP(cr.id)); sfx.pop(); leaves(c.x + .5, c.y + .3, 4);
   state.stats.harvested = (state.stats.harvested || 0) + 1;
 }
 // overnight: watered crops grow a day; crops out of season wither; everything dries out
@@ -153,11 +153,11 @@ function renderShop() {
   for (const k in CROPS) {
     if (CROPS[k].un) continue;   // the cart only carries the basic seeds; the rest are at Tobiah's market
     const c = CROPS[k], inS = c.seasons.includes(state.season), id = 'seed_' + k;
-    h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
+    h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${seedPrice(k)}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= seedPrice(k) ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= seedPrice(k) * 5 ? '' : 'disabled'}>+5</button></div></div>`;
   }
   b.innerHTML = h;
   b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => {
-    const k = el.dataset.buy, n = +el.dataset.n, cost = CROPS[k].seed * n; if (state.money < cost) { sfx.no(); return }
+    const k = el.dataset.buy, n = +el.dataset.n, cost = seedPrice(k) * n; if (state.money < cost) { sfx.no(); return }
     if (addItem('seed_' + k, n)) { toast('Your bag is full.'); sfx.no(); return }
     state.money -= cost; sfx.pick(); renderShop();
   });

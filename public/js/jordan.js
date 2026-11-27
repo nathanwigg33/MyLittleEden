@@ -228,11 +228,11 @@ function startFishing() {
   let side = 0, c = ns ? lineSpotNS(ns) : null, dir = c ? ns : null;
   if (!c) { const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)]; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } } }
   if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
-  if (state.energy < FISH_COST) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
+  if (state.energy < fishCost()) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
   const where = fishWhere(c);
   if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here in the deep sea. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
-  state.energy -= FISH_COST; if (!dir) { player.side = side; player.dir = side < 0 ? 'l' : 'r' }
-  const bait = count('bait') > 0; if (bait) takeItem('bait', 1);
+  state.energy -= fishCost(); if (!dir) { player.side = side; player.dir = side < 0 ? 'l' : 'r' }
+  const bait = count('bait') > 0; if (bait && !keepBait()) takeItem('bait', 1);
   fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, dir, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
 }
 function stopFishing() { fishing = null; for (const id of ['#fishgame', '#catchpop']) { const el = $(id); if (el) el.remove() } return true }
@@ -265,7 +265,7 @@ function ripple(x, y) { for (let k = 0; k < 7; k++) parts.push({ x: x + rnd(-.2,
 // the reeling game: a hook swings along a bar; tap when it's over the green
 function startReel() {
   const f = fishing, d = FISH[f.fish].diff; f.phase = 'game'; f.t = 0;
-  f.game = { pos: 0, dir: 1, speed: .7 + d * .28, zone: Math.max(.12, .36 - d * .05) + RODS[rodLv()].zone, need: d <= 1 ? 1 : d <= 3 ? 2 : 3, hits: 0, miss: 0, zc: rnd(.25, .75) };
+  f.game = { pos: 0, dir: 1, speed: .7 + d * .28, zone: Math.max(.12, .36 - d * .05) + RODS[rodLv()].zone + fishZone(), need: d <= 1 ? 1 : d <= 3 ? 2 : 3, hits: 0, miss: 0, zc: rnd(.25, .75) };
   const el = document.createElement('div'); el.id = 'fishgame';
   el.innerHTML = `<div class="fg-card"><div class="fg-title">A bite! Reel it in!</div><div class="fg-bar"><div class="fg-zone"></div><div class="fg-needle"></div></div><div class="fg-pips">${'<i></i>'.repeat(f.game.need)}</div><div class="fg-hint">Tap when the hook is in the green</div></div>`;
   el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); reelTap() });
@@ -294,7 +294,7 @@ function reelTap() {
 function catchIt() {
   const f = fishing, k = f.fish, d = FISH[k]; f.phase = 'caught'; f.t = 0; sfx.pick();
   f.lb = d.lb ? Math.round(rnd(d.lb[0], d.lb[1]) * (d.lb[1] < 1 ? 100 : 10)) / (d.lb[1] < 1 ? 100 : 10) : 0;
-  const left = addItem('fish_' + k, 1); if (left) drop('fish_' + k, 1, player.x, player.y + .4);
+  const two = !d.junk && doubleCatch(), left = addItem('fish_' + k, two ? 2 : 1); if (left) drop('fish_' + k, left, player.x, player.y + .4); if (two) setTimeout(() => toast('Two at once! You caught a second ' + d.n.toLowerCase() + '.'), 900); gainXP('fish', fishXP(k));
   state.stats.fish = (state.stats.fish || 0) + 1; const log = state.fishLog = state.fishLog || {};
   const cnt = state.fishCount = state.fishCount || {}; if (!d.junk) cnt[k] = (cnt[k] || 0) + 1;
   f.first = !d.junk && !log[k]; f.record = !d.junk && !f.first && f.lb > log[k]; if (!d.junk) log[k] = Math.max(log[k] || 0, f.lb);

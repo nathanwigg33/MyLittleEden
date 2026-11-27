@@ -81,7 +81,7 @@ function marketSeedsHTML() {
   for (const k of inS) {
     const c = CROPS[k], id = 'seed_' + k;
     if (!unl(c.un)) { h += lockRow(id, ITEMS[id].n, c.un); continue }
-    h += `<div class="shoprow"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(q => SEASONS[q]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
+    h += `<div class="shoprow"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(q => SEASONS[q]).join(', ')} · sells ₪ ${ITEMS[k].price}</div></div><div class="sb"><span class="pr">₪ ${seedPrice(k)}</span><button class="btn alt" data-buy="${k}" data-n="1" ${state.money >= seedPrice(k) ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${state.money >= seedPrice(k) * 5 ? '' : 'disabled'}>+5</button></div></div>`;
   }
   const nx = (s + 1) % 4, soon = Object.keys(CROPS).filter(k => CROPS[k].seasons.includes(nx) && !CROPS[k].seasons.includes(s));
   if (soon.length) h += `<p class="muted soon">Coming in ${SEASONS[nx]}: ${soon.map(k => unl(CROPS[k].un) ? CROPS[k].n.toLowerCase() : '???').join(', ')}.</p>`;
@@ -160,7 +160,7 @@ machineAction = async function (r) {
   if (o.k !== 'trap') return _machineAction(r);
   if (o.out) {
     if (!roomFor(o.out)) { toast('Your bag is full.'); sfx.no(); return }
-    const got = o.out; addItem(got, 1); note(got, 1); sfx.splash(); setTimeout(() => sfx.pick(), 150); delete o.out; delete o.n; delete o.ready; updateHUD(); save(); return;
+    const got = o.out; addItem(got, 1); note(got, 1); gainXP('fish', 3); sfx.splash(); setTimeout(() => sfx.pick(), 150); delete o.out; delete o.n; delete o.ready; updateHUD(); save(); return;
   }
   const v = await say('Your fish trap. Nothing inside yet. Check it again tomorrow morning.', [['Pick it up', 1], ['OK', 0]]); if (v) pickUp(r, 'm_trap');
 };
