@@ -140,6 +140,8 @@ const CARP = [
   { id: 'coop', n: 'Chicken Coop', d: 'A home for chickens, west of your tent. Chickens are coming soon.', money: 1500, wood: 100, stone: 30 },
   { id: 'barn', n: 'Barn', d: 'A home for goats, sheep and cattle, east of your tent. Animals are coming soon.', money: 3500, wood: 200, stone: 100 },
 ];
+// things Joseph makes that you carry home and place yourself
+const CARP_ITEMS = [{ id: 'farmwell', d: 'Place it anywhere on your farm and fill your watering can right there. Buy as many as you like.', money: 1000, wood: 10, stone: 30 }];
 function openCarpenter() { if (!shopOpen('carpenter')) { say(closedMsg('carpenter')); return } openShopModal("Joseph’s Workshop", renderCarpenter) }
 function renderCarpenter() {
   const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Build on your farm</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me timber and stone and I’ll have it standing on your farm by the time you get home.”</p>`;
@@ -147,7 +149,16 @@ function renderCarpenter() {
     const done = (state.built || {})[c.id], ok = state.money >= c.money && count('wood') >= c.wood && count('stone') >= c.stone;
     h += `<div class="shoprow"><img class="bimg" src="${bldIcon(c.id)}"><div class="si"><b>${c.n}</b><div class="muted">${c.d}</div>${done ? '<div class="req ok">Built ✓</div>' : `<div class="req"><span class="${state.money >= c.money ? 'ok' : 'no'}">₪ ${c.money.toLocaleString()}</span> · <span class="${count('wood') >= c.wood ? 'ok' : 'no'}">${c.wood} wood</span> · <span class="${count('stone') >= c.stone ? 'ok' : 'no'}">${c.stone} stone</span></div>`}</div>${done ? '' : `<div class="sb"><button class="btn" data-build="${c.id}" ${ok ? '' : 'disabled'}>Build</button></div>`}</div>`;
   }
+  h += `<div class="h3 csub">Things for your farm</div>`;
+  for (const c of CARP_ITEMS) { const ok = state.money >= c.money && count('wood') >= c.wood && count('stone') >= c.stone, it = ITEMS[c.id];
+    h += `<div class="shoprow"><img class="bimg" src="${iconURL(it.icon)}"><div class="si"><b>${it.n}</b><div class="muted">${c.d}</div><div class="req"><span class="${state.money >= c.money ? 'ok' : 'no'}">₪ ${c.money.toLocaleString()}</span> · <span class="${count('wood') >= c.wood ? 'ok' : 'no'}">${c.wood} wood</span> · <span class="${count('stone') >= c.stone ? 'ok' : 'no'}">${c.stone} stone</span></div></div><div class="sb"><button class="btn" data-carpbuy="${c.id}" ${ok ? '' : 'disabled'}>Buy</button></div></div>` }
   b.innerHTML = h;
+  b.querySelectorAll('[data-carpbuy]').forEach(el => el.onclick = () => {
+    const c = CARP_ITEMS.find(q => q.id === el.dataset.carpbuy); if (state.money < c.money || count('wood') < c.wood || count('stone') < c.stone) return;
+    if (!canTake(c.id)) { toast('Your bag is full.'); sfx.no(); return }
+    state.money -= c.money; takeItem('wood', c.wood); takeItem('stone', c.stone); addItem(c.id, 1); note(c.id, 1); sfx.chop(); setTimeout(() => sfx.pick(), 160);
+    toast(`Joseph hands you a ${ITEMS[c.id].n.toLowerCase()}. Select it and face an empty spot on your farm to place it.`); updateHUD(); renderCarpenter(); save();
+  });
   b.querySelectorAll('[data-build]').forEach(el => el.onclick = () => {
     const c = CARP.find(q => q.id === el.dataset.build); if ((state.built || {})[c.id] || state.money < c.money || count('wood') < c.wood || count('stone') < c.stone) return;
     state.money -= c.money; takeItem('wood', c.wood); takeItem('stone', c.stone); (state.built = state.built || {})[c.id] = 1; farmBuild(c.id);

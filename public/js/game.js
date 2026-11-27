@@ -112,7 +112,7 @@ async function action() {
     if (it.o.t === 'sign') { say(it.o.text); return }
     if (it.o.t === 'bin') { openBin(); return }
     if (it.o.t === 'crate' && it.o.camp) { say('An old supply crate. It’s empty except for a few fish bones.'); return }
-    if (it.o.t === 'crate') { openChest(); return }
+    if (it.o.t === 'crate') { openChest(it); return }
     if (it.o.t === 'cart') { openShop(); return }
     if (it.o.t === 'campfire') { say('The campfire crackles. It will keep you warm at night.'); return }
   }
@@ -327,7 +327,12 @@ let binSel = null;
 function openBin() { menuOpen = true; binSel = null; boxMode = 'bin'; $('#binM .ttl').textContent = 'Shipping Bin'; $('#binM').classList.add('on'); sfx.tap(); renderBin() }
 // ---------- storage chest ----------
 let boxMode = 'bin';
-function openChest() { menuOpen = true; boxMode = 'chest'; $('#binM .ttl').textContent = 'Storage Chest'; $('#binM').classList.add('on'); sfx.tap(); renderChest() }
+let chestBox = null;
+function openChest(r) {
+  const key = r && World.cur !== 'farm' ? `${World.cur}:${r.x},${r.y}` : null; state.chests = state.chests || {};
+  chestBox = key ? (state.chests[key] = state.chests[key] || new Array(INV_SIZE).fill(null)) : state.chest;
+  menuOpen = true; boxMode = 'chest'; $('#binM .ttl').textContent = key ? 'Crate' : 'Storage Chest'; $('#binM').classList.add('on'); sfx.tap(); renderChest();
+}
 // move a whole stack from one list to another, joining a matching stack if there is one
 function moveStack(from, i, to) {
   const s = from[i]; if (!s) return false;
@@ -338,10 +343,11 @@ function moveStack(from, i, to) {
 function renderChest() {
   const b = $('#binM .mbody'), slot = (s, attr, i) => `<div class="slot" ${attr}="${i}">${s ? `<img src="${iconURL(ITEMS[s.id].icon)}"><span class="n">${s.n > 1 ? s.n : ''}</span>` : ''}</div>`;
   let h = '<p class="muted" style="margin:0 0 6px">Tap something in your bag to store it. Tap something in the chest to take it back.</p><div class="grid binrow">';
-  state.chest.forEach((s, i) => h += slot(s, 'data-c', i)); h += '</div><div class="h3">Your bag</div><div class="grid">';
+  const box = chestBox || state.chest;
+  box.forEach((s, i) => h += slot(s, 'data-c', i)); h += '</div><div class="h3">Your bag</div><div class="grid">';
   state.inv.forEach((s, i) => h += slot(s, 'data-i', i)); h += '</div>'; b.innerHTML = h;
-  b.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { if (!state.chest[+el.dataset.c]) return; if (moveStack(state.chest, +el.dataset.c, state.inv)) sfx.pick(); else { toast('Your bag is full.'); sfx.no() } renderChest() });
-  b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { if (!state.inv[+el.dataset.i]) return; if (moveStack(state.inv, +el.dataset.i, state.chest)) sfx.pick(); else { toast('The chest is full.'); sfx.no() } renderChest() });
+  b.querySelectorAll('[data-c]').forEach(el => el.onclick = () => { if (!box[+el.dataset.c]) return; if (moveStack(box, +el.dataset.c, state.inv)) sfx.pick(); else { toast('Your bag is full.'); sfx.no() } renderChest() });
+  b.querySelectorAll('[data-i]').forEach(el => el.onclick = () => { if (!state.inv[+el.dataset.i]) return; if (moveStack(state.inv, +el.dataset.i, box)) sfx.pick(); else { toast('The chest is full.'); sfx.no() } renderChest() });
 }
 function closeBin() { menuOpen = false; if (state.sel !== null && !state.inv[state.sel]) state.sel = 0; $('#binM').classList.remove('on'); renderHotbar(); save() }
 function shipFromSlot(i, n) {

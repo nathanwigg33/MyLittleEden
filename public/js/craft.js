@@ -68,7 +68,7 @@ function craftItems() {
     ropeladder: { n: 'Rope Ladder', icon: 'ic_ropeladder', rope: 1, price: 10, d: 'Use it anywhere in the Sinai Caverns to climb straight back out to Mount Sinai.' },
     workbench: { n: 'Workbench', icon: 'ic_workbench', put: { t: 'bench' }, d: 'Your crafting workbench. Place it anywhere on your farm.' },
     chest: { n: 'Chest', icon: 'chest', put: { t: 'chest2' }, d: 'Extra storage. Place it, then tap it to put things in.' },
-    farmwell: { n: 'Well', icon: 'well', put: { t: 'fwell' }, d: 'Fill your watering can right where you need it.' },
+    farmwell: { n: 'Well', icon: 'well_pack', put: { t: 'fwell' }, d: 'Fill your watering can right where you need it.' },
     fence_wood: { n: 'Wood Fence', icon: 'ic_fence_wood', put: { t: 'fence' }, d: 'Fences join up with their neighbors. Chop with your axe to pick one back up.' },
     fence_stone: { n: 'Stone Wall', icon: 'ic_fence_stone', put: { t: 'sfence' }, d: 'A low stone wall. Break with your pickaxe to pick one back up.' },
     gate: { n: 'Gate', icon: 'ic_gate', put: { t: 'gate' }, d: 'Tap it to open and close. Chop with your axe to pick it back up.' },
@@ -399,7 +399,7 @@ function drawCraftObj(g, o, x, y, t) {
     case 'bench': shadow(11); drawWorkbench(g, cx, by, t); break;
     case 'mach': shadow(8); drawMach(g, o.k, cx, by, t, o); if (machReady(o) && !MACH[o.k].reach) drawBubble(g, cx, by - machH(o.k) - 4, MACH[o.k].hive ? 'honey' : o.out, t); break;
     case 'chest2': shadow(7); spr(AT.chest[0], 0); break;
-    case 'fwell': shadow(10); spr(AT.well[0], 1); if (AT.bucket) g.drawImage(AT.bucket[0], cx + 5, by - 12); break;
+    case 'fwell': shadow(10); spr(AT.well_pack[0], 1); if (AT.bucket) g.drawImage(AT.bucket[0], cx + 6, by - 10); break;
     case 'fence': case 'gate': case 'sfence': if (typeof player !== 'undefined' && Math.abs(player.x - x - .5) < 1.2 && player.y > y - .95 && player.y < y + .35) g.globalAlpha = .45;
       if (o.t === 'sfence') { drawWall(); g.globalAlpha = 1; break } {
       const L = fenceAt(x - 1, y, 'fence', 'gate'), Rt = fenceAt(x + 1, y, 'fence', 'gate'), D = fenceAt(x, y + 1, 'fence', 'gate'), U = fenceAt(x, y - 1, 'fence', 'gate');
