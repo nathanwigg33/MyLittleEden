@@ -1,7 +1,7 @@
 // My Little Promise Land — the game: player, tools, time, HUD, input, saving, main loop.
 'use strict';
 const SAVE_KEY = 'mlpl_save_v1';
-const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'], WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sabbath'], DAYS_PER_SEASON = 12;
+const SEASONS = ['Spring', 'Summer', 'Autumn', 'Winter'], WEEK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sabbath'], DAYS_PER_SEASON = 18;
 const ITEMS = {
   axe: { n: 'Axe', icon: 'ic_axe', tool: 'axe', d: 'Chops trees, stumps and branches.' },
   pick: { n: 'Pickaxe', icon: 'ic_pick', tool: 'pick', d: 'Breaks stones and boulders.' },
@@ -11,7 +11,7 @@ const ITEMS = {
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
 Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems(), relicItems());
-const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1, pick: 1, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
+const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1.5, pick: 1.5, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
 let state = null, player = null, look = null, drops = [], parts = [], notes = [], falling = [], birds = [];
@@ -125,13 +125,20 @@ async function action() {
   if (item && item.seed) { const c = findCell(canPlant); if (c) { faceToward(c.x, c.y); plant(c, state.sel) } else { toast('Plant seeds in soil you have dug with the hoe.'); sfx.no() } return }
   const tool = item && item.tool; if (!tool) { sfx.no(); return }
   if (tool === 'rod') { startFishing(); return }
-  let cell = null, cost = TOOL_COST[tool];
+  let cell = null, cost = toolCost(tool);
   if (tool === 'hoe' || tool === 'can') { cell = toolCell(item); if (tool === 'can' && cell && isWater(cell.x, cell.y)) cost = 0 }
   if (state.energy < cost) { toast('Too tired… go to your tent and sleep.'); sfx.no(); return }
   if (player.dir === 'l' || player.dir === 'r') player.side = player.dir === 'l' ? -1 : 1;
   const anim = TOOL_ANIM[tool], n = ATMETA.char.counts[anim];
   player.act = { anim, t: 0, dur: n / (TOOL_SPEED[anim] || 16), hitAt: tool === 'scythe' ? .3 : tool === 'can' ? .4 : .55, hit: false, tool, cell };
   state.energy = Math.max(0, state.energy - cost);
+}
+// energy per swing: axe and pickaxe get 15% lighter with each upgrade; the hoe and watering can work a longer row when upgraded, and each extra tile costs half a point
+function toolCost(tool) {
+  const lv = toolLv(tool) || 1;
+  if (tool === 'axe' || tool === 'pick') return +(TOOL_COST[tool] * Math.pow(.85, lv - 1)).toFixed(2);
+  if (tool === 'hoe' || tool === 'can') return TOOL_COST[tool] + (rowLen(tool) - 1) * .5;
+  return TOOL_COST[tool] || 0;
 }
 function hit(tool, act) {
   const [rdx, rdy] = faceVec(), row = c => Array.from({ length: rowLen(tool) }, (_, k) => ({ x: c.x + rdx * k, y: c.y + rdy * k }));

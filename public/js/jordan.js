@@ -202,6 +202,7 @@ let fishing = null;
 const isNight = () => state.time >= 18 * 60 || state.time < 5 * 60;
 // the fishing animations draw the line themselves; it always lands this far from your feet (pixels), to the side you face
 const LINE_END = [29.5, 21];
+const FISH_COST = 5;   // each cast (Stardew's 8 out of 270, scaled to our 150 max)
 function lineSpot(side) {
   const wx = player.x + side * LINE_END[0] / 16, wy = player.y + LINE_END[1] / 16, x = Math.floor(wx), y = Math.floor(wy);
   if (!inb(x, y)) return null; const o = World.objs[idx(x, y)];
@@ -225,10 +226,10 @@ function startFishing() {
   let side = 0, c = ns ? lineSpotNS(ns) : null, dir = c ? ns : null;
   if (!c) { const pref = player.dir === 'l' ? [-1] : player.dir === 'r' ? [1] : [player.side || 1, -(player.side || 1)]; for (const sd of pref) { c = lineSpot(sd); if (c) { side = sd; break } } }
   if (!c) { toast('Stand at the edge of the water, facing it, to cast.'); sfx.no(); return }
-  if (state.energy < 2) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
+  if (state.energy < FISH_COST) { toast('Too tired to fish… go and sleep.'); sfx.no(); return }
   const where = fishWhere(c);
   if (where === 'sea' && rodLv() < 2) { say('Your line would snap out here in the deep sea. Deep-sea fish need a Sturdy Rod. Peter sells them at the dock.'); sfx.no(); return }
-  state.energy -= 2; if (!dir) { player.side = side; player.dir = side < 0 ? 'l' : 'r' }
+  state.energy -= FISH_COST; if (!dir) { player.side = side; player.dir = side < 0 ? 'l' : 'r' }
   const bait = count('bait') > 0; if (bait) takeItem('bait', 1);
   fishing = { phase: 'cast', t: 0, tx: c.wx, ty: c.wy, dir, where, speed: RODS[rodLv()].bite * (bait ? .5 : 1) }; sfx.swish();
 }
@@ -312,6 +313,12 @@ function closeCatch() { sfx.tap(); stopFishing() }
 // float, splashes, the fish leaping out on the yank, and the "!" (world pixels, drawn with the player)
 function drawFishing(g) {
   const f = fishing; if (!f) return; const p = player, bx = f.tx * 16, by = f.ty * 16;
+  if (!f.dir && ['wait', 'bite', 'game'].includes(f.phase)) {   // facing sideways: the line runs from the rod tip in this exact frame to the bobber
+    const [an, fr] = fishAnim(), L = ATMETA.char.sidetip && ATMETA.char.sidetip[an];
+    if (L) { const tip = L[fr % L.length], x0 = p.x * 16 + tip[0] * (p.side < 0 ? -1 : 1), y0 = p.y * 16 + tip[1], x1 = bx + (f.phase === 'game' ? Math.sin(GT * 9) * 3 : 0), y1 = by + (f.phase === 'bite' ? 2 : 0);
+      g.fillStyle = 'rgba(245,245,245,.9)'; const n = Math.max(4, Math.ceil(Math.hypot(x1 - x0, y1 - y0)));
+      for (let i = 0; i <= n; i++) { const k = i / n, sag = Math.sin(k * Math.PI) * (f.phase === 'game' ? .5 : 3); g.fillRect(Math.round(x0 + (x1 - x0) * k), Math.round(y0 + (y1 - y0) * k + sag), 1, 1) } }
+  }
   if (f.dir) {   // facing up or down the line is drawn here, from the rod tip to the bobber
     const tip = ATMETA.char.rodtip[f.dir], x0 = p.x * 16 + tip[0], y0 = p.y * 16 + tip[1];
     let x1 = bx, y1 = by, show = ['wait', 'bite', 'game'].includes(f.phase);

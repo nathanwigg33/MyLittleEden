@@ -284,7 +284,7 @@ HAIRS = ['short hair', 'long hair', 'curly hair', 'bowl hair', 'mop hair', 'spik
 ANIMS = [('idle_s', 'idle-s'), ('idle_n', 'idle-n'), ('idle', 'idle'), ('walk_s', 'walk-s'), ('walk_n', 'walk-n'), ('walk', 'walk'),
          ('axe', 'axe'), ('mining', 'mining'), ('attack', 'attack'), ('doing', 'doing'), ('watering', 'watering'), ('dig', 'dig'),
          ('casting', 'casting'), ('waiting', 'waiting'), ('reeling', 'reeling'), ('caught', 'caught')]
-CH = {}
+CH = {}; SIDE_TIP = {}
 for key, tag in ANIMS:
     t = TAG[tag]; frames = list(range(t[1], t[2]+1))
     layers = {'body': [], 'toolr': [], 'tool': []}
@@ -292,7 +292,13 @@ for key, tag in ANIMS:
     for f in frames:
         layers['body'].append(fr(f, ('base',)))
         layers['toolr'].append(fr(f, ('tools rear',)))
-        layers['tool'].append(fr(f, ('tools',)))
+        tl = fr(f, ('tools',))
+        if key in ('waiting', 'reeling'):   # take the pack's fishing line off (the game draws it from the rod tip to the bobber) and note where the tip is
+            px = tl.load(); whites = [(x, y) for y in range(tl.height) for x in range(tl.width) if px[x, y][3] and px[x, y][:3] == (255, 255, 255)]
+            for q in whites: px[q] = (0, 0, 0, 0)
+            tx, ty = min(whites, key=lambda q: (q[1], q[0])) if whites else (0, 0)
+            SIDE_TIP.setdefault(key, []).append([tx + .5, ty])
+        layers['tool'].append(tl)
         for h in HAIRS:
             if tag in ('walk-s', 'walk-n') and h != 'bowl hair':
                 src = TAG['idle-s' if tag == 'walk-s' else 'idle-n'][1]
@@ -329,7 +335,8 @@ for key, (layers, n) in NS.items():
 fb = fr(TAG['idle-s'][1], ('base',)).getbbox()
 META['char'] = {'feetX': (fb[0]+fb[2])/2, 'feetY': fb[3], 'anims': CH, 'hairs': [h.split()[0] for h in HAIRS],
                 'counts': dict({k: TAG[t][2]-TAG[t][1]+1 for k, t in ANIMS}, **NS_COUNTS),
-                'rodtip': {d: [x - (fb[0]+fb[2])/2, y - fb[3]] for d, (x, y) in RODTIP.items()}}
+                'rodtip': {d: [x - (fb[0]+fb[2])/2, y - fb[3]] for d, (x, y) in RODTIP.items()},
+                'sidetip': {k: [[x - (fb[0]+fb[2])/2, y - fb[3]] for x, y in v] for k, v in SIDE_TIP.items()}}
 
 # ---------- pack ----------
 items = []
