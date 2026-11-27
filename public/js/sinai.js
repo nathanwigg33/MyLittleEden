@@ -120,7 +120,7 @@ const ORES = {   // node type: how tough it is (rarer ore takes more swings; a b
   silver: { hp: 6, item: 'ore_silver' }, gold: { hp: 8, item: 'ore_gold' }, amethyst: { hp: 6, item: 'ore_amethyst' }, emerald: { hp: 7, item: 'ore_emerald' },
   ruby: { hp: 9, item: 'ore_ruby' }, sapphire: { hp: 10, item: 'ore_sapphire' },
 };
-const MINE_ITEMS = { ore_coal: ['Coal', 15], ore_copper: ['Copper Ore', 20], ore_iron: ['Iron Ore', 35], ore_silver: ['Silver Ore', 60], ore_gold: ['Gold Ore', 110],
+const MINE_ITEMS = { ore_coal: ['Coal', 15], ore_copper: ['Copper Ore', 10], ore_iron: ['Iron Ore', 18], ore_silver: ['Silver Ore', 35], ore_gold: ['Gold Ore', 50],
   ore_amethyst: ['Amethyst', 120], ore_emerald: ['Emerald', 200], ore_ruby: ['Ruby', 260], ore_sapphire: ['Sapphire', 320] };
 function mineItems() { const o = {}; for (const k in MINE_ITEMS) { const [n, price] = MINE_ITEMS[k]; o[k] = { n, icon: k, price, d: `Found in the Sinai Caverns. Sells for ₪${price}.` } } return o }
 function nodeDrop(o, cx, cy) {

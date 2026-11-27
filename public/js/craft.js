@@ -14,7 +14,7 @@ const MACH = {
   qsprinkler: { n: 'Quality Sprinkler', d: 'Waters all 8 soil tiles around it every morning.', reach: 8 },
   beehive: { n: 'Beehive', d: 'Bees make honey every 4 days, except in winter. Flowers nearby double it.', hive: 1 },
   jar: { n: 'Preserves Jar', d: 'Put in any crop. In 2 days it becomes preserves worth double, plus ₪30.', hint: 'Put in any crop.', proc: id => CROPS[id] && { out: 'jar_' + id, n: 1, min: 2 * 1440 } },
-  press: { n: 'Juice Press', d: 'Put in any crop. In 3 days it becomes juice worth three times as much.', hint: 'Put in any crop.', proc: id => CROPS[id] && { out: 'juice_' + id, n: 1, min: 3 * 1440 } },
+  press: { n: 'Juice Press', d: 'Put in any crop. In 4 days it becomes juice worth two and a half times as much.', hint: 'Put in any crop.', proc: id => CROPS[id] && { out: 'juice_' + id, n: 1, min: 4 * 1440 } },
   mill: { n: 'Hand Mill', d: 'Grinds wheat or barley into 2 flour in a couple of hours.', hint: 'Put in wheat or barley.', proc: id => (id === 'wheat' || id === 'barley') && { out: 'flour', n: 2, min: 120 } },
   loom: { n: 'Loom', d: 'Weaves flax into fine linen cloth by the next day.', hint: 'Put in flax.', proc: id => id === 'flax' && { out: 'linen', n: 1, min: 1440 } },
   kiln: { n: 'Charcoal Kiln', d: 'Burns 10 wood down into a lump of coal in a few hours.', hint: 'Put in 10 wood.', proc: id => id === 'wood' && { use: 10, out: 'ore_coal', n: 1, min: 180 } },
@@ -61,7 +61,7 @@ function craftItems() {
   const o = {
     flour: { n: 'Flour', icon: 'ic_flour', price: 30, d: 'Ground from wheat or barley in a hand mill.' },
     honey: { n: 'Honey', icon: 'ic_honey', price: 120, d: 'Sweet golden honey from your beehive.' },
-    linen: { n: 'Linen Cloth', icon: 'ic_linen', price: 260, d: 'Fine cloth woven from flax.' },
+    linen: { n: 'Linen Cloth', icon: 'ic_linen', price: 220, d: 'Fine cloth woven from flax.' },
     fert1: { n: 'Fertilizer', icon: 'ic_fert1', fert: 1, price: 2, d: 'Spread it on tilled soil. Crops there grow about a third faster. Lasts until harvest.' },
     fert2: { n: 'Rich Compost', icon: 'ic_fert2', fert: 2, price: 5, d: 'Spread it on tilled soil. Crops there grow about half again as fast. Lasts until harvest.' },
     cavetorch: { n: 'Cave Torch', icon: 'ic_cavetorch', cavetorch: 1, price: 2, d: 'Place it on the cave floor to light up the Sinai Caverns. Torches stay lit even after you leave. Tap one to pick it back up.' },
@@ -79,7 +79,7 @@ function craftItems() {
   for (const k in CROPS) {
     const c = CROPS[k], nm = (c.sn || c.n);
     o['jar_' + k] = { n: (k === 'melon' || k === 'gourd') ? nm + ' Preserves' : 'Pickled ' + c.n, icon: 'jar_' + k, price: c.sell * 2 + 30, d: `Made in a preserves jar. Sells for ₪${c.sell * 2 + 30}.` };
-    o['juice_' + k] = { n: nm + ' Juice', icon: 'juice_' + k, price: c.sell * 3, d: `Pressed in a juice press. Sells for ₪${c.sell * 3}.` };
+    const jp = Math.round(c.sell * 2.5); o['juice_' + k] = { n: nm + ' Juice', icon: 'juice_' + k, price: jp, d: `Pressed in a juice press. Sells for ₪${jp}.` };
   }
   for (const k in FISH) if (!FISH[k].junk) o['smoked_' + k] = { n: 'Smoked ' + FISH[k].n, icon: 'smoked_' + k, price: FISH[k].price * 2, d: `Smoked over wood. Sells for ₪${FISH[k].price * 2}.` };
   return o;
@@ -90,20 +90,20 @@ function craftItems() {
 const CRAFT_TABS = [['farm', 'Farm'], ['mach', 'Machines'], ['food', 'Food'], ['build', 'Build'], ['decor', 'Decor']];
 const RECIPES = [
   // farm
-  { id: 'fert1', cat: 'farm', n: 5, need: { fiber: 5, any_crop: 1 }, un: ['harvest', 5] },
+  { id: 'fert1', cat: 'farm', n: 3, need: { fiber: 8, any_crop: 1 }, un: ['harvest', 5] },
   { id: 'fert2', cat: 'farm', n: 5, need: { fert1: 5, ore_coal: 1, honey: 1 }, un: ['harvest', 40] },
-  { id: 'm_sprinkler', cat: 'farm', n: 1, need: { bar_copper: 1, stone: 5 }, un: ['harvest', 20] },
-  { id: 'm_qsprinkler', cat: 'farm', n: 1, need: { bar_iron: 1, bar_gold: 1, ore_coal: 2 }, un: ['mine', 4] },
-  { id: 'm_beehive', cat: 'farm', n: 1, need: { wood: 40, fiber: 10, ore_coal: 2 }, un: ['day', 5] },
-  { id: 'farmwell', cat: 'farm', n: 1, need: { stone: 50, wood: 20, bar_copper: 1 }, un: ['heart', 'joseph', 2] },
+  { id: 'm_sprinkler', cat: 'farm', n: 1, need: { bar_copper: 1, bar_iron: 1 }, un: ['harvest', 20] },
+  { id: 'm_qsprinkler', cat: 'farm', n: 1, need: { bar_iron: 1, bar_gold: 1, bar_silver: 1 }, un: ['mine', 4] },
+  { id: 'm_beehive', cat: 'farm', n: 1, need: { wood: 40, ore_coal: 8, bar_iron: 1 }, un: ['day', 5] },
+  { id: 'farmwell', cat: 'farm', n: 1, need: { stone: 75, wood: 20, bar_copper: 1 }, un: ['heart', 'joseph', 2] },
   // machines
-  { id: 'm_jar', cat: 'mach', n: 1, need: { wood: 30, stone: 20, ore_coal: 3 }, un: ['harvest', 10] },
+  { id: 'm_jar', cat: 'mach', n: 1, need: { wood: 50, stone: 40, ore_coal: 8 }, un: ['harvest', 10] },
   { id: 'm_press', cat: 'mach', n: 1, need: { wood: 40, bar_copper: 1, bar_iron: 1 }, un: ['harvest', 30] },
-  { id: 'm_mill', cat: 'mach', n: 1, need: { stone: 40, wood: 20 }, un: ['heart', 'ruth', 2] },
-  { id: 'm_loom', cat: 'mach', n: 1, need: { wood: 50, fiber: 30, bar_iron: 1 }, un: ['day', 14] },
-  { id: 'm_kiln', cat: 'mach', n: 1, need: { wood: 30, stone: 20 }, un: ['mine', 1] },
-  { id: 'm_furnace', cat: 'mach', n: 1, need: { stone: 40, ore_copper: 15, ore_coal: 5 }, un: ['mine', 3] },
-  { id: 'm_smoker', cat: 'mach', n: 1, need: { wood: 40, stone: 20, ore_coal: 5 }, un: ['fish', 10] },
+  { id: 'm_mill', cat: 'mach', n: 1, need: { stone: 60, wood: 40, bar_copper: 1 }, un: ['heart', 'ruth', 2] },
+  { id: 'm_loom', cat: 'mach', n: 1, need: { wood: 60, fiber: 30, bar_iron: 1 }, un: ['day', 14] },
+  { id: 'm_kiln', cat: 'mach', n: 1, need: { wood: 20, stone: 20, bar_copper: 2 }, un: ['mine', 1] },
+  { id: 'm_furnace', cat: 'mach', n: 1, need: { stone: 25, ore_copper: 20 }, un: ['mine', 3] },
+  { id: 'm_smoker', cat: 'mach', n: 1, need: { wood: 50, stone: 30, ore_coal: 5 }, un: ['fish', 10] },
   // food
   { id: 'bread', cat: 'food', sub: 'Meals', n: 1, need: { wheat: 3 }, un: ['start'] },
   { id: 'barley_loaf', cat: 'food', sub: 'Meals', n: 1, need: { barley: 3 }, un: ['start'] },
@@ -116,14 +116,14 @@ const RECIPES = [
   { id: 'honeycake', cat: 'food', sub: 'Meals', n: 1, need: { flour: 2, honey: 1 }, un: ['heart', 'miriam', 3] },
   { id: 'loaves', cat: 'food', sub: 'Meals', n: 1, need: { bread: 5, any_fish: 2 }, un: ['fish', 25] },
   { id: 'cavetorch', cat: 'food', sub: 'Supplies', n: 5, need: { wood: 1, fiber: 1 }, un: ['start'] },
-  { id: 'bait', cat: 'food', sub: 'Supplies', n: 10, need: { fiber: 6 }, un: ['fish', 3] },
-  { id: 'ropeladder', cat: 'food', sub: 'Supplies', n: 1, need: { fiber: 30, wood: 10 }, un: ['mine', 2] },
+  { id: 'bait', cat: 'food', sub: 'Supplies', n: 10, need: { fiber: 10 }, un: ['fish', 3] },
+  { id: 'ropeladder', cat: 'food', sub: 'Supplies', n: 1, need: { fiber: 30, wood: 20 }, un: ['mine', 2] },
   // build
   { id: 'path_wood', cat: 'build', sub: 'Paths', n: 5, need: { wood: 5 }, un: ['start'] },
   { id: 'path_flag', cat: 'build', sub: 'Paths', n: 5, need: { stone: 5 }, un: ['start'] },
   { id: 'path_mat', cat: 'build', sub: 'Paths', n: 5, need: { fiber: 10 }, un: ['day', 3] },
   { id: 'path_cobble', cat: 'build', sub: 'Paths', n: 5, need: { stone: 10 }, un: ['day', 7] },
-  { id: 'fence_wood', cat: 'build', sub: 'Fences', n: 4, need: { wood: 4 }, un: ['start'] },
+  { id: 'fence_wood', cat: 'build', sub: 'Fences', n: 4, need: { wood: 8 }, un: ['start'] },
   { id: 'gate', cat: 'build', sub: 'Fences', n: 1, need: { wood: 10 }, un: ['start'] },
   { id: 'fence_stone', cat: 'build', sub: 'Fences', n: 4, need: { stone: 8 }, un: ['day', 7] },
   { id: 'chest', cat: 'build', sub: 'Storage', n: 1, need: { wood: 50 }, un: ['start'] },

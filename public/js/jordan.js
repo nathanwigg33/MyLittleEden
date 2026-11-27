@@ -169,8 +169,8 @@ const FISH = {
   sandal: { n: 'Old Sandal', price: 3, diff: 0, where: ['pond', 'river', 'shore', 'offshore', 'sea'], w: 1, junk: 1 },
 };
 // rods: Peter sells the better ones · zone = extra width of the green catch zone · bite = how fast fish bite
-const RODS = [null, { n: 'Fishing Rod', zone: 0, bite: 1 }, { n: 'Sturdy Rod', zone: .05, bite: .85, price: 800, fiber: 30, d: 'Strong enough for the deep sea. A wider catch zone, too.' },
-  { n: 'Master Rod', zone: .1, bite: .7, price: 2500, fiber: 60, d: 'Fish bite faster and the catch zone is widest.' }];
+const RODS = [null, { n: 'Fishing Rod', zone: 0, bite: 1 }, { n: 'Sturdy Rod', zone: .05, bite: .85, price: 1800, fiber: 30, d: 'Strong enough for the deep sea. A wider catch zone, too.' },
+  { n: 'Master Rod', zone: .1, bite: .7, price: 6000, fiber: 60, d: 'Fish bite faster and the catch zone is widest.' }];
 const rodLv = () => state.rodLv || 1;
 function fishItems() {
   const o = { rod: { n: 'Fishing Rod', icon: 'ic_rod', tool: 'rod', d: 'Face the water and use it to cast. Wait for a bite, then reel the fish in.' },

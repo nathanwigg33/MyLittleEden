@@ -44,9 +44,9 @@ const CAVES = [null,
     loot: { a: [['ore_sapphire', 2], ['ore_ruby', 2]], b: [['bar_gold', 4], ['money', 1200]], final: [['money', 3000], ['ore_sapphire', 3], ['ore_ruby', 3], ['ore_emerald', 3]] }, fix: { bar: 'bar_gold' } },
 ];
 const caveState = () => (state.caves = state.caves || { max: 0, carts: { 1: 1 }, short: {}, fixed: {}, loot: {}, seen: {} });
-const OB_FIX = { bridge: { need: { wood: 15 }, msg: 'You lay new planks across the river.' }, chasm: { need: { fiber: 25, wood: 10 }, msg: 'You lash a rope bridge across the chasm.' } };
+const OB_FIX = { bridge: { need: { wood: 50 }, msg: 'You lay new planks across the river.' }, chasm: { need: { fiber: 40, wood: 30 }, msg: 'You lash a rope bridge across the chasm.' } };
 const needList = need => Object.entries(need).map(([k, n]) => `${n} ${ITEMS[k].n.toLowerCase()} (you have ${count(k)})`).join(', ');
-const cartFix = sec => ({ wood: 20, stone: 15, [CAVES[sec].fix.bar]: 1 });
+const cartFix = sec => ({ wood: 40, stone: 30, [CAVES[sec].fix.bar]: 1 });
 
 // ---------- building a section (same layout every game; rocks are new each day) ----------
 function linePts(L, S) { const r = S.rooms; return [[r[L.a][0], r[L.a][1]], ...(L.via || []), [r[L.b][0], r[L.b][1]]] }

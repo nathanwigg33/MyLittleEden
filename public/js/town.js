@@ -20,10 +20,12 @@ function eat(slot) {
 // ---------- tool upgrades ----------
 const TOOL_LV = ['', 'Basic', 'Bronze', 'Iron', 'Gold'];
 // each upgrade needs shekels and bars that Jesse smelts from your ore
-const UPGRADES = { 2: { money: 600, bar: 'bar_copper', n: 5 }, 3: { money: 2000, bar: 'bar_iron', n: 5 }, 4: { money: 5000, bar: 'bar_gold', n: 5 } };
+const UPGRADES = { 2: { money: 2000, bar: 'bar_copper', n: 5 }, 3: { money: 5000, bar: 'bar_iron', n: 5 }, 4: { money: 10000, bar: 'bar_gold', n: 5 } };
 // smelting: five ore and a lump of coal make one bar
 const SMELT = { bar_copper: 'ore_copper', bar_iron: 'ore_iron', bar_silver: 'ore_silver', bar_gold: 'ore_gold' };
-const BARS = { bar_copper: ['Copper Bar', 130], bar_iron: ['Iron Bar', 220], bar_silver: ['Silver Bar', 380], bar_gold: ['Gold Bar', 700] };
+const BARS = { bar_copper: ['Copper Bar', 90], bar_iron: ['Iron Bar', 160], bar_silver: ['Silver Bar', 260], bar_gold: ['Gold Bar', 360] };
+// Jesse charges a little for his fire and time
+const SMELT_FEE = { bar_copper: 15, bar_iron: 25, bar_silver: 40, bar_gold: 60 };
 function barItems() { const o = {}; for (const k in BARS) o[k] = { n: BARS[k][0], icon: k, price: BARS[k][1], d: `Smelted by Jesse from five ${ITEMS[SMELT[k]] ? ITEMS[SMELT[k]].n.toLowerCase() : 'ore'} and a lump of coal. Used for tool upgrades and Bezalel’s crafts.` }; return o }
 const UPG_TOOLS = { axe: 'Chops harder: fewer swings per tree.', pick: 'Breaks stone faster: fewer swings per rock.', hoe: 'Digs a longer row with each swing.', can: 'Holds more water and waters a longer row.' };
 const toolLv = id => (state.toolLv || {})[id] || 1;
@@ -38,7 +40,7 @@ function closedMsg(k) { const [a, b, n] = HOURS[k]; return isSabbath() && k !== 
 function openShopModal(title, render) { menuOpen = true; boxMode = 'town'; $('#binM .ttl').textContent = title; $('#binM').classList.add('on'); sfx.tap(); townRender = render; render() }
 let townRender = null, marketTab = 'buy';
 // backpacks: you start with 2 rows, and Tobiah sells bigger ones
-const BAGS = [{ n: 'Small Satchel', slots: 12 }, { n: 'Large Satchel', slots: 18, price: 1000 }, { n: 'Traveler’s Pack', slots: 24, price: 4000 }, { n: 'Merchant’s Pack', slots: 30, price: 12000 }];
+const BAGS = [{ n: 'Small Satchel', slots: 12 }, { n: 'Large Satchel', slots: 18, price: 2000 }, { n: 'Traveler’s Pack', slots: 24, price: 6000 }, { n: 'Merchant’s Pack', slots: 30, price: 15000 }];
 const bagLv = () => state.bag || 0;
 function buyBag(k) {
   const B = BAGS[k]; if (k !== bagLv() + 1 || state.money < B.price) return;
@@ -99,30 +101,32 @@ function renderSmithy() {
   const b = $('#binM .mbody');
   let h = `<div class="binhead"><span>${smithTab === 'upgrade' ? 'Tool upgrades' : 'Smelting'}</span>${money()}</div>` + tabsHTML(smithTab, [['upgrade', 'Upgrade tools'], ['smelt', 'Smelt ore']]);
   if (smithTab === 'upgrade') {
-    h += `<p class="muted" style="margin:2px 0 8px">“Bring me bars and I’ll make your tools stronger. Bronze needs copper bars, iron needs iron bars, and gold needs gold bars.”</p>`;
+    const U = state.upgrading;
+    h += `<p class="muted" style="margin:2px 0 8px">“Bring me bars and I’ll make your tools stronger. Leave the tool with me overnight and it’ll be back in your bag in the morning. One at a time, mind.”</p>`;
     for (const id in UPG_TOOLS) {
       const lv = toolLv(id), nx = UPGRADES[lv + 1];
-      const ok = nx && state.money >= nx.money && count(nx.bar) >= nx.n;
-      h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money.toLocaleString()}</span> · <span class="${count(nx.bar) >= nx.n ? 'ok' : 'no'}">${nx.n} ${ITEMS[nx.bar].n.toLowerCase()}s (${count(nx.bar)})</span></div>` : '<div class="req ok">Fully upgraded ✓</div>'}</div>${nx ? `<div class="sb"><button class="btn" data-up="${id}" ${ok ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
+      const busy = U && U.id === id, ok = nx && !U && state.money >= nx.money && count(nx.bar) >= nx.n;
+      h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money.toLocaleString()}</span> · <span class="${count(nx.bar) >= nx.n ? 'ok' : 'no'}">${nx.n} ${ITEMS[nx.bar].n.toLowerCase()}s (${count(nx.bar)})</span></div>` : '<div class="req ok">Fully upgraded ✓</div>'}</div>${busy ? `<div class="req ok">Jesse is working on it: ready tomorrow morning</div>` : ''}${nx && !busy ? `<div class="sb"><button class="btn" data-up="${id}" ${ok ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
     }
   } else {
-    h += `<p class="muted" style="margin:2px 0 8px">“Five ore and one lump of coal make a bar. Bring me what you dig up on Mount Sinai.” You have ${count('ore_coal')} coal.</p>`;
+    h += `<p class="muted" style="margin:2px 0 8px">“Five ore and one lump of coal make a bar, plus a little for my fire. Bring me what you dig up on Mount Sinai.” You have ${count('ore_coal')} coal.</p>`;
     for (const bar in SMELT) {
-      const ore = SMELT[bar], have = count(ore), can = Math.min(Math.floor(have / 5), count('ore_coal'));
-      h += `<div class="shoprow"><img src="${iconURL(bar)}"><div class="si"><b>${ITEMS[bar].n}</b><div class="req"><span class="${have >= 5 ? 'ok' : 'no'}">5 ${ITEMS[ore].n.toLowerCase()} (${have})</span> · <span class="${count('ore_coal') >= 1 ? 'ok' : 'no'}">1 coal</span></div><div class="muted">Sells for ₪${ITEMS[bar].price}</div></div><div class="sb"><button class="btn" data-smelt="${bar}" data-n="1" ${can >= 1 ? '' : 'disabled'}>Smelt</button>${can > 1 ? `<button class="btn alt" data-smelt="${bar}" data-n="${can}">All (${can})</button>` : ''}</div></div>`;
+      const ore = SMELT[bar], have = count(ore), fee = SMELT_FEE[bar], can = Math.min(Math.floor(have / 5), count('ore_coal'), Math.floor(state.money / fee));
+      h += `<div class="shoprow"><img src="${iconURL(bar)}"><div class="si"><b>${ITEMS[bar].n}</b><div class="req"><span class="${have >= 5 ? 'ok' : 'no'}">5 ${ITEMS[ore].n.toLowerCase()} (${have})</span> · <span class="${count('ore_coal') >= 1 ? 'ok' : 'no'}">1 coal</span> · <span class="${state.money >= fee ? 'ok' : 'no'}">₪${fee}</span></div><div class="muted">Sells for ₪${ITEMS[bar].price}</div></div><div class="sb"><button class="btn" data-smelt="${bar}" data-n="1" ${can >= 1 ? '' : 'disabled'}>Smelt</button>${can > 1 ? `<button class="btn alt" data-smelt="${bar}" data-n="${can}">All (${can})</button>` : ''}</div></div>`;
     }
   }
   b.innerHTML = h;
   b.querySelectorAll('.stab').forEach(el => el.onclick = () => { smithTab = el.dataset.tab; sfx.tap(); renderSmithy() });
   b.querySelectorAll('[data-up]').forEach(el => el.onclick = () => {
-    const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx || state.money < nx.money || count(nx.bar) < nx.n) return;
-    state.money -= nx.money; takeItem(nx.bar, nx.n);
-    (state.toolLv = state.toolLv || {})[id] = toolLv(id) + 1; if (id === 'can') state.can = canMax();
-    sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => { sfx.pick(); toast(`Your ${toolName(id)} is ready!`) }, 380); renderSmithy(); updateHUD(); save();
+    const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx || state.upgrading || state.money < nx.money || count(nx.bar) < nx.n) return;
+    const slot = state.inv.findIndex(s => s && s.id === id); if (slot < 0) { toast(`Bring your ${ITEMS[id].n.toLowerCase()} with you.`); sfx.no(); return }
+    state.money -= nx.money; takeItem(nx.bar, nx.n); state.inv[slot] = null; if (state.sel === slot) state.sel = 0;
+    state.upgrading = { id, lv: toolLv(id) + 1, day: state.totalDay + 1, slot };
+    sfx.rock(); setTimeout(() => sfx.rock(), 180); setTimeout(() => toast(`Jesse takes your ${ITEMS[id].n.toLowerCase()}. It’ll be ready tomorrow morning.`), 380); renderSmithy(); renderHotbar(); updateHUD(); save();
   });
   b.querySelectorAll('[data-smelt]').forEach(el => el.onclick = () => {
-    const bar = el.dataset.smelt, ore = SMELT[bar], n = Math.min(+el.dataset.n, Math.floor(count(ore) / 5), count('ore_coal')); if (n < 1) return;
-    takeItem(ore, n * 5); takeItem('ore_coal', n); const left = addItem(bar, n); if (left) drop(bar, left, player.x, player.y + .5);
+    const bar = el.dataset.smelt, ore = SMELT[bar], fee = SMELT_FEE[bar], n = Math.min(+el.dataset.n, Math.floor(count(ore) / 5), count('ore_coal'), Math.floor(state.money / fee)); if (n < 1) return;
+    takeItem(ore, n * 5); takeItem('ore_coal', n); state.money -= fee * n; const left = addItem(bar, n); if (left) drop(bar, left, player.x, player.y + .5);
     sfx.rock(); setTimeout(() => sfx.splash(), 200); setTimeout(() => { sfx.pick(); toast(`Jesse smelted ${n} ${ITEMS[bar].n.toLowerCase()}${n > 1 ? 's' : ''}!`) }, 420); renderSmithy(); updateHUD(); save();
   });
 }
@@ -136,12 +140,12 @@ function renderInn() {
 }
 // ---------- the carpenter ----------
 const CARP = [
-  { id: 'farmhouse', n: 'Farmhouse', d: 'Replace your tent with a cozy wooden house. Sleeping there gives +30 max energy.', money: 3000, wood: 150, stone: 50 },
-  { id: 'coop', n: 'Chicken Coop', d: 'A home for chickens, west of your tent. Chickens are coming soon.', money: 1500, wood: 100, stone: 30 },
-  { id: 'barn', n: 'Barn', d: 'A home for goats, sheep and cattle, east of your tent. Animals are coming soon.', money: 3500, wood: 200, stone: 100 },
+  { id: 'farmhouse', n: 'Farmhouse', d: 'Replace your tent with a cozy wooden house. Sleeping there gives +30 max energy.', money: 8000, wood: 300, stone: 100 },
+  { id: 'coop', n: 'Chicken Coop', d: 'A home for chickens, west of your tent. Chickens are coming soon.', money: 4000, wood: 300, stone: 100 },
+  { id: 'barn', n: 'Barn', d: 'A home for goats, sheep and cattle, east of your tent. Animals are coming soon.', money: 6000, wood: 350, stone: 150 },
 ];
 // things Joseph makes that you carry home and place yourself
-const CARP_ITEMS = [{ id: 'farmwell', d: 'Place it anywhere on your farm and fill your watering can right there. Buy as many as you like.', money: 1000, wood: 10, stone: 30 }];
+const CARP_ITEMS = [{ id: 'farmwell', d: 'Place it anywhere on your farm and fill your watering can right there. Buy as many as you like.', money: 1000, wood: 20, stone: 75 }];
 function openCarpenter() { if (!shopOpen('carpenter')) { say(closedMsg('carpenter')); return } openShopModal("Joseph’s Workshop", renderCarpenter) }
 function renderCarpenter() {
   const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Build on your farm</span>${money()}</div><p class="muted" style="margin:2px 0 8px">“Bring me timber and stone and I’ll have it standing on your farm by the time you get home.”</p>`;
@@ -190,4 +194,12 @@ async function visitChurch() {
     return;
   }
   await say(`You stand at the pulpit and read the verse for today: “${v[0]}” (${v[1]})`);
+}
+
+// in the morning, the tool Jesse kept overnight comes back upgraded
+function finishUpgrade() {
+  const U = state.upgrading; if (!U || state.totalDay < U.day) return;
+  (state.toolLv = state.toolLv || {})[U.id] = U.lv; state.upgrading = null; if (U.id === 'can') state.can = canMax();
+  if (state.inv[U.slot] == null) state.inv[U.slot] = { id: U.id, n: 1 }; else if (addItem(U.id, 1, true)) state.chest.push({ id: U.id, n: 1 });
+  setTimeout(() => toast(`Jesse finished your ${toolName(U.id)}! It’s back in your bag.`), 1800);
 }

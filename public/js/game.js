@@ -201,7 +201,7 @@ function newDay(passed) {
   state.lastShip = state.bin.map(b => ({ id: b.id, n: b.n, v: b.n * (ITEMS[b.id].price || 0) })); const earned = state.lastShip.reduce((a, b) => a + b.v, 0);
   state.money += earned; state.stats.earned = (state.stats.earned || 0) + earned; state.bin = [];
   const late = state.time; state.totalDay++; state.day++; let newSeason = false; if (state.day > DAYS_PER_SEASON) { state.day = 1; state.season = (state.season + 1) % 4; newSeason = true; if (state.season === 0) state.year++ }
-  state.withered = growNight(newSeason); craftNight();
+  state.withered = growNight(newSeason); craftNight(); finishUpgrade();
   state.time = 360; minuteAcc = 0; state.energy = passed ? Math.round(state.maxE / 2) : (late > 24 * 60 ? Math.round(state.maxE * .8) : state.maxE); state.stats.days++;
   regrowFarm();
   player.x = World.TENT.x + .5; player.y = World.TENT.y + 1.7; player.dir = 's'; drops.forEach(d => { d.x = player.x; d.y = player.y });
