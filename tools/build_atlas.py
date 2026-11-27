@@ -138,12 +138,15 @@ E['tent'] = draw_tent()
 
 # ---------- crops: seeds icon (_00), growth stages (_01.._04), harvest icon (_05) ----------
 CR = A + 'Elements/Crops/'
+import crop_icons as CI
 CROPART = {'wheat': ('wheat', None), 'barley': ('wheat', ((.78, .82, .5), (40, 40, 10))), 'leek': ('parsnip', None), 'garlic': ('cauliflower', None),
            'onion': ('radish', ((.95, .9, .35), (60, 45, 0))), 'radish': ('radish', None), 'cabbage': ('cabbage', None), 'carrot': ('carrot', None),
            'beet': ('beetroot', None), 'coriander': ('kale', None), 'flax': ('sunflower', ((.5, .75, 1.45), (0, 0, 40))),
-           'turnip': ('beetroot', ((1.0, .78, 1.05), (70, 60, 70))), 'mustard': ('kale', ((1.15, 1.05, .45), (30, 30, 0))), 'melon': ('pumpkin', ((.62, 1.05, .55), (0, 12, 0))), 'gourd': ('pumpkin', None)}
+           'turnip': ('beetroot', ((1.0, .78, 1.05), (70, 60, 70))), 'mustard': ('kale', ((1.15, 1.05, .45), (30, 30, 0))), 'melon': ('pumpkin', ((.62, 1.05, .55), (0, 12, 0))), 'gourd': ('pumpkin', None),
+           'cucumber': ('kale', ((.8, 1.1, .7), (10, 20, 0))), 'lentils': ('potato', None), 'fava': ('cauliflower', ((.7, 1.0, .6), (0, 25, 0))), 'saffron': ('sunflower', ((1.0, .6, 1.4), (30, 0, 60)))}
 PACKET = {'wheat': (232, 184, 48), 'barley': (170, 160, 96), 'radish': (204, 58, 72), 'onion': (210, 140, 60), 'leek': (96, 168, 84), 'garlic': (180, 170, 200),
-          'cabbage': (150, 80, 160), 'carrot': (236, 128, 40), 'coriander': (60, 140, 110), 'flax': (80, 120, 210), 'melon': (110, 170, 60), 'beet': (150, 40, 80), 'gourd': (200, 110, 40), 'turnip': (176, 120, 200), 'mustard': (206, 186, 52)}
+          'cabbage': (150, 80, 160), 'carrot': (236, 128, 40), 'coriander': (60, 140, 110), 'flax': (80, 120, 210), 'melon': (110, 170, 60), 'beet': (150, 40, 80), 'gourd': (200, 110, 40), 'turnip': (176, 120, 200), 'mustard': (206, 186, 52),
+          'cucumber': (70, 150, 70), 'lentils': (210, 100, 50), 'fava': (120, 180, 80), 'saffron': (140, 90, 200)}
 def seed_packet(icon, c):
     """a 20x22 paper seed packet with the crop pictured full size on the front, in the crop's own colour"""
     dk = tuple(int(v * .62) for v in c); lt = tuple(min(255, int(v * 1.18 + 20)) for v in c)
@@ -157,6 +160,7 @@ def seed_packet(icon, c):
 for mine, (pk, tn) in CROPART.items():
     fr = [Image.open(CR + f'{pk}_{s:02d}.png').convert('RGBA') for s in range(6)]
     if tn: fr = [tint(fr[0], *tn)] + [tint(f, *tn) if s >= 2 else f for s, f in enumerate(fr[1:], 1)]
+    if mine in CI.ICONS: fr[5] = CI.icon(mine)   # our own harvest icon
     E['seed_' + mine] = seed_packet(fr[5], PACKET[mine]); E['item_' + mine] = fr[5]; E['crop_' + mine] = fr[1:5]
 E['soil_dry'] = Image.open(CR + 'soil_00.png').convert('RGBA'); E['soil_wet'] = Image.open(CR + 'soil_01.png').convert('RGBA')
 

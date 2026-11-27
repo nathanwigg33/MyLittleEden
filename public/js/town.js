@@ -71,11 +71,7 @@ function renderMarket() {
   const b = $('#binM .mbody');
   let h = `<div class="binhead"><span>Tobiah’s stalls</span>${money()}</div>` + tabsHTML(marketTab, [['buy', 'Buy seeds'], ['bags', 'Bags'], ['sell', 'Sell']]);
   if (marketTab === 'buy') {
-    const order = Object.keys(CROPS).sort((p, q) => (CROPS[q].seasons.includes(state.season) - CROPS[p].seasons.includes(state.season)) || CROPS[p].seed - CROPS[q].seed);
-    for (const k of order) {
-      const c = CROPS[k], inS = c.seasons.includes(state.season), id = 'seed_' + k;
-      h += `<div class="shoprow ${inS ? '' : 'off'}"><img src="${iconURL(id)}"><div class="si"><b>${ITEMS[id].n}</b><div class="muted">${c.days} days · ${c.seasons.map(s => SEASONS[s]).join(', ')} · sells ₪ ${c.sell}</div></div><div class="sb"><span class="pr">₪ ${c.seed}</span><button class="btn alt" data-buy="${k}" data-n="1" ${inS && state.money >= c.seed ? '' : 'disabled'}>+1</button><button class="btn" data-buy="${k}" data-n="5" ${inS && state.money >= c.seed * 5 ? '' : 'disabled'}>+5</button></div></div>`;
-    }
+    h += marketSeedsHTML();
   } else if (marketTab === 'bags') {
     const cur = BAGS[bagLv()];
     h += `<p class="muted" style="margin:2px 2px 8px">Your bag: <b>${cur.n}</b>, ${cur.slots} slots (${cur.slots / 6} rows). A bigger bag lets you carry more from the fields, the river and the mines.</p>`;
@@ -92,7 +88,7 @@ function renderMarket() {
   b.innerHTML = h;
   b.querySelectorAll('.stab').forEach(el => el.onclick = () => { marketTab = el.dataset.tab; sfx.tap(); renderMarket() });
   b.querySelectorAll('[data-bag]').forEach(el => el.onclick = () => buyBag(+el.dataset.bag));
-  b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n, cost = CROPS[k].seed * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
+  b.querySelectorAll('[data-buy]').forEach(el => el.onclick = () => { const k = el.dataset.buy, n = +el.dataset.n; if (!seedForSale(k)) return; const cost = CROPS[k].seed * n; if (state.money < cost) return; if (addItem('seed_' + k, n)) { toast('Your bag is full.'); return } state.money -= cost; sfx.pick(); renderMarket() });
   b.querySelectorAll('[data-sell]').forEach(el => el.onclick = () => { const i = +el.dataset.sell, s = state.inv[i]; if (!s) return; const n = Math.min(+el.dataset.n, s.n); state.money += n * ITEMS[s.id].price; state.stats.earned = (state.stats.earned || 0) + n * ITEMS[s.id].price; s.n -= n; if (s.n <= 0) state.inv[i] = null; tone(988, .06, 'square', .025); tone(1318, .08, 'square', .02, .06); renderMarket() });
 }
 function openSmithy() { if (!shopOpen('smithy')) { say(closedMsg('smithy')); return } openShopModal("Jesse’s Forge", renderSmithy) }
@@ -108,6 +104,7 @@ function renderSmithy() {
       const busy = U && U.id === id, ok = nx && !U && state.money >= nx.money && count(nx.bar) >= nx.n;
       h += `<div class="shoprow"><img src="${iconURL(ITEMS[id].icon)}"><div class="si"><b>${toolName(id)}</b><div class="muted">${UPG_TOOLS[id]}</div>${nx ? `<div class="req">Next: ${TOOL_LV[lv + 1]} · <span class="${state.money >= nx.money ? 'ok' : 'no'}">₪ ${nx.money.toLocaleString()}</span> · <span class="${count(nx.bar) >= nx.n ? 'ok' : 'no'}">${nx.n} ${ITEMS[nx.bar].n.toLowerCase()}s (${count(nx.bar)})</span></div>` : '<div class="req ok">Fully upgraded ✓</div>'}</div>${busy ? `<div class="req ok">Jesse is working on it: ready tomorrow morning</div>` : ''}${nx && !busy ? `<div class="sb"><button class="btn" data-up="${id}" ${ok ? '' : 'disabled'}>Upgrade</button></div>` : ''}</div>`;
     }
+    h += `<div class="h3 csub">For the mines</div>` + lanternHTML();
   } else {
     h += `<p class="muted" style="margin:2px 0 8px">“Five ore and one lump of coal make a bar, plus a little for my fire. Bring me what you dig up on Mount Sinai.” You have ${count('ore_coal')} coal.</p>`;
     for (const bar in SMELT) {
@@ -117,6 +114,7 @@ function renderSmithy() {
   }
   b.innerHTML = h;
   b.querySelectorAll('.stab').forEach(el => el.onclick = () => { smithTab = el.dataset.tab; sfx.tap(); renderSmithy() });
+  b.querySelectorAll('[data-lantern]').forEach(el => el.onclick = () => { buyLantern(); renderSmithy() });
   b.querySelectorAll('[data-up]').forEach(el => el.onclick = () => {
     const id = el.dataset.up, nx = UPGRADES[toolLv(id) + 1]; if (!nx || state.upgrading || state.money < nx.money || count(nx.bar) < nx.n) return;
     const slot = state.inv.findIndex(s => s && s.id === id); if (slot < 0) { toast(`Bring your ${ITEMS[id].n.toLowerCase()} with you.`); sfx.no(); return }
@@ -134,9 +132,9 @@ function takeItem(id, n) { for (let i = 0; i < state.inv.length && n > 0; i++) {
 function openInn() { if (!shopOpen('inn')) { say(closedMsg('inn')); return } openShopModal("Miriam’s Inn", renderInn) }
 function renderInn() {
   const b = $('#binM .mbody'); let h = `<div class="binhead"><span>Hot food</span>${money()}</div><p class="muted" style="margin:2px 0 8px">Buy food here and eat it whenever you need energy: select it on your toolbar and press the action button.</p>`;
-  for (const k in FOODS) { const f = FOODS[k]; h += `<div class="shoprow"><img src="${iconURL('ic_' + k)}"><div class="si"><b>${f.n}</b><div class="muted">+${f.e} energy</div></div><div class="sb"><span class="pr">₪ ${f.cost}</span><button class="btn" data-food="${k}" ${state.money >= f.cost ? '' : 'disabled'}>Buy</button></div></div>` }
+  h += innHTML();
   b.innerHTML = h;
-  b.querySelectorAll('[data-food]').forEach(el => el.onclick = () => { const k = el.dataset.food; if (state.money < FOODS[k].cost) return; if (addItem(k, 1)) { toast('Your bag is full.'); return } state.money -= FOODS[k].cost; sfx.pick(); renderInn() });
+  b.querySelectorAll('[data-food]').forEach(el => el.onclick = () => { const k = el.dataset.food; if (!foodForSale(k) || state.money < FOODS[k].cost) return; if (addItem(k, 1)) { toast('Your bag is full.'); return } state.money -= FOODS[k].cost; sfx.pick(); renderInn() });
 }
 // ---------- the carpenter ----------
 const CARP = [
@@ -155,10 +153,11 @@ function renderCarpenter() {
   }
   h += `<div class="h3 csub">Things for your farm</div>`;
   for (const c of CARP_ITEMS) { const ok = state.money >= c.money && count('wood') >= c.wood && count('stone') >= c.stone, it = ITEMS[c.id];
-    h += `<div class="shoprow"><img class="bimg" src="${iconURL(it.icon)}"><div class="si"><b>${it.n}</b><div class="muted">${c.d}</div><div class="req"><span class="${state.money >= c.money ? 'ok' : 'no'}">₪ ${c.money.toLocaleString()}</span> · <span class="${count('wood') >= c.wood ? 'ok' : 'no'}">${c.wood} wood</span> · <span class="${count('stone') >= c.stone ? 'ok' : 'no'}">${c.stone} stone</span></div></div><div class="sb"><button class="btn" data-carpbuy="${c.id}" ${ok ? '' : 'disabled'}>Buy</button></div></div>` }
+    if (!unl(c.un)) { h += lockRow(it.icon, it.n, c.un); continue }
+    h += `<div class="shoprow"><img class="bimg" src="${iconURL(it.icon)}"><div class="si"><b>${it.n}</b><div class="muted">${c.d}</div><div class="req"><span class="${state.money >= c.money ? 'ok' : 'no'}">₪ ${c.money.toLocaleString()}</span>${c.wood ? ` · <span class="${count('wood') >= c.wood ? 'ok' : 'no'}">${c.wood} wood</span>` : ''}${c.stone ? ` · <span class="${count('stone') >= c.stone ? 'ok' : 'no'}">${c.stone} stone</span>` : ''}</div></div><div class="sb"><button class="btn" data-carpbuy="${c.id}" ${ok ? '' : 'disabled'}>Buy</button></div></div>` }
   b.innerHTML = h;
   b.querySelectorAll('[data-carpbuy]').forEach(el => el.onclick = () => {
-    const c = CARP_ITEMS.find(q => q.id === el.dataset.carpbuy); if (state.money < c.money || count('wood') < c.wood || count('stone') < c.stone) return;
+    const c = CARP_ITEMS.find(q => q.id === el.dataset.carpbuy); if (!unl(c.un) || state.money < c.money || count('wood') < c.wood || count('stone') < c.stone) return;
     if (!canTake(c.id)) { toast('Your bag is full.'); sfx.no(); return }
     state.money -= c.money; takeItem('wood', c.wood); takeItem('stone', c.stone); addItem(c.id, 1); note(c.id, 1); sfx.chop(); setTimeout(() => sfx.pick(), 160);
     toast(`Joseph hands you a ${ITEMS[c.id].n.toLowerCase()}. Select it and face an empty spot on your farm to place it.`); updateHUD(); renderCarpenter(); save();

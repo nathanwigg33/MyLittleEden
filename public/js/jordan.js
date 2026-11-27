@@ -175,7 +175,7 @@ const rodLv = () => state.rodLv || 1;
 function fishItems() {
   const o = { rod: { n: 'Fishing Rod', icon: 'ic_rod', tool: 'rod', d: 'Face the water and use it to cast. Wait for a bite, then reel the fish in.' },
     shell: { n: 'Seashell', icon: 'ic_shell', price: 15, d: 'A pretty shell from the island beaches. New ones wash up every day.' },
-    bait: { n: 'Bait Minnows', icon: 'fish_garra', price: 1, d: 'Little minnows. One is used each time you cast, and fish bite twice as fast.' } };
+    bait: { n: 'Bait Minnows', icon: 'ic_bait', price: 1, d: 'Little minnows. One is used each time you cast, and fish bite twice as fast.' } };
   for (const k in FISH) { const f = FISH[k]; o['fish_' + k] = { n: f.n, icon: 'fish_' + k, price: f.price, d: f.junk ? 'Someone lost this a long time ago.' : `Caught in ${f.where.map(w => WHERE[w]).join(' and ')}${f.night ? ' at night' : ''}${f.seasons ? ' in ' + f.seasons.map(i => SEASONS[i]).join(' and ') : ''}. Sells for ₪${f.price}.` } }
   return o;
 }
@@ -190,10 +190,12 @@ function renderTackle() {
     const r = RODS[k], have = lv >= k, ready = lv === k - 1, ok = ready && state.money >= r.price && count('fiber') >= r.fiber;
     h += `<div class="shoprow ${have || ready ? '' : 'off'}"><img src="${iconURL('ic_rod')}"><div class="si"><b>${r.n}</b><div class="muted">${r.d}</div>${have ? '<div class="req ok">You have this ✓</div>' : `<div class="req"><span class="${state.money >= r.price ? 'ok' : 'no'}">₪ ${r.price.toLocaleString()}</span> · <span class="${count('fiber') >= r.fiber ? 'ok' : 'no'}">${r.fiber} fiber</span>${ready ? '' : ' · needs the rod before it'}</div>`}</div>${have ? '' : `<div class="sb"><button class="btn" data-rod="${k}" ${ok ? '' : 'disabled'}>Buy</button></div>`}</div>`;
   }
-  h += `<div class="shoprow"><img src="${iconURL('fish_garra')}"><div class="si"><b>Bait ×10</b><div class="muted">Fish bite twice as fast. One is used each cast. You have ${count('bait')}.</div></div><div class="sb"><span class="price">₪ 30</span><button class="btn alt" data-bait="1" ${state.money >= 30 ? '' : 'disabled'}>Buy</button></div></div>`;
+  h += `<div class="shoprow"><img src="${iconURL('ic_bait')}"><div class="si"><b>Bait ×10</b><div class="muted">Fish bite twice as fast. One is used each cast. You have ${count('bait')}.</div></div><div class="sb"><span class="price">₪ 30</span><button class="btn alt" data-bait="1" ${state.money >= 30 ? '' : 'disabled'}>Buy</button></div></div>`;
+  h += `<div class="h3 csub">Traps</div>` + trapHTML();
   b.innerHTML = h;
   b.querySelectorAll('[data-rod]').forEach(el => el.onclick = () => { const k = +el.dataset.rod, r = RODS[k]; if (rodLv() !== k - 1 || state.money < r.price || count('fiber') < r.fiber) return;
     state.money -= r.price; takeItem('fiber', r.fiber); state.rodLv = k; setRodName(); if (!count('rod')) addItem('rod', 1); sfx.pick(); toast(`You got the ${r.n}!`); renderTackle(); updateHUD(); save() });
+  b.querySelectorAll('[data-trap]').forEach(el => el.onclick = () => { buyTrap(); renderTackle() });
   b.querySelectorAll('[data-bait]').forEach(el => el.onclick = () => { if (state.money < 30) return; if (addItem('bait', 10)) { toast('Your bag is full.'); sfx.no(); return } state.money -= 30; sfx.pick(); renderTackle(); save() });
 }
 

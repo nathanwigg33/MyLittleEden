@@ -10,7 +10,7 @@ const ITEMS = {
   stone: { n: 'Stone', icon: 'ic_stone', price: 2, d: 'For building. Break rocks to get more.' },
   fiber: { n: 'Fiber', icon: 'ic_fiber', price: 1, d: 'Plant fibers from weeds. Used for rope and cloth.' },
 };
-Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems(), relicItems());
+Object.assign(ITEMS, farmItems(), townItems(), fishItems(), mineItems()); Object.assign(ITEMS, barItems(), decorItems(), craftItems(), relicItems(), moreItems());
 const TOOL_ANIM = { axe: 'axe', pick: 'mining', scythe: 'attack', hoe: 'dig', can: 'watering' }, TOOL_COST = { axe: 1.5, pick: 1.5, scythe: 0, hoe: 1, can: 1 }, TOOL_SPEED = { dig: 24, watering: 10 };
 const INV_SIZE = 24, HOTBAR = 8;
 
@@ -558,7 +558,7 @@ function render() {
     const lamp = (wx, wy, r, a) => { const sx = wx * 16 - cx, sy = wy * 16 - cy; const gr = lx.createRadialGradient(sx, sy, 2, sx, sy, r); gr.addColorStop(0, `rgba(0,0,0,${a})`); gr.addColorStop(1, 'rgba(0,0,0,0)'); lx.fillStyle = gr; lx.fillRect(sx - r, sy - r, r * 2, r * 2) };
     for (let y = Math.max(0, y0 - 4); y <= Math.min(H - 1, y1 + 4); y++) for (let x = Math.max(0, x0 - 4); x <= Math.min(W - 1, x1 + 4); x++) { const o = World.objs[idx(x, y)]; if (o && o.t === 'lighthouse') lamp(x + .5, y - 3.4, 90, 1); if (o && o.t === 'decor' && DECOR[o.k].light) lamp(x + .5, y - 1.4, DECOR[o.k].light[0], DECOR[o.k].light[1]); if (o && World.cur === 'mine') caveLight(o, x, y, lamp); if (o && o.t === 'bezstall' && (bezOpen() || state.time >= 18 * 60)) lamp(x + .5, y - 1.6, 70, .95); if (o && o.t === 'mach' && ['kiln', 'furnace', 'smoker'].includes(o.k) && machWorking(o)) lamp(x + .5, y + .3, 44, .85); if (o && o.t === 'ladder_up') lamp(x + .5, y - .5, 46, .8); if (o && o.t === 'node' && ['amethyst', 'emerald', 'ruby', 'sapphire'].includes(o.k)) lamp(x + .5, y + .3, 22, .55); if (o && o.t === 'ifurn' && o.k === 'forge') lamp(x + 1, y + .1, 80, 1); if (o && o.t === 'ifurn' && o.k === 'hearth') lamp(x + 1.5, y + .3, 90, 1); if (o && o.t === 'ifurn' && o.k === 'table') lamp(x + 1.5, y - .2, 34, .7); if (o && o.t === 'ifurn' && (o.k === 'menorah' || o.k === 'lamp' || o.k === 'ark')) lamp(x + .5 + (o.k === 'ark' ? 1 : 0), y - .4, o.k === 'ark' ? 46 : 40, .9); if (o && o.t === 'campfire') lamp(x + .5, y + .2, 70 + Math.sin(GT * 7) * 3, 1); if (o && (o.t === 'tent' || (o.t === 'bld' && o.k === 'farmhouse'))) lamp(x + .5, y + .6, 30, .75); if (o && o.t === 'torch') lamp(x + .5, y - .6, 46 + Math.sin(GT * 8 + x) * 2, .95) }
     if (World.cur === 'sinai') lamp(SINAI.peak[0], SINAI.peak[1], 170, 1);
-    if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? 58 : 34, World.cur === 'mine' ? .9 : .55);
+    if (showPlayer) lamp(player.x, player.y - .5, World.cur === 'mine' ? mineLamp() : 34, World.cur === 'mine' ? .9 : .55);
     ctx.drawImage(light, -ox, -oy, bw * SC, bh * SC);
     if (dark > .3 && World.cur !== 'mine') { ctx.globalCompositeOperation = 'lighter'; for (let k = 0; k < 14; k++) { const fx = (hash(k, 1) * W * 16 + Math.sin(GT * .4 + k) * 20 - cxf) * SC, fy = (hash(k, 2) * H * 16 + Math.cos(GT * .3 + k) * 14 - cyf) * SC; if (fx < 0 || fy < 0 || fx > cv.width || fy > cv.height) continue; ctx.fillStyle = `rgba(255,240,120,${.5 + .5 * Math.sin(GT * 3 + k * 2)})`; ctx.fillRect(Math.round(fx), Math.round(fy), SC, SC) } ctx.globalCompositeOperation = 'source-over' }
   }
@@ -609,7 +609,7 @@ function loop(t) {
 async function boot() {
   cv = $('#c'); ctx = cv.getContext('2d'); buf = mkc(10, 10); bx = buf.getContext('2d'); buf2 = mkc(10, 10); bx2 = buf2.getContext('2d'); light = mkc(10, 10); lx = light.getContext('2d');
   resize(); addEventListener('resize', resize);
-  await loadAtlas(); bakeTerrain(); foodIcons(); makeDecorIcons(); caveIcons(); craftIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
+  await loadAtlas(); bakeTerrain(); foodIcons(); makeDecorIcons(); caveIcons(); craftIcons(); moreIcons(); genTown(); storeMap('town'); genJordan(); storeMap('jordan'); genSea(); storeMap('sea'); genSinai(); storeMap('sinai'); for (const k in ROOMS) { ROOMS[k].gen(); storeMap(k) } genFarm(4242); World.soil = {}; storeMap('farm'); useMap('farm'); initVillagers();
   $('#loading').remove(); setupInput(); showTitle(); requestAnimationFrame(loop);
   try { if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('sw.js').catch(() => { }) } catch (e) { }
   window.PL = { get state() { return state }, get player() { return player }, World, npcs, action, travel, addItem, newDay, save, load, findTarget, get drops() { return drops } };

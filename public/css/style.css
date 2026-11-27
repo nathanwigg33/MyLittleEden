@@ -311,3 +311,7 @@ button{font:inherit;cursor:pointer}
 .rar{font-style:normal;font-size:9px;font-weight:900;letter-spacing:.04em;text-transform:uppercase;padding:1px 5px;border-radius:5px;margin-top:2px;color:#fff}
 .rar.c{background:#8a9a7a}.rar.u{background:#4a8ac0}.rar.r{background:#9a4ac0}.rar.l{background:linear-gradient(90deg,#d89a10,#f0c840);color:#4a2a00}
 .mhead .tabs{gap:3px;min-width:0}.mhead .tabs .tab{flex:1 1 auto;min-width:0;padding:6px 4px;text-align:center;font-size:14px;white-space:nowrap}
+
+.shoprow.slock{background:#ecdcc0}.slock img{filter:grayscale(1);opacity:.45}.slock b{color:#8a7a68}.slock .muted{color:#7a5a3a}
+.slock .lk{display:block;width:16px;height:20px;position:relative}.slock .lk:before{content:'';position:absolute;left:3px;top:0;width:6px;height:7px;border:3px solid #7a5a3a;border-bottom:0;border-radius:6px 6px 0 0}.slock .lk:after{content:'';position:absolute;left:0;top:8px;width:16px;height:11px;background:#7a5a3a;border-radius:2px}
+.muted.soon{margin:8px 2px 2px;font-style:italic}

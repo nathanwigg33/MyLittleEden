@@ -78,7 +78,7 @@ function craftItems() {
   for (const k in MEALS) o[k] = { n: MEALS[k].n, icon: 'ic_' + k, food: MEALS[k].e, price: MEALS[k].price, d: `${MEALS[k].d} Restores ${MEALS[k].e} energy.` };
   for (const k in CROPS) {
     const c = CROPS[k], nm = (c.sn || c.n);
-    o['jar_' + k] = { n: (k === 'melon' || k === 'gourd') ? nm + ' Preserves' : 'Pickled ' + c.n, icon: 'jar_' + k, price: c.sell * 2 + 30, d: `Made in a preserves jar. Sells for ₪${c.sell * 2 + 30}.` };
+    o['jar_' + k] = { n: c.jn || ((k === 'melon' || k === 'gourd') ? nm + ' Preserves' : 'Pickled ' + c.n), icon: 'jar_' + k, price: c.sell * 2 + 30, d: `Made in a preserves jar. Sells for ₪${c.sell * 2 + 30}.` };
     const jp = Math.round(c.sell * 2.5); o['juice_' + k] = { n: nm + ' Juice', icon: 'juice_' + k, price: jp, d: `Pressed in a juice press. Sells for ₪${jp}.` };
   }
   for (const k in FISH) if (!FISH[k].junk) o['smoked_' + k] = { n: 'Smoked ' + FISH[k].n, icon: 'smoked_' + k, price: FISH[k].price * 2, d: `Smoked over wood. Sells for ₪${FISH[k].price * 2}.` };
